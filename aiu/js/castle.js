@@ -1,17 +1,16 @@
-/* AIU TOTEM 3.3 - the castle: Aiu's whole place in one picture (300 x 444, drawn 3x for crisp pixels), like
-   The Elder Scrolls: Castles. The castle stands on a stone terrace and grows UP, floor by floor: 12 rooms (3 across,
-   4 floors) with stone walls and floors between them, a roof or tower on top of each column, mountains and a hillside
-   behind it (the strange creatures wander along the ridge), and a courtyard in front with six spots for the bounty
-   board, the food cart, the well, the outhouse, the shed, the garden, the pond and more.
-   It starts as a seed of four rooms (living room, kitchen, bedroom, bathroom) on the ground floor and the one above,
-   and grows as Aiu grows: build the other eight with tokens, move them, swap them. Each room is one of a kind, and a
-   room needs a room under it. A ladder by the stairs joins the floors and goes down through the front door to the
-   courtyard. The observatory pops up off the roof of the right-hand tower.
-   Aiu lives inside: he goes to the room for what he's doing and does a little animation of his own there (stirring a
-   pot, watering the hydroponics, painting at the easel). He goes out to the courtyard for the stand-up at the board, to
-   cook at the food cart, the I Ching toss, the pet, and the things you built outside (the pond, the garden, the
-   observatory). The layout is the setting 'castle' (synced): { v: 3, rooms: { 'floor,col': type }, orn: { slot: type },
-   obs: true } (floor 0 = the ground floor). */
+/* AIU TOTEM 3.4 - the castle: Aiu's whole place in one picture (320 x 470, drawn 3x for crisp pixels), like
+   The Elder Scrolls: Castles. One big stone shell on a terrace: 12 chambers (3 across, 4 floors) under roofs and
+   battlements, with an elevator up between the first two columns (its tower rises above the roofs, the observatory on
+   top). Mountains and a hillside behind it (the strange creatures wander along the ridge, the windmill stands up there),
+   and a courtyard in front with six spots for the bounty board, the food cart, the well, the outhouse, the shed, the
+   garden, the fountain pond and more.
+   It starts with four furnished rooms (living room, kitchen, bedroom, bathroom); the other chambers are bare stone
+   until you build a room in one, with tokens. Any room can go in any chamber on a floor that's open, and you can move
+   and swap them. The upper floors open as Aiu grows.
+   Aiu lives inside: he goes to the room for what he's doing (riding the elevator between floors) and does a little
+   animation of his own there. He goes out to the courtyard for the stand-up, the food cart, the I Ching toss, the pet,
+   and the things you built outside. The layout is the setting 'castle' (synced): { v: 4, rooms: { 'floor,col': type },
+   orn: { slot: type }, obs: true, mill: true } (floor 0 = the ground floor). */
 (function () {
   'use strict';
   var U = AIU.util, C = AIU.core, A = AIU.art, P = A.P, K = A.prim, R = K.R, px = K.px, spr = K.spr, disc = K.disc, ell = K.ell, tri = K.tri, line = K.line;
@@ -20,15 +19,18 @@
   function app() { return AIU.app; }
   A.CASTLE = true;
 
-  /* ---------- the grid: floor 0 is the ground floor, floors go up ---------- */
-  var W = 300, H = 444, SC = 3, OX = 6, CW = 96, CH = 80, COLS = 3, ROWS = 4, BASE = 398, SURF = 436, SHAFT = OX + CW;
-  var OBS = { x: 0, y: 0, ax: 0, lx: 0, c: -1 }; // the observatory (set up from the layout: on the right-hand tower's roof)
+  /* ---------- the grid: floor 0 is the ground floor, floors go up; the elevator runs up between the first two columns ---------- */
+  var W = 320, H = 470, SC = 3, OX = 6, CW = 96, CH = 80, SW = 20, COLS = 3, ROWS = 4, BASE = 424, SURF = 462;
+  var SHAFT = OX + CW + SW / 2, TOPY = BASE - ROWS * CH, TT = TOPY - 22; // the elevator's middle; the top of the castle; the top of the elevator tower (the observatory's deck)
+  var OBS = { x: SHAFT + 9, y: TT, ax: SHAFT - 6 };
   CS.W = W; CS.H = H; CS.SC = SC;
-  CS.G = { W: W, H: H, OX: OX, BASE: BASE, SURF: SURF, CW: CW, CH: CH, COLS: COLS, ROWS: ROWS, SHAFT: SHAFT, OBS: OBS };
-  function cellRect(r, c) { return { x: OX + c * CW, y: BASE - (r + 1) * CH, w: CW, h: CH }; }
+  CS.G = { W: W, H: H, OX: OX, BASE: BASE, SURF: SURF, CW: CW, CH: CH, SW: SW, COLS: COLS, ROWS: ROWS, SHAFT: SHAFT, OBS: OBS };
+  function colX(c) { return OX + c * CW + (c >= 1 ? SW : 0); }
+  function cellRect(r, c) { return { x: colX(c), y: BASE - (r + 1) * CH, w: CW, h: CH }; }
   function inner(r, c) { var q = cellRect(r, c); return { x: q.x + 2, y: q.y + 2, w: CW - 4, h: CH - 4 }; }
   function floorY(row) { return row === -2 ? OBS.y : row < 0 ? SURF : BASE - row * CH - 9; }
   function rowAt(y) { return Math.floor((BASE - y) / CH); }
+  function colAt(x) { if (x < OX || x >= W - OX + 2) return -1; if (x < OX + CW) return 0; if (x < OX + CW + SW) return -2; return Math.min(COLS - 1, 1 + Math.floor((x - OX - CW - SW) / CW)); } // (-2 = the elevator)
   CS.cellRect = cellRect; CS.floorY = floorY; CS.inner = inner;
 
   /* ---------- what you can build ---------- */
@@ -55,78 +57,62 @@
     shed: { name: 'Tool shed', cost: 40, stage: 1, fun: 1, desc: 'Rakes and shovels.' },
     garden: { name: 'Garden', cost: 60, stage: 1, desc: 'An outdoor vegetable garden (the greenhouse is the indoor one; you can have both). Aiu gardens here.' },
     pond: { name: 'Pond', cost: 70, stage: 2, desc: 'A little pond with reeds and a fish or two. Aiu fishes here.' },
-    windmill: { name: 'Windmill', cost: 90, stage: 2, desc: 'Its sails turn in the wind.' },
+    windmill: { name: 'Windmill', cost: 90, stage: 2, back: 1, desc: 'A windmill up on the hill behind the castle, its sails turning in the wind. (It doesn\'t take a spot in the courtyard.)' },
     statue: { name: 'Aiu statue', cost: 200, stage: 4, desc: 'A stone statue of Aiu, for the grown-up Totem.' }
   };
-  CS.OBS = { name: 'Observatory', cost: 180, stage: 3, desc: 'A little domed telescope that pops up off the castle\'s tower. Aiu stargazes there at night.' };
-  CS.SLOTS = { L1: 22, L2: 52, R1: 160, R2: 198, R3: 235, R4: 272 };
+  CS.OBS = { name: 'Observatory', cost: 180, stage: 3, desc: 'A little domed telescope on top of the elevator tower. Aiu rides up to stargaze at night.' };
+  CS.SLOTS = { L1: 22, L2: 56, R1: 170, R2: 210, R3: 252, R4: 294 };
   CS.SLOT_ORDER = ['L1', 'L2', 'R1', 'R2', 'R3', 'R4'];
-  CS.SEED = { v: 3, rooms: { '0,0': 'living', '0,1': 'kitchen', '1,0': 'bedroom', '1,1': 'bath' }, orn: { L1: 'well', L2: 'board', R1: 'cart' }, obs: false };
+  CS.SEED = { v: 4, rooms: { '0,0': 'living', '0,1': 'kitchen', '1,0': 'bedroom', '1,1': 'bath' }, orn: { L1: 'well', L2: 'board', R1: 'cart' }, obs: false };
   // the ground that's open at each stage: the top two floors from the start, then a floor at Sprout and one at Scout
   CS.open = function (stage, r) { if (r <= 1) return true; if (r === 2) return stage >= 2; return stage >= 3; };
   CS.openNeeds = function (r) { return r <= 1 ? 0 : r === 2 ? 2 : 3; };
 
   /* ---------- the layout (the setting 'castle') ---------- */
   CS.layout = function (S) {
-    var v = S && C.setting(S, 'castle', null), src = v && (v.v === 2 || v.v === 3) && v.rooms ? v : v && v.v === 1 && v.rooms ? fromV1(v) : CS.SEED, out = { rooms: {}, orn: {}, obs: !!src.obs };
+    var v = S && C.setting(S, 'castle', null), src = v && v.v >= 2 && v.rooms ? v : v && v.v === 1 && v.rooms ? fromV1(v) : CS.SEED, out = { rooms: {}, orn: {}, obs: !!src.obs, mill: !!src.mill };
     var seen = {};
     Object.keys(src.rooms || {}).sort().forEach(function (k) { var t = src.rooms[k], m = /^([0-3]),([0-2])$/.exec(k); if (m && CS.ROOMS[t] && !seen[t]) { out.rooms[k] = t; seen[t] = 1; } });
-    var oseen = {}; CS.SLOT_ORDER.forEach(function (sl) { var t = (src.orn || {})[sl]; out.orn[sl] = CS.ORN[t] && !oseen[t] ? t : null; if (out.orn[sl]) oseen[t] = 1; });
+    var oseen = {}; CS.SLOT_ORDER.forEach(function (sl) { var t = (src.orn || {})[sl]; if (t === 'windmill') { out.mill = true; t = null; } out.orn[sl] = CS.ORN[t] && !oseen[t] ? t : null; if (out.orn[sl]) oseen[t] = 1; }); // (3.4: the windmill stands on the hill behind)
     ['living', 'kitchen', 'bedroom', 'bath'].forEach(function (t) { if (!CS.find(out, t)) { var k = freeNear(out); if (k) out.rooms[k] = t; } }); // the four first rooms are always there
     ['board', 'cart'].forEach(function (t) { if (!oseen[t]) { var sl = CS.SLOT_ORDER.filter(function (x) { return !out.orn[x]; })[0]; if (sl) { out.orn[sl] = t; oseen[t] = 1; } } });
-    out.rooms = settle(out.rooms);
+    if (!(v && v.v >= 4)) wellByPond(out.orn); // (3.4: once, for an older castle: the well goes next to the pond)
     return out;
   };
-  function fromV1(v) { // a 3.0 castle (small rooms, 4 x 4): its rooms move into the new grid, each once, next to the others
+  function wellByPond(orn) {
+    var ord = CS.SLOT_ORDER, pi = ord.filter(function (s) { return orn[s] === 'pond'; })[0], wi = ord.filter(function (s) { return orn[s] === 'well'; })[0]; if (!pi || !wi) return;
+    var i = ord.indexOf(pi), j = ord.indexOf(wi); if (Math.abs(i - j) === 1 && ord[i].charAt(0) === ord[j].charAt(0)) return;
+    var spot = [i - 1, i + 1].filter(function (n) { return n >= 0 && n < ord.length && ord[n].charAt(0) === pi.charAt(0); }).sort(function (a, b) { return (orn[ord[a]] ? 1 : 0) - (orn[ord[b]] ? 1 : 0); })[0]; if (spot === undefined) return;
+    var t = orn[ord[spot]]; orn[ord[spot]] = 'well'; orn[wi] = t || null;
+  }
+  CS.wellByPond = wellByPond;
+  function fromV1(v) { // a 3.0 castle (small rooms, 4 x 4): its rooms move into the new grid, each once
     var out = { rooms: Object.assign({}, CS.SEED.rooms), orn: Object.assign({}, v.orn || {}), obs: false }, have = {};
     Object.keys(out.rooms).forEach(function (k) { have[out.rooms[k]] = 1; });
     Object.keys(v.rooms).sort().forEach(function (k) { var t = v.rooms[k] === 'workshop' ? 'garage' : v.rooms[k]; if (!CS.ROOMS[t] || have[t]) return; var f = freeNear(out); if (f) { out.rooms[f] = t; have[t] = 1; } });
     return out;
   }
-  function settle(rooms) { // every room stands on something and joins the others (a 3.1 castle hung down into the ground: it settles onto the terrace)
-    if (supported(rooms) && connected(rooms)) return rooms;
-    var out = {}; for (var c = 0; c < COLS; c++) Object.keys(rooms).filter(function (k) { return rc(k).c === c; }).sort().forEach(function (k, i) { out[i + ',' + c] = rooms[k]; });
-    if (supported(out) && connected(out)) return out;
-    var o2 = { rooms: {} }; Object.keys(rooms).sort().forEach(function (k) { var f = freeNear(o2); if (f) o2.rooms[f] = rooms[k]; }); return o2.rooms;
-  }
   function freeNear(L) { for (var r = 0; r < ROWS; r++) for (var c = 0; c < COLS; c++) { var k = r + ',' + c; if (!L.rooms[k]) return k; } return null; }
   CS.find = function (L, type) { var ks = Object.keys(L.rooms).filter(function (k) { return L.rooms[k] === type; }); return ks[0] || null; };
   CS.has = function (L, type) { return !!CS.find(L, type); };
-  CS.hasOrn = function (L, type) { return CS.SLOT_ORDER.filter(function (sl) { return L.orn[sl] === type; })[0] || null; };
+  CS.hasOrn = function (L, type) { if (type === 'windmill') return L.mill ? 'back' : null; return CS.SLOT_ORDER.filter(function (sl) { return L.orn[sl] === type; })[0] || null; };
   function rc(k) { var p = k.split(','); return { r: +p[0], c: +p[1] }; }
   CS.rc = rc;
-  function neighbors(k) { var p = rc(k), out = []; [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(function (d) { var r = p.r + d[0], c = p.c + d[1]; if (r >= 0 && r < ROWS && c >= 0 && c < COLS) out.push(r + ',' + c); }); return out; }
-  function connected(rooms) { // every room joins up with the entrance (the ground floor on either side of the stairs)
-    var keys = Object.keys(rooms); if (!keys.length) return true;
-    var start = ['0,0', '0,1'].filter(function (k) { return rooms[k]; }); if (!start.length) return false;
-    var seen = {}, q = start.slice(); start.forEach(function (k) { seen[k] = 1; });
-    while (q.length) { var k = q.shift(); neighbors(k).forEach(function (n) { if (rooms[n] && !seen[n]) { seen[n] = 1; q.push(n); } }); }
-    return keys.every(function (k) { return seen[k]; });
-  }
-  function supported(rooms) { return Object.keys(rooms).every(function (k) { var p = rc(k); return p.r === 0 || !!rooms[(p.r - 1) + ',' + p.c]; }); } // nothing floats
-  function topRow(L, c) { var t = -1; Object.keys(L.rooms).forEach(function (k) { var p = rc(k); if (p.c === c) t = Math.max(t, p.r); }); return t; }
-  function topY(L) { var t = BASE - 2 * CH; Object.keys(L.rooms).forEach(function (k) { t = Math.min(t, cellRect(rc(k).r, 0).y); }); return t; }
-  CS.topRow = topRow;
-  CS.canBuildAt = function (L, stage, k) {
-    var p = rc(k); if (L.rooms[k]) return 'taken'; if (!CS.open(stage, p.r)) return 'locked';
-    if (p.r > 0 && !L.rooms[(p.r - 1) + ',' + p.c]) return 'air';
-    if (!neighbors(k).some(function (n) { return L.rooms[n]; }) && k !== '0,0' && k !== '0,1') return 'far'; return '';
-  };
-  CS.canRemove = function (L, k) { var t = L.rooms[k]; if (!t || CS.ROOMS[t].core) return false; var r2 = Object.assign({}, L.rooms); delete r2[k]; return supported(r2) && connected(r2); };
-  CS.canMove = function (L, stage, from, to) {
-    if (from === to || !L.rooms[from]) return false; if (!CS.open(stage, rc(to).r)) return false;
-    var r2 = Object.assign({}, L.rooms); if (r2[to]) { var t = r2[to]; r2[to] = r2[from]; r2[from] = t; } else { r2[to] = r2[from]; delete r2[from]; }
-    return supported(r2) && connected(r2);
-  };
-  CS.save = function (L) { return app().setSetting('castle', { v: 3, rooms: L.rooms, orn: L.orn, obs: !!L.obs }); };
+  function topY() { return TOPY; }
+  // the castle is a shell: every chamber is there from the start, the elevator reaches every floor, so a room can go in
+  // any chamber on a floor that's open (the garage at the top if you like)
+  CS.canBuildAt = function (L, stage, k) { var p = rc(k); if (L.rooms[k]) return 'taken'; if (!CS.open(stage, p.r)) return 'locked'; return ''; };
+  CS.canRemove = function (L, k) { var t = L.rooms[k]; return !!t && !CS.ROOMS[t].core; };
+  CS.canMove = function (L, stage, from, to) { return from !== to && !!L.rooms[from] && CS.open(stage, rc(to).r) && (!L.rooms[to] || CS.open(stage, rc(from).r)); };
+  CS.save = function (L) { var cur = CS.current(); return app().setSetting('castle', { v: 4, rooms: L.rooms, orn: L.orn, obs: L.obs !== undefined ? !!L.obs : !!cur.obs, mill: L.mill !== undefined ? !!L.mill : !!cur.mill }); };
 
   /* ---------- the look of each land ---------- */
   CS.style = function (sc) { if (sc.house === 'cave') return 'cave'; if (sc.biome === 'tundra') return 'ice'; if (sc.biome === 'desert') return 'desert'; return 'stone'; };
   var STY = {
-    stone: { wall: '#a9aebb', wall2: '#7d8294', trim: P.dark, roof: P.red, roof2: P.plum, frame: '#9aa0ad', frame2: '#6f7486', rock: P.slate },
-    ice: { wall: P.white, wall2: '#a9d6e8', trim: P.sky, roof: '#bfe6f5', roof2: P.sky, frame: '#d8eef7', frame2: '#9fcfe3', rock: P.white },
-    desert: { wall: '#e3a76b', wall2: '#b9733f', trim: P.bark, roof: '#f0c27a', roof2: P.orange, frame: '#d99a5e', frame2: '#a8683a', rock: '#a5673a' },
-    cave: { wall: '#6b7390', wall2: '#4b5068', trim: P.ink, roof: P.green, roof2: P.teal, frame: '#6b7390', frame2: '#474c63', rock: '#5b6178' }
+    stone: { wall: '#a9aebb', wall2: '#7d8294', trim: P.dark, roof: P.red, roof2: P.plum, frame: '#9aa0ad', frame2: '#6f7486', rock: P.slate, empty: '#5d6170', empty2: '#4d5160' },
+    ice: { wall: P.white, wall2: '#a9d6e8', trim: P.sky, roof: '#bfe6f5', roof2: P.sky, frame: '#d8eef7', frame2: '#9fcfe3', rock: P.white, empty: '#8fb9cc', empty2: '#7aa6ba' },
+    desert: { wall: '#e3a76b', wall2: '#b9733f', trim: P.bark, roof: '#f0c27a', roof2: P.orange, frame: '#d99a5e', frame2: '#a8683a', rock: '#a5673a', empty: '#9c6a45', empty2: '#86593a' },
+    cave: { wall: '#6b7390', wall2: '#4b5068', trim: P.ink, roof: P.green, roof2: P.teal, frame: '#6b7390', frame2: '#474c63', rock: '#5b6178', empty: '#3e4256', empty2: '#33374a' }
   };
   CS.STY = STY;
 
@@ -418,28 +404,51 @@
     outhouse: function (c, x, sc) { c.save(); c.translate(x - 115, SURF - 50); WF.outhouse(c, Object.assign({}, sc, { house: 'cabin' })); c.restore(); },
     shed: function (c, x, sc) { WF.shed(c, x - 6, SURF, sc); },
     banner: function (c, x, sc) { R(c, x, SURF - 26, 1, 26, P.ink); R(c, x - 1, SURF - 27, 3, 1, P.yellow); var col = sc.accent || P.red, wv = (sc.f || 0) % 8 < 4 ? 0 : 1; R(c, x + 1, SURF - 26, 11, 10, P.ink); R(c, x + 1, SURF - 25, 10, 8, col); R(c, x + 1, SURF - 17 + wv, 4, 2, col); R(c, x + 7, SURF - 17 - wv, 4, 2, col); px(c, x + 5, SURF - 22, P.yellow); },
-    garden: function (c, x, sc) {
-      var winter = sc.season === 'winter' || sc.biome === 'tundra'; box(c, x - 14, SURF - 6, 28, 7, P.bark, P.wood);
-      for (var i = -11; i <= 11; i += 5) { if (winter) { ell(c, x + i, SURF - 6, 2, 1, P.white); continue; } if (sc.season === 'fall') { disc(c, x + i, SURF - 7, 2, P.orange); px(c, x + i, SURF - 10, P.green); continue; } R(c, x + i, SURF - 11, 1, 5, P.green); px(c, x + i - 1, SURF - 9, P.lime); px(c, x + i + 1, SURF - 11, sc.season === 'summer' ? P.red : P.lime); }
-      for (var f = -15; f <= 15; f += 5) R(c, x + f, SURF - 9, 1, 9, P.white); R(c, x - 15, SURF - 7, 31, 1, P.white);
+    garden: function (c, x, sc) { // a raised vegetable bed: a sunflower, tomatoes on a stake, a cabbage (a pumpkin in the fall), carrots, a little sign
+      var y = SURF, winter = sc.season === 'winter' || sc.biome === 'tundra', fall = sc.season === 'fall', ripe = sc.season === 'summer' || fall;
+      if (!winter) {
+        R(c, x - 11, y - 27, 1, 20, P.green); px(c, x - 12, y - 17, P.lime); R(c, x - 13, y - 18, 2, 1, P.green); R(c, x - 10, y - 13, 2, 1, P.green); // the sunflower
+        disc(c, x - 11, y - 29, 4, P.ink); disc(c, x - 11, y - 29, 3, P.yellow); disc(c, x - 11, y - 29, 1, P.bark); px(c, x - 13, y - 31, P.white);
+        R(c, x - 4, y - 22, 1, 15, P.wood); for (var v = 0; v < 6; v++) px(c, x - 5 + (v % 2) * 2, y - 20 + v * 2, P.green); // the tomato stake
+        [[-6, -18], [-3, -15], [-6, -12]].forEach(function (q) { R(c, x + q[0], y + q[1], 2, 2, ripe ? P.red : P.lime); });
+        if (fall) { ell(c, x + 3, y - 10, 4, 3, P.ink); ell(c, x + 3, y - 10, 3, 2, P.orange); R(c, x + 3, y - 14, 1, 2, P.green); } // a pumpkin
+        else { ell(c, x + 3, y - 10, 4, 3, P.ink); ell(c, x + 3, y - 10, 3, 2, P.lime); px(c, x + 2, y - 11, P.green); px(c, x + 4, y - 10, P.green); } // a cabbage
+        [8, 11].forEach(function (u) { px(c, x + u - 1, y - 11, P.green); px(c, x + u, y - 12, P.lime); px(c, x + u + 1, y - 11, P.green); R(c, x + u, y - 9, 1, 2, P.orange); }); // carrot tops
+      }
+      box(c, x - 15, y - 8, 30, 9, P.wood, P.sand, P.bark); R(c, x - 14, y - 8, 28, 2, winter ? P.white : '#5a3d2b'); if (winter) { ell(c, x - 6, y - 9, 6, 2, P.white); ell(c, x + 6, y - 9, 5, 2, P.white); }
+      R(c, x + 15, y - 16, 1, 9, P.bark); box(c, x + 12, y - 20, 9, 6, P.sand); R(c, x + 15, y - 18, 3, 1, P.orange); px(c, x + 18, y - 19, P.green); // the sign (a carrot on it)
     },
-    pond: function (c, x, sc) { var ice = sc.season === 'winter' || sc.biome === 'tundra', col = ice ? [P.silver, P.white] : [P.blue, P.sky]; ell(c, x, SURF - 1, 15, 4, P.ink); ell(c, x, SURF - 1, 14, 3, col[0]); ell(c, x - 3, SURF - 2, 6, 1, col[1]); if (!ice) { R(c, x + 11, SURF - 9, 1, 6, P.green); R(c, x + 13, SURF - 8, 1, 5, P.teal); px(c, x + 11, SURF - 10, P.bark); var k = (sc.f || 0) % 40; if (k < 6) px(c, x - 4 + k, SURF - 2 - (k < 3 ? k : 6 - k), P.orange); } },
-    windmill: function (c, x, sc) {
-      for (var wy = 0; wy < 22; wy++) { var ww = 3 + Math.floor(wy / 4); R(c, x - ww, SURF - 22 + wy, ww * 2, 1, wy % 5 === 4 ? P.bark : P.wood); }
-      R(c, x - 4, SURF - 25, 8, 3, P.red); R(c, x - 2, SURF - 8, 4, 8, P.bark);
-      var a0 = (sc.tsec || 0) * 0.8; for (var i = 0; i < 4; i++) { var an = a0 + i * Math.PI / 2; line(c, x, SURF - 23, Math.round(x + Math.cos(an) * 12), Math.round(SURF - 23 + Math.sin(an) * 12), P.white); }
-      disc(c, x, SURF - 23, 1, P.ink);
+    pond: function (c, x, sc) { // a whimsical fountain pond (after the Fountain of Life in Bosch's Garden of Earthly Delights): mossy rocks, lily pads, a pink fountain with a glassy blue orb
+      var y = SURF, f = sc.f || 0, ice = sc.season === 'winter' || sc.biome === 'tundra', pk = '#f4a6c6', pkD = '#d77aa0', pkL = '#ffd3e4', orb = '#8fd3f4';
+      ell(c, x, y - 3, 20, 6, P.ink); ell(c, x, y - 3, 19, 5, ice ? P.silver : P.blue); ell(c, x - 6, y - 5, 8, 1, ice ? P.white : P.sky); ell(c, x + 7, y - 1, 5, 1, ice ? P.white : '#5aa8e0');
+      if (!ice) { var rp = (f % 30) / 3; c.globalAlpha = 0.6; for (var a1 = 0; a1 < 12; a1++) { var an = a1 / 12 * Math.PI * 2; px(c, Math.round(x + Math.cos(an) * (4 + rp)), Math.round(y - 3 + Math.sin(an) * (1 + rp / 3)), P.white); } c.globalAlpha = 1; } // a ripple from the falling water
+      if (!ice) [[-11, -2], [11, -4]].forEach(function (q, i) { ell(c, x + q[0], y + q[1], 3, 1, P.green); px(c, x + q[0] + 1, y + q[1], P.lime); if (!i) { px(c, x + q[0], y + q[1] - 1, P.pink); px(c, x + q[0] - 1, y + q[1] - 1, P.white); } }); // lily pads, one in bloom
+      for (var i = 0; i < 20; i++) { var w0 = Math.round(2 + 1.5 * Math.sin(i * 0.5) + (i < 3 ? 2 : 0)); R(c, x - w0 - 1, y - 5 - i, 2 * w0 + 3, 1, P.ink); R(c, x - w0, y - 5 - i, 2 * w0 + 1, 1, i % 4 === 0 ? pkD : pk); px(c, x - w0, y - 5 - i, pkL); } // the ribbed pink stem
+      ell(c, x, y - 15, 6, 5, P.ink); ell(c, x, y - 15, 5, 4, pk); ell(c, x - 2, y - 17, 2, 1, pkL); disc(c, x + 1, y - 14, 2, P.navy); px(c, x + 1, y - 14, orb); // the bulb with a hollow and a little orb inside
+      [-1, 1].forEach(function (s0) { line(c, x + s0 * 3, y - 19, x + s0 * 8, y - 22, P.ink); line(c, x + s0 * 3, y - 20, x + s0 * 8, y - 23, pk); disc(c, x + s0 * 9, y - 24, 1, P.ink); px(c, x + s0 * 9, y - 24, orb); }); // two curling arms with tiny orbs
+      disc(c, x, y - 28, 5, P.ink); disc(c, x, y - 28, 4, orb); px(c, x - 2, y - 30, P.white); px(c, x - 1, y - 30, P.white); px(c, x + 1, y - 26, '#5aa8e0'); // the glassy orb
+      line(c, x + 1, y - 32, x + 3, y - 38, P.ink); line(c, x, y - 32, x + 2, y - 38, pkD); px(c, x + 3, y - 39, pk); px(c, x - 1, y - 36, pkL); // the crescent spike
+      if (!ice) for (var j = 0; j < 8; j++) { var s1 = j % 2 ? 1 : -1, k = ((f + j * 3) % 12) / 12, jx = x + s1 * (3 + k * 14), jy = y - 28 - Math.sin(k * Math.PI) * 6 + k * k * 22; px(c, Math.round(jx), Math.round(jy), k < 0.15 ? P.white : P.sky); } // water arcing down into the pond
+      [[-20, 0, 4, 3, 0], [-15, 3, 3, 2, 1], [-8, 4, 4, 2, 0], [-1, 5, 3, 2, 1], [6, 4, 4, 2, 0], [13, 3, 3, 2, 1], [19, 0, 4, 3, 0], [-18, -5, 3, 2, 1], [18, -5, 3, 2, 1]].forEach(function (q) { ell(c, x + q[0], y - 3 + q[1], q[2], q[3], P.ink); ell(c, x + q[0], y - 3 + q[1], q[2] - 1, Math.max(1, q[3] - 1), q[4] ? '#9aa0ad' : '#b7ad9b'); px(c, x + q[0] - 1, y - 4 + q[1] - q[3] + 1, ice ? P.white : P.green); }); // the rocks around the rim (mossy, or snowy)
+      if (!ice) { var fk = (f + 7) % 50; if (fk < 8) { var fy0 = y - 4 - Math.round(Math.sin(fk / 8 * Math.PI) * 6); R(c, x - 12 + fk, fy0, 2, 1, P.orange); px(c, x - 13 + fk, fy0, P.yellow); } } // a fish jumps now and then
     },
     statue: function (c, x, sc) {
       box(c, x - 9, SURF - 8, 18, 8, P.silver, P.white, P.slate); var form = sc.form; if (!form) return;
       var cr = A.creature(form.seed, form.stage, sc.soul), sv = statueOf(cr.frames.open); c.drawImage(sv, Math.round(x - cr.w / 2), SURF - 8 - cr.bottom - 1);
     }
   };
+  var MILL_X = 160; // the windmill stands on the hill behind the castle (3.4)
+  function millAt(c, x, base, sc) {
+    for (var wy = 0; wy < 24; wy++) { var ww = 3 + Math.floor(wy / 4); R(c, x - ww - 1, base - 24 + wy, ww * 2 + 2, 1, P.ink); R(c, x - ww, base - 24 + wy, ww * 2, 1, wy % 5 === 4 ? P.bark : P.wood); }
+    R(c, x - 5, base - 27, 10, 3, P.ink); R(c, x - 4, base - 26, 8, 2, P.red); R(c, x - 2, base - 7, 4, 7, P.ink); px(c, x, base - 15, P.yellow);
+    var a0 = (sc.tsec || 0) * 0.8; for (var i = 0; i < 4; i++) { var an = a0 + i * Math.PI / 2, ex = Math.round(x + Math.cos(an) * 14), ey = Math.round(base - 25 + Math.sin(an) * 14); line(c, x, base - 25, ex, ey, P.ink); line(c, Math.round(x + Math.cos(an) * 4), Math.round(base - 25 + Math.sin(an) * 4), Math.round(x + Math.cos(an + 0.25) * 13), Math.round(base - 25 + Math.sin(an + 0.25) * 13), P.white); }
+    disc(c, x, base - 25, 1, P.ink);
+  }
   var stCache = { fr: null, cv: null };
   function statueOf(fr) { if (stCache.fr === fr) return stCache.cv; var cv = mk(fr.width, fr.height), c = cv.getContext('2d'); c.drawImage(fr, 0, 0); c.globalCompositeOperation = 'source-atop'; c.fillStyle = P.silver; c.fillRect(0, 0, cv.width, cv.height); c.globalAlpha = 0.5; c.drawImage(fr, 0, 0); stCache.fr = fr; stCache.cv = cv; return cv; }
-  function ornRect(slot, type) { var x = CS.SLOTS[slot], w = type === 'board' || type === 'cart' ? 30 : 28, hh = type === 'board' ? 32 : type === 'cart' ? 36 : type === 'windmill' || type === 'banner' ? 36 : 30; return { x: x - w / 2, y: SURF - hh, w: w, h: hh + 2 }; }
+  function ornRect(slot, type) { var x = CS.SLOTS[slot], w = type === 'pond' ? 40 : type === 'board' || type === 'cart' ? 30 : 28, hh = type === 'board' ? 32 : type === 'cart' ? 36 : type === 'pond' ? 42 : type === 'banner' ? 36 : 30; return { x: x - w / 2, y: SURF - hh, w: w, h: hh + 2 }; }
   CS.ornRect = ornRect;
-  function observatory(c, sc, S0) { // a little domed telescope house up on the roof (its floor at OBS.y)
+  function observatory(c, sc, S0) { // a little domed telescope house on the elevator tower's deck
     var x = OBS.x, y = OBS.y - 11, night = sc.phase === 'night' || sc.phase === 'dusk';
     R(c, x - 9, y, 18, 11, P.ink); R(c, x - 8, y + 1, 16, 10, S0.wall); R(c, x - 8, y + 5, 16, 1, S0.wall2); R(c, x - 2, y + 4, 4, 7, P.ink); R(c, x - 1, y + 5, 2, 6, night ? P.yellow : P.dark);
     c.save(); c.beginPath(); c.rect(x - 12, y - 12, 24, 12); c.clip(); ell(c, x, y, 11, 10, P.ink); ell(c, x, y, 10, 9, P.silver); ell(c, x - 4, y - 5, 3, 2, P.white); R(c, x - 1, y - 9, 3, 9, P.dark); c.restore();
@@ -448,28 +457,28 @@
 
   /* ---------- the static picture: the back (mountains, the hillside) and the front (the castle and the courtyard) ---------- */
   var stat = { key: null, back: null, front: null };
-  function ridgeOf(L) { return Math.max(58, topY(L) - 16); } // the hill behind the castle rises to just under its top floor's roofline
-  CS.ridge = function () { return ridgeOf(CS.current()); };
-  function drawBack(sc, L) {
+  var RIDGE = TOPY - 28; // the hill behind the castle: its ridge shows over the battlements (the creatures walk along it)
+  function ridgeAt(x) { return RIDGE + Math.round(5 * Math.sin(x * 0.045 + 3) + 3 * Math.sin(x * 0.13)); }
+  CS.ridge = function () { return RIDGE; };
+  function drawBack(sc) {
     var cv = big(W, H), c = cv.getContext('2d'), snowy = sc.biome === 'tundra' || sc.season === 'winter', desert = sc.biome === 'desert';
     var far = desert ? '#d98c4f' : snowy ? '#c9d6e3' : '#4f7f8f', far2 = desert ? '#c27744' : snowy ? P.silver : '#3f6a7c', near = desert ? '#e0aa6c' : snowy ? P.white : P.green, near2 = desert ? '#d39a5c' : snowy ? '#dfe9f1' : '#3c9a52';
-    var ry = ridgeOf(L), r = U.rng(U.hash32(sc.biome + 'mtn'));
-    // far mountains with snowy tops, then the hill (its ridge is where the creatures walk), then the trees on it
-    var m0 = Math.max(20, ry - 70), mh = function (x) { return Math.round(30 * Math.abs(Math.sin(x * 0.021 + 0.7)) + 14 * Math.abs(Math.sin(x * 0.053 + 2))); };
-    for (var x = 0; x < W; x++) { var hh = mh(x), top = m0 + 44 - hh, lit0 = mh(x + 1) >= hh; R(c, x, top, 1, H - top, lit0 ? far : far2); if (!desert && hh > 34) R(c, x, top, 1, 2 + (hh - 34) % 3, P.white); } // (lit on the slopes facing the sun, shaded on the others)
-    for (var x2 = 0; x2 < W; x2++) { var h1 = ry + Math.round(5 * Math.sin(x2 * 0.045 + 3) + 3 * Math.sin(x2 * 0.13)); R(c, x2, h1, 1, H - h1, near); if (x2 % 7 === 0) px(c, x2, h1, snowy ? P.silver : P.lime); for (var gy = h1 + 6; gy < H; gy += 9) if ((x2 * 7 + gy * 3) % 23 === 0) px(c, x2, gy, near2); }
-    if (sc.biome === 'beach') { R(c, 0, ry - 10, W, 6, P.blue); for (var w0 = 0; w0 < 12; w0++) R(c, (w0 * 31) % W, ry - 8, 5, 1, P.sky); }
+    var r = U.rng(U.hash32(sc.biome + 'mtn'));
+    var m0 = Math.max(16, RIDGE - 62), mh = function (x) { return Math.round(30 * Math.abs(Math.sin(x * 0.021 + 0.7)) + 14 * Math.abs(Math.sin(x * 0.053 + 2))); };
+    for (var x = 0; x < W; x++) { var hh = mh(x), top = m0 + 44 - hh; R(c, x, top, 1, H - top, mh(x + 1) >= hh ? far : far2); if (!desert && hh > 34) R(c, x, top, 1, 2 + (hh - 34) % 3, P.white); } // (lit on the slopes facing the sun)
+    for (var x2 = 0; x2 < W; x2++) { var h1 = ridgeAt(x2); R(c, x2, h1, 1, H - h1, near); if (x2 % 7 === 0) px(c, x2, h1, snowy ? P.silver : P.lime); for (var gy = h1 + 6; gy < H; gy += 9) if ((x2 * 7 + gy * 3) % 23 === 0) px(c, x2, gy, near2); }
+    if (sc.biome === 'beach') { R(c, 0, RIDGE - 10, W, 6, P.blue); for (var w0 = 0; w0 < 12; w0++) R(c, (w0 * 31) % W, RIDGE - 8, 5, 1, P.sky); }
     var kinds = { meadow: 'round', forest: 'pine', desert: 'cactus', tundra: 'pine', pond: 'round', beach: 'palm' }, tk = kinds[sc.biome] || 'round';
-    [8, 120, 205, 292].forEach(function (tx, i) { IN.tree(c, tk, tx, ry + 2 + Math.floor(r() * 3) + (i % 2), sc.season); });
+    [8, 136, 232, 312].forEach(function (tx) { IN.tree(c, tk, tx, ridgeAt(tx) + 2 + Math.floor(r() * 2), sc.season); });
     return cv;
   }
   function roof(c, sc, st, S0, cx, y, kind) { // the top of one column: a pointed roof, a spire, a dome or battlements (with a flag)
     var mid = cx + CW / 2, acc = sc.accent || P.red, i, half;
-    if (kind === 'flat' || kind === 'obs' || st === 'cave') {
+    if (kind === 'flat' || st === 'cave') {
       if (st === 'cave') return;
       R(c, cx - 1, y - 7, CW + 2, 7, P.ink); R(c, cx, y - 6, CW, 6, S0.wall); R(c, cx, y - 2, CW, 1, S0.wall2);
       for (var x = cx; x < cx + CW; x += 10) { R(c, x, y - 12, 6, 6, P.ink); R(c, x + 1, y - 11, 4, 5, S0.wall); }
-      if (kind === 'flat') { R(c, mid, y - 30, 1, 18, P.ink); R(c, mid + 1, y - 30, 10, 7, P.ink); R(c, mid + 1, y - 29, 9, 5, acc); R(c, mid + 9, y - 25, 2, 2, acc); px(c, mid + 4, y - 27, P.yellow); }
+      R(c, mid + 20, y - 30, 1, 18, P.ink); R(c, mid + 21, y - 30, 10, 7, P.ink); R(c, mid + 21, y - 29, 9, 5, acc); R(c, mid + 29, y - 25, 2, 2, acc); px(c, mid + 24, y - 27, P.yellow);
       return;
     }
     if (st === 'desert') { // a sandstone parapet and an onion dome
@@ -482,57 +491,62 @@
     for (i = 0; i <= tall; i++) { half = Math.round(i * wide / tall); R(c, mid - half - 1, y - tall + i, 2 * half + 3, 1, P.ink); }
     for (i = 1; i <= tall; i++) { half = Math.round(i * wide / tall) - 1; if (half < 0) continue; R(c, mid - half, y - tall + i, 2 * half + 1, 1, i % 5 === 0 ? S0.roof2 : S0.roof); }
     for (i = 6; i < tall; i += 5) { half = Math.round(i * wide / tall) - 2; for (var t = -half + 2; t < half; t += 6) px(c, mid + t, y - tall + i + 2, S0.roof2); }
-    R(c, mid - 4, y - Math.round(tall * 0.45), 8, 9, P.ink); R(c, mid - 3, y - Math.round(tall * 0.45) + 1, 6, 8, sc.phase === 'night' || sc.phase === 'dusk' ? P.yellow : P.navy); R(c, mid, y - Math.round(tall * 0.45) + 1, 1, 8, P.ink); // a dormer window
-    if (st === 'ice') for (i = -wide + 6; i < wide - 4; i += 7) R(c, mid + i, y, 1, 2 + (Math.abs(i) % 3), P.cyan); // icicles
+    R(c, mid - 4, y - Math.round(tall * 0.45), 8, 9, P.ink); R(c, mid - 3, y - Math.round(tall * 0.45) + 1, 6, 8, sc.phase === 'night' || sc.phase === 'dusk' ? P.yellow : P.navy); R(c, mid, y - Math.round(tall * 0.45) + 1, 1, 8, P.ink);
+    if (st === 'ice') for (i = -wide + 6; i < wide - 4; i += 7) R(c, mid + i, y, 1, 2 + (Math.abs(i) % 3), P.cyan);
     R(c, mid, y - tall - 9, 1, 9, P.ink); R(c, mid + 1, y - tall - 9, 7, 5, P.ink); R(c, mid + 1, y - tall - 8, 6, 3, acc);
   }
   function stoneFace(c, x, y, w, h, S0) { R(c, x, y, w, h, S0.frame); for (var j = 0; j < h; j += 4) { R(c, x, y + j, w, 1, S0.frame2); for (var i = ((j / 4) % 2) * 4; i < w; i += 8) R(c, x + i, y + j, 1, 4, S0.frame2); } }
+  function emptyRoom(c, b, sc, S0, locked, seed) { // a chamber not furnished yet: bare stone, a plank floor, a crate or a cobweb (boarded up on a floor that isn't open yet)
+    R(c, b.x, b.y, b.w, b.h, S0.empty); for (var j = 4; j < b.h - 8; j += 6) { R(c, b.x, b.y + j, b.w, 1, S0.empty2); for (var i = ((j / 6) % 2) * 6; i < b.w; i += 12) R(c, b.x + i, b.y + j - 5, 1, 5, S0.empty2); }
+    R(c, b.x, b.y + b.h - 7, b.w, 7, '#6b4a33'); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); for (var fx = 6; fx < b.w; fx += 13) R(c, b.x + fx, b.y + b.h - 6, 1, 6, '#553a28');
+    for (var k = 0; k < 5; k++) line(c, b.x + 1, b.y + 1 + k * 2, b.x + 1 + 10 - k * 2, b.y + 1, 'rgba(255,255,255,0.35)'); // a cobweb in the corner
+    if (seed % 3 === 0) { box(c, b.x + 60, b.y + b.h - 19, 14, 12, P.wood, P.sand, P.bark); line(c, b.x + 61, b.y + b.h - 18, b.x + 72, b.y + b.h - 9, P.bark); }
+    else if (seed % 3 === 1) { box(c, b.x + 20, b.y + b.h - 18, 10, 11, P.bark, P.wood); R(c, b.x + 20, b.y + b.h - 14, 10, 1, P.ink); box(c, b.x + 31, b.y + b.h - 15, 8, 8, P.bark, P.wood); }
+    else { R(c, b.x + 66, b.y + b.h - 26, 1, 19, P.wood); R(c, b.x + 62, b.y + b.h - 8, 9, 1, P.wood); R(c, b.x + 64, b.y + b.h - 28, 5, 3, P.dark); } // a broom
+    if (locked) { c.globalAlpha = 0.45; R(c, b.x, b.y, b.w, b.h, P.ink); c.globalAlpha = 1; [[4, 10], [4, 40]].forEach(function (q) { R(c, b.x + q[0], b.y + q[1], b.w - 8, 5, P.ink); R(c, b.x + q[0] + 1, b.y + q[1] + 1, b.w - 10, 3, P.wood); px(c, b.x + q[0] + 3, b.y + q[1] + 2, P.ink); px(c, b.x + b.w - q[0] - 4, b.y + q[1] + 2, P.ink); }); line(c, b.x + 6, b.y + 18, b.x + b.w - 6, b.y + 36, P.wood); }
+  }
   function drawFront(sc, L, building) {
-    var cv = big(W, H), c = cv.getContext('2d'), st = CS.style(sc), S0 = STY[st], g = IN.groundCols(sc.biome, sc.season), r = U.rng(U.hash32(sc.biome + sc.season + st)), lit = sc.phase === 'night' || sc.phase === 'dusk';
-    var ty = topY(L);
-    // the cave: the rooms are carved into a mountain
-    if (st === 'cave') {
-      for (var mx = 0; mx < W; mx++) { var mt = ty - 18 - Math.round(10 * Math.abs(Math.sin(mx * 0.03 + 1)) + 4 * Math.sin(mx * 0.11)); R(c, mx, mt, 1, BASE - mt, P.ink); R(c, mx, mt + 1, 1, BASE - mt - 1, S0.rock); if (mx % 9 === 0) R(c, mx, mt + 1, 1, 2, sc.season === 'winter' ? P.white : P.green); }
-      for (var s0 = 0; s0 < 140; s0++) { var sx = Math.floor(r() * W), sy = ty - 10 + Math.floor(r() * (BASE - ty + 6)); ell(c, sx, sy, 2 + Math.floor(r() * 2), 1, s0 % 3 ? S0.frame2 : '#7a829e'); }
+    var cv = big(W, H), c = cv.getContext('2d'), st = CS.style(sc), S0 = STY[st], g = IN.groundCols(sc.biome, sc.season), r = U.rng(U.hash32(sc.biome + sc.season + st)), lit = sc.phase === 'night' || sc.phase === 'dusk', stage = sc.stageNow || 0;
+    if (st === 'cave') { // the rooms are carved into a mountain
+      for (var mx = 0; mx < W; mx++) { var mt = TOPY - 18 - Math.round(10 * Math.abs(Math.sin(mx * 0.03 + 1)) + 4 * Math.sin(mx * 0.11)); R(c, mx, mt, 1, BASE - mt, P.ink); R(c, mx, mt + 1, 1, BASE - mt - 1, S0.rock); if (mx % 9 === 0) R(c, mx, mt + 1, 1, 2, sc.season === 'winter' ? P.white : P.green); }
+      for (var s0 = 0; s0 < 140; s0++) { var sx = Math.floor(r() * W), sy = TOPY - 10 + Math.floor(r() * (BASE - TOPY + 6)); ell(c, sx, sy, 2 + Math.floor(r() * 2), 1, s0 % 3 ? S0.frame2 : '#7a829e'); }
     }
-    // the courtyard: the stone terrace the castle stands on, the ground in front, a cobbled path from the front door
+    // the courtyard: the stone terrace, the ground in front, a cobbled path from the front door
     stoneFace(c, 0, BASE, W, 6, S0); R(c, 0, BASE, W, 1, P.ink); R(c, 0, BASE + 6, W, 1, P.ink);
     R(c, 0, BASE + 7, W, H - BASE - 7, g[0]); for (var f = 0; f < 90; f++) px(c, Math.floor(r() * W), BASE + 8 + Math.floor(r() * (H - BASE - 9)), g[1]);
     for (var py = BASE + 8; py < H; py += 4) for (var pxx = SHAFT - 10 - (py - BASE) / 6; pxx < SHAFT + 10 + (py - BASE) / 6; pxx += 5) R(c, Math.round(pxx + ((py / 4) % 2) * 2), py, 4, 3, (py + pxx) % 3 ? '#b8ad98' : '#a39883');
-    if (sc.season !== 'winter' && sc.biome !== 'desert' && sc.biome !== 'tundra') for (var fl = 0; fl < 14; fl++) { var fx0 = Math.floor(r() * W); if (Math.abs(fx0 - SHAFT) > 22) { px(c, fx0, H - 4 - Math.floor(r() * 30), [P.pink, P.yellow, P.white][fl % 3]); } }
-    // the rooms, each in stone walls with an arched ceiling, and a doorway between rooms side by side
-    Object.keys(L.rooms).forEach(function (k) {
-      var p = rc(k), cr = cellRect(p.r, p.c), b = inner(p.r, p.c), t = L.rooms[k];
-      R(c, cr.x - 1, cr.y - 1, cr.w + 2, cr.h + 2, P.ink); stoneFace(c, cr.x, cr.y, cr.w, cr.h, S0);
-      c.save(); c.beginPath(); c.rect(b.x, b.y, b.w, b.h); c.clip(); ROOMART[t](c, b, sc); c.restore();
-      [[b.x, 1], [b.x + b.w - 1, -1]].forEach(function (q) { for (var i = 0; i < 6; i++) R(c, q[1] > 0 ? q[0] : q[0] - (5 - i), b.y + i, 6 - i - (i ? 1 : 0), 1, S0.frame); px(c, q[0] + q[1] * (6 - 1), b.y, S0.frame2); }); // the arch at the corners
+    if (sc.season !== 'winter' && sc.biome !== 'desert' && sc.biome !== 'tundra') for (var fl = 0; fl < 14; fl++) { var fx0 = Math.floor(r() * W); if (Math.abs(fx0 - SHAFT) > 22) px(c, fx0, H - 4 - Math.floor(r() * 30), [P.pink, P.yellow, P.white][fl % 3]); }
+    // the shell: all twelve chambers, furnished or not, in stone walls with arched ceilings
+    var CX = [colX(0), colX(1), colX(2)];
+    R(c, OX - 6, TOPY - 1, W - 2 * OX + 12, BASE - TOPY + 1, P.ink); stoneFace(c, OX - 5, TOPY, W - 2 * OX + 10, BASE - TOPY, S0); // the outer walls and the buttresses
+    for (var rr = 0; rr < ROWS; rr++) for (var cc = 0; cc < COLS; cc++) {
+      var k = rr + ',' + cc, cr = cellRect(rr, cc), b = inner(rr, cc), t = L.rooms[k];
+      R(c, b.x - 1, b.y - 1, b.w + 2, b.h + 2, P.ink);
+      c.save(); c.beginPath(); c.rect(b.x, b.y, b.w, b.h); c.clip(); if (t) ROOMART[t](c, b, sc); else emptyRoom(c, b, sc, S0, !CS.open(stage, rr), rr * 3 + cc * 7); c.restore();
+      [[b.x, 1], [b.x + b.w - 1, -1]].forEach(function (q) { for (var i = 0; i < 6; i++) R(c, q[1] > 0 ? q[0] : q[0] - (5 - i), b.y + i, 6 - i - (i ? 1 : 0), 1, S0.frame); }); // the arch at the corners
       R(c, b.x, b.y, b.w, 1, 'rgba(26,28,44,0.25)'); R(c, b.x, b.y + 1, 1, b.h - 1, 'rgba(26,28,44,0.15)');
-      if (p.c === 0 || !L.rooms[p.r + ',' + (p.c - 1)]) { R(c, cr.x - 5, cr.y, 4, cr.h, P.ink); stoneFace(c, cr.x - 4, cr.y + 1, 3, cr.h - 2, S0); } // buttresses on the outside walls
-      if (p.c === COLS - 1 || !L.rooms[p.r + ',' + (p.c + 1)]) { R(c, cr.x + cr.w + 1, cr.y, 4, cr.h, P.ink); stoneFace(c, cr.x + cr.w + 1, cr.y + 1, 3, cr.h - 2, S0); }
-    });
-    Object.keys(L.rooms).forEach(function (k) { var p = rc(k), dx = OX + (p.c + 1) * CW; if (L.rooms[p.r + ',' + (p.c + 1)] && dx !== SHAFT) { var fy = floorY(p.r); R(c, dx - 4, fy - 26, 8, 28, P.ink); R(c, dx - 3, fy - 25, 6, 27, '#2a2433'); ell(c, dx, fy - 25, 3, 2, '#2a2433'); } });
-    // a plank walkway across an empty spot between the stairs and a room further along the floor
-    for (var row = 0; row < ROWS; row++) for (var col = 1; col < COLS - 1; col++) {
-      if (L.rooms[row + ',' + col] || !L.rooms[row + ',' + (col + 1)]) continue;
-      var bx = OX + col * CW, by = floorY(row) + 1; R(c, bx, by, CW, 3, P.ink); R(c, bx, by, CW, 2, P.wood); for (var pl = bx + 3; pl < bx + CW; pl += 6) R(c, pl, by, 1, 2, P.bark);
-      for (var pp = bx + 2; pp < bx + CW; pp += 23) R(c, pp, by - 12, 2, 13, P.bark); R(c, bx, by - 12, CW, 1, P.bark); R(c, bx, by - 7, CW, 1, P.bark);
-      if (row > 0) { line(c, bx + 4, by + 3, bx + 20, by + 18, P.bark); line(c, bx + CW - 4, by + 3, bx + CW - 20, by + 18, P.bark); }
+      var fy = floorY(rr); [cc === 0 ? cr.x + cr.w : -1, cc === 1 ? cr.x : -1, cc === 2 ? cr.x : -1].forEach(function (dx) { if (dx < 0) return; R(c, dx - 3, fy - 26, 6, 28, P.ink); R(c, dx - 2, fy - 25, 4, 27, '#2a2433'); }); // doorways onto the elevator and between rooms
     }
-    // roofs: one on top of each column (the right-hand tower carries the observatory if you built it)
-    for (var cc = 0; cc < COLS; cc++) { var tr = topRow(L, cc); if (tr < 0) continue; var tcell = cellRect(tr, cc), obsHere = L.obs && cc === OBS.c; roof(c, sc, st, S0, tcell.x, tcell.y, obsHere ? 'obs' : cc === 1 ? 'flat' : 'peak'); }
-    if (L.obs && OBS.c >= 0) { observatory(c, sc, S0); if (OBS.lx) { var ly0 = OBS.y; R(c, OBS.lx - 3, ly0, 1, SURF - ly0, P.bark); R(c, OBS.lx + 2, ly0, 1, SURF - ly0, P.bark); for (var lr = ly0 + 2; lr < SURF; lr += 5) R(c, OBS.lx - 3, lr, 6, 1, P.wood); } }
-    // the stairs: a ladder by the wall between the first two columns, from the top floor down through the front door
-    var low = 0; Object.keys(L.rooms).forEach(function (k) { low = Math.max(low, rc(k).r); }); var sTop = cellRect(low, 0).y + 4;
-    R(c, SHAFT - 4, sTop, 8, BASE - sTop, P.ink); R(c, SHAFT - 3, sTop, 6, BASE - sTop, '#2a2433'); R(c, SHAFT - 3, sTop, 1, BASE - sTop, P.wood); R(c, SHAFT + 2, sTop, 1, BASE - sTop, P.wood); for (var ly = sTop + 2; ly < BASE; ly += 5) R(c, SHAFT - 2, ly, 4, 1, P.wood);
-    R(c, SHAFT - 9, BASE - 2, 18, 9, P.ink); R(c, SHAFT - 8, BASE - 1, 16, 7, '#1b1622'); ell(c, SHAFT, BASE - 2, 8, 4, P.ink); ell(c, SHAFT, BASE - 2, 7, 3, '#1b1622'); // the front door in the terrace
-    for (var stp = 0; stp < 5; stp++) { R(c, SHAFT - 10 - stp, BASE + 7 + stp * 6, 20 + stp * 2, 2, S0.frame2); R(c, SHAFT - 10 - stp, BASE + 6 + stp * 6, 20 + stp * 2, 1, S0.frame); } // steps down to the courtyard
-    [SHAFT - 26, SHAFT + 24].forEach(function (lx) { R(c, lx, BASE + 12, 2, SURF - BASE - 12, P.ink); R(c, lx - 2, BASE + 8, 6, 5, P.ink); R(c, lx - 1, BASE + 9, 4, 3, lit ? P.yellow : P.sand); if (lit) { c.globalAlpha = 0.18; disc(c, lx + 1, BASE + 10, 9, P.yellow); c.globalAlpha = 1; } }); // lanterns by the steps
-    // in build mode: a + where you can build, a padlock where the floor isn't open yet
-    if (building) for (var rr = 0; rr < ROWS; rr++) for (var c2 = 0; c2 < COLS; c2++) {
-      var key = rr + ',' + c2, why = CS.canBuildAt(L, sc.stageNow || 0, key), cr2 = cellRect(rr, c2); if (L.rooms[key]) continue;
-      var lockedButOk = why === 'locked' && (rr === 0 || L.rooms[(rr - 1) + ',' + c2]);
+    // roofs on top of each column
+    for (var c3 = 0; c3 < COLS; c3++) roof(c, sc, st, S0, CX[c3], TOPY, c3 === 1 ? 'flat' : 'peak');
+    // the elevator: a shaft up between the first two columns, a landing at every floor, its tower and deck above the roofs
+    var sx0 = SHAFT - SW / 2;
+    R(c, sx0 - 1, TT - 1, SW + 2, BASE - TT + 1, P.ink); stoneFace(c, sx0, TT, SW, BASE - TT, S0); R(c, sx0 + 3, TT + 2, SW - 6, BASE - TT - 2, '#231d2b');
+    R(c, sx0 + 4, TT + 2, 1, BASE - TT - 2, '#4a4058'); R(c, sx0 + SW - 5, TT + 2, 1, BASE - TT - 2, '#4a4058'); // guide rails
+    for (var lr = 0; lr < ROWS; lr++) { var ly = floorY(lr) + 1; R(c, sx0 + 1, ly, SW - 2, 2, S0.frame2); R(c, sx0 + 1, ly, SW - 2, 1, P.ink); R(c, sx0 + 2, ly - 30, 2, 2, lit ? P.yellow : P.orange); }
+    R(c, SHAFT - 8, TT - 4, 16, 4, P.ink); R(c, SHAFT - 7, TT - 3, 14, 2, P.dark); // the winch at the top
+    R(c, sx0 - 10, TT - 1, SW + 20, 3, P.ink); R(c, sx0 - 9, TT, SW + 18, 1, S0.wall); for (var cx2 = sx0 - 10; cx2 < sx0 + SW + 10; cx2 += 6) { R(c, cx2, TT - 6, 4, 5, P.ink); R(c, cx2 + 1, TT - 5, 2, 4, S0.wall); } // the deck, with battlements
+    if (L.obs) observatory(c, sc, S0);
+    else if (st !== 'cave') { var ttall = 18; for (var i2 = 0; i2 <= ttall; i2++) { var hf = Math.round(i2 * 9 / ttall); R(c, SHAFT - hf - 1, TT - 6 - ttall + i2, 2 * hf + 3, 1, P.ink); if (i2) R(c, SHAFT - hf + 1, TT - 6 - ttall + i2, Math.max(1, 2 * hf - 1), 1, S0.roof); } R(c, SHAFT, TT - 6 - ttall - 7, 1, 7, P.ink); R(c, SHAFT + 1, TT - 6 - ttall - 7, 5, 3, sc.accent || P.red); }
+    // the front door in the terrace, the steps down to the courtyard, two lanterns
+    R(c, SHAFT - 9, BASE - 2, 18, 9, P.ink); R(c, SHAFT - 8, BASE - 1, 16, 7, '#1b1622'); ell(c, SHAFT, BASE - 2, 8, 4, P.ink); ell(c, SHAFT, BASE - 2, 7, 3, '#1b1622');
+    for (var stp = 0; stp < 5; stp++) { R(c, SHAFT - 10 - stp, BASE + 7 + stp * 6, 20 + stp * 2, 2, S0.frame2); R(c, SHAFT - 10 - stp, BASE + 6 + stp * 6, 20 + stp * 2, 1, S0.frame); }
+    [SHAFT - 26, SHAFT + 24].forEach(function (lx) { R(c, lx, BASE + 12, 2, SURF - BASE - 12, P.ink); R(c, lx - 2, BASE + 8, 6, 5, P.ink); R(c, lx - 1, BASE + 9, 4, 3, lit ? P.yellow : P.sand); if (lit) { c.globalAlpha = 0.18; disc(c, lx + 1, BASE + 10, 9, P.yellow); c.globalAlpha = 1; } });
+    // in build mode: a + on an empty chamber you can furnish, a padlock where the floor isn't open yet
+    if (building) for (var r2 = 0; r2 < ROWS; r2++) for (var c2 = 0; c2 < COLS; c2++) {
+      var key = r2 + ',' + c2, why = CS.canBuildAt(L, stage, key), cr2 = cellRect(r2, c2); if (L.rooms[key]) continue;
       if (!why) { c.globalAlpha = 0.25; R(c, cr2.x + 4, cr2.y + 4, cr2.w - 8, cr2.h - 8, P.yellow); c.globalAlpha = 1; dashed(c, cr2.x + 4, cr2.y + 4, cr2.w - 8, cr2.h - 8, P.yellow); spr(c, cr2.x + cr2.w / 2 - 3, cr2.y + cr2.h / 2 - 3, ['...y...', '...y...', '...y...', 'yyyyyyy', '...y...', '...y...', '...y...']); }
-      else if (lockedButOk) { c.globalAlpha = 0.3; R(c, cr2.x + 4, cr2.y + 4, cr2.w - 8, cr2.h - 8, P.ink); c.globalAlpha = 1; dashed(c, cr2.x + 4, cr2.y + 4, cr2.w - 8, cr2.h - 8, P.silver); spr(c, cr2.x + cr2.w / 2 - 2, cr2.y + cr2.h / 2 - 3, ['.sss.', 's...s', 'sssss', 'ss.ss', 'sssss']); }
+      else { dashed(c, cr2.x + 4, cr2.y + 4, cr2.w - 8, cr2.h - 8, P.silver); spr(c, cr2.x + cr2.w / 2 - 2, cr2.y + cr2.h / 2 - 3, ['.sss.', 's...s', 'sssss', 'ss.ss', 'sssss']); }
     }
     return cv;
   }
@@ -542,9 +556,6 @@
   var lastLay = '', LAY = null;
   function setup(S) {
     var L = CS.layout(S), key = JSON.stringify(L); if (key === lastLay && LAY) return LAY; lastLay = key; LAY = L;
-    // the observatory: on the roof of the right-hand column, with a ladder up the outside
-    var oc = -1; for (var c0 = COLS - 1; c0 >= 0; c0--) if (topRow(L, c0) >= 0) { oc = c0; break; }
-    var ot = cellRect(topRow(L, oc), oc); OBS.c = oc; OBS.on = !!L.obs; OBS.x = ot.x + 66; OBS.y = ot.y - 1; OBS.ax = ot.x + 34; OBS.lx = oc === COLS - 1 ? W - 4 : ot.x + CW + 6;
     A.BOARD_P = null; A.CART_P = null;
     CS.SLOT_ORDER.forEach(function (sl) {
       var t = L.orn[sl], x = CS.SLOTS[sl];
@@ -559,42 +570,48 @@
   }
   CS.current = function () { var a = app(); return a && a.S ? setup(a.S) : CS.layout(null); };
 
-  /* ---------- Aiu's place and his walk there ---------- */
+  /* ---------- Aiu's place and his walk there (the elevator between floors) ---------- */
   var OUT_SPOT = { x: SHAFT - 18, y: SURF }; // at the foot of the steps
+  function inX(r, c, dx) { return inner(r, c).x + dx; }
   function targetFor(sc, L) {
     var a = app();
     if (a.visit && a.visit.id) {
       if (a.visit.id === 'board' && A.BOARD_SPOT_P) return { x: A.BOARD_SPOT_P.x, row: -1, key: 'v:board', out: 1 };
       var lm = (A.LANDMARKS || []).filter(function (x) { return x.id === a.visit.id; })[0];
-      if (lm && lm.bath) { var pq = rc(CS.find(L, 'bath')); return { x: OX + pq.c * CW + 2 + 79, row: pq.r, key: 'v:potty', anim: 'potty', room: 'bath', b: inner(pq.r, pq.c), visitRoom: true }; }
+      if (lm && lm.bath) { var pq = rc(CS.find(L, 'bath')); return { x: inX(pq.r, pq.c, 79), row: pq.r, key: 'v:potty', anim: 'potty', room: 'bath', b: inner(pq.r, pq.c), visitRoom: true }; }
       if (lm) return { x: lm.door.x, row: lm.row, key: 'v:' + lm.id, out: lm.row < 0 ? 1 : 0, visitRoom: lm.row >= 0, b: lm.row >= 0 ? lm.r : null };
     }
-    if (!sc.stage) { var pl = rc(CS.find(L, 'living')); return { x: OX + pl.c * CW + 2 + 50, row: pl.r, key: 'egg', b: inner(pl.r, pl.c) }; }
+    if (!sc.stage) { var pl = rc(CS.find(L, 'living')); return { x: inX(pl.r, pl.c, 50), row: pl.r, key: 'egg', b: inner(pl.r, pl.c) }; }
     if (outsideAct(sc, L)) {
       if (sc.act === 'hibachi') return { x: A.CART_AT.x, row: -1, key: 'cart', cart: true, out: 1 };
       if (sc.act === 'stargaze') return { x: OBS.ax, row: -2, key: 'obs', out: 1 };
       if (sc.act === 'board' && A.BOARD_SPOT_P) return { x: A.BOARD_SPOT_P.x, row: -1, key: 'board', out: 1 };
       var need = OUTSIDE[sc.act], sl = need ? CS.hasOrn(L, need) : null;
-      if (sl) return { x: CS.SLOTS[sl] + (CS.SLOTS[sl] < SHAFT ? 22 : -22), row: -1, key: 'o:' + sc.act, out: 1 };
+      if (sl && CS.SLOTS[sl]) return { x: CS.SLOTS[sl] + (CS.SLOTS[sl] < SHAFT ? 22 : -24), row: -1, key: 'o:' + sc.act, out: 1 };
       return { x: OUT_SPOT.x, row: -1, key: 'out:' + sc.act, out: 1 };
     }
     var an = animFor(sc, L), A0 = ANIM[an], p = rc(CS.find(L, A0.room));
-    return { x: OX + p.c * CW + 2 + A0.x, row: p.r, key: 'in:' + an + ':' + p.r + ',' + p.c, anim: an, room: A0.room, b: inner(p.r, p.c) };
+    return { x: inX(p.r, p.c, A0.x), row: p.r, key: 'in:' + an + ':' + p.r + ',' + p.c, anim: an, room: A0.room, b: inner(p.r, p.c) };
   }
-  var walker = { pos: null, path: null, start: 0, dur: 0, len: 0, key: '', tgt: null, drop: null };
-  function plan(from, to) { // along the floor to the ladder, up or down, along to the spot (the observatory: out to the courtyard and up the outside ladder)
-    var pts = [{ x: from.x, y: floorY(from.row), row: from.row }], cur = { x: from.x, row: from.row };
-    function go(x, row, climb) { pts.push({ x: x, y: floorY(row), row: row, climb: climb ? 1 : 0 }); cur = { x: x, row: row }; }
-    if (cur.row === -2 && to.row !== -2) { go(OBS.lx, -2); go(OBS.lx, -1, 1); }
-    if (to.row === -2) { if (cur.row !== -2) { if (cur.row !== -1) { go(SHAFT, cur.row); go(SHAFT, -1, 1); } go(OBS.lx, -1); go(OBS.lx, -2, 1); } }
-    else if (cur.row !== to.row) { go(SHAFT, cur.row); go(SHAFT, to.row, 1); }
+  var walker = { pos: null, path: null, start: 0, dur: 0, len: 0, key: '', tgt: null, drop: null }, lift = { y: floorY(0) };
+  function segLen(a0, b0) { return b0.ride ? Math.abs(b0.y - a0.y) * 0.7 : Math.abs(b0.x - a0.x) + Math.abs(b0.y - a0.y) * 1.4; }
+  function plan(from, to) { // along the floor to the elevator, ride it up or down, along to the spot (the courtyard: out the front door and down the steps)
+    var pts = [{ x: from.x, y: floorY(from.row), row: from.row }], cur = from.row;
+    function go(x, row, ride) { pts.push({ x: x, y: floorY(row), row: row, ride: ride ? 1 : 0 }); cur = row; }
+    if (cur !== to.row) {
+      go(SHAFT, cur);
+      if (cur === -1) go(SHAFT, 0);
+      var dest = to.row === -1 ? 0 : to.row;
+      if (cur !== dest) go(SHAFT, dest, true);
+      if (to.row === -1) go(SHAFT, -1);
+    }
     go(to.x, to.row);
-    var len = 0; for (var i = 1; i < pts.length; i++) len += Math.abs(pts[i].x - pts[i - 1].x) + Math.abs(pts[i].y - pts[i - 1].y) * 1.4;
+    var len = 0; for (var i = 1; i < pts.length; i++) len += segLen(pts[i - 1], pts[i]);
     return { pts: pts, len: len };
   }
   function walkAt(now) {
     var w = walker, d = (now - w.start) / w.dur * w.len;
-    for (var i = 1; i < w.path.length; i++) { var a0 = w.path[i - 1], b0 = w.path[i], sl = Math.abs(b0.x - a0.x) + Math.abs(b0.y - a0.y) * 1.4; if (d <= sl) { var k = sl ? d / sl : 1; return { x: a0.x + (b0.x - a0.x) * k, y: a0.y + (b0.y - a0.y) * k, row: k < 0.5 ? a0.row : b0.row, left: b0.x < a0.x, climb: !!b0.climb && a0.x === b0.x, done: false }; } d -= sl; }
+    for (var i = 1; i < w.path.length; i++) { var a0 = w.path[i - 1], b0 = w.path[i], sl = segLen(a0, b0); if (d <= sl) { var k = sl ? d / sl : 1; return { x: a0.x + (b0.x - a0.x) * k, y: a0.y + (b0.y - a0.y) * k, row: k < 0.5 ? a0.row : b0.row, left: b0.x < a0.x, ride: !!b0.ride, done: false }; } d -= sl; }
     var e = w.path[w.path.length - 1]; return { x: e.x, y: e.y, row: e.row, left: false, done: true };
   }
   var faceLeft = false;
@@ -608,12 +625,12 @@
       else walker.path = null;
       walker.key = tgt.key; walker.tgt = tgt;
     }
-    if (walker.path) { var p = walkAt(now); if (!p.done) { if (!p.climb) faceLeft = p.left; return { x: p.x, y: p.y, row: p.row, walking: true, left: p.left, climb: p.climb, tgt: tgt }; } walker.path = null; }
+    if (walker.path) { var p = walkAt(now); if (!p.done) { if (p.ride) lift.y = p.y; else faceLeft = p.left; return { x: p.x, y: p.y, row: p.row, walking: true, left: p.left, ride: p.ride, tgt: tgt }; } walker.path = null; }
     walker.pos = { x: tgt.x, row: tgt.row };
     return { x: tgt.x, y: floorY(tgt.row), row: tgt.row, walking: false, tgt: tgt, left: faceLeft };
   };
   CS.walking = function () { return !!walker.path; };
-  CS.dropAt = function (p) { var L = CS.current(), row = p.y > BASE ? -1 : Math.max(0, Math.min(ROWS - 1, rowAt(p.y))), col = Math.max(0, Math.min(COLS - 1, Math.floor((p.x - OX) / CW))); if (row >= 0 && !L.rooms[row + ',' + col]) row = -1; walker.drop = { x: Math.max(8, Math.min(W - 8, p.x)), row: row }; };
+  CS.dropAt = function (p) { var L = CS.current(), row = p.y > BASE ? -1 : Math.max(0, Math.min(ROWS - 1, rowAt(p.y))), col = colAt(p.x); if (row >= 0 && (col < 0 || !L.rooms[row + ',' + col])) row = -1; walker.drop = { x: Math.max(8, Math.min(W - 8, p.x)), row: row }; };
   function oldAnchor(sc) { // where the old outdoor pictures put him (for what he still does with them: outside, tricks, the egg)
     if (!sc.stage) return { x: sc.spotX || (sc.indoor ? 104 : A.AIU_OUT), y: sc.indoor ? 100 : 97 };
     if (sc.act === 'sleep' || sc.mode === 'sleepy') return { x: 160, y: sc.mode === 'sleepy' ? 84 : 86 };
@@ -623,23 +640,28 @@
   var lastMap = { x: 0, y: 0 }, lastPos = null;
   CS.frameOff = function () { return lastMap; };
   CS.aiuPos = function () { return lastPos; };
+  function car(c, y, front) { // the elevator car (its back wall and lamp, or its frame in front of whoever rides)
+    var x0 = SHAFT - 9, top = Math.round(y) - 28;
+    if (!front) { R(c, SHAFT, TT, 1, top - TT, P.ink); R(c, x0, top, 18, 31, P.ink); R(c, x0 + 1, top + 1, 16, 29, '#f3dcae'); R(c, x0 + 1, top + 1, 16, 3, P.wood); px(c, SHAFT, top + 5, P.yellow); return; }
+    R(c, x0, top, 2, 31, P.ink); R(c, x0 + 16, top, 2, 31, P.ink); R(c, x0, top, 18, 2, P.bark); R(c, x0, top + 29, 18, 2, P.bark); px(c, x0 + 1, top + 12, P.yellow); px(c, x0 + 16, top + 12, P.yellow);
+  }
 
   /* ---------- the pet: in the courtyard, out of Aiu's way; at night at the foot of his bed ---------- */
   var HOMEBOUND = /^(care_|petbuddy|feedbuddy|waterbuddy|fetch|ride|board)/;
   function petAt(sc, aiu) {
-    var b = A.buddyOf(sc.soul, sc.buddy), PLY = AIU.play, home = { x: SHAFT + 24, y: SURF }, care = sc.act && HOMEBOUND.test(sc.act);
-    if (sc.phase === 'night' && !A.POSTED[b] && !care && !(PLY && PLY.active && PLY.active())) { var kb = CS.find(CS.current(), 'bedroom'), pb = rc(kb); return { x: OX + pb.c * CW + 2 + 70, y: floorY(pb.r), left: true, inside: true }; }
+    var b = A.buddyOf(sc.soul, sc.buddy), PLY = AIU.play, home = { x: SHAFT + 36, y: SURF }, care = sc.act && HOMEBOUND.test(sc.act);
+    if (sc.phase === 'night' && !A.POSTED[b] && !care && !(PLY && PLY.active && PLY.active())) { var pb = rc(CS.find(CS.current(), 'bedroom')); return { x: inX(pb.r, pb.c, 70), y: floorY(pb.r), left: true, inside: true }; }
     var stay = A.POSTED[b] || care || (PLY && PLY.active && PLY.active()) || (sc.bplay && sc.bplay.a);
     var p = home, left = false;
-    if (!stay) { var w = WF.wanderAt('cbuddy' + (sc.soul || 0), sc.tsec * 0.8, 140, W - 12, 0, 0, 1); p = { x: Math.round(w.x), y: SURF }; left = w.left; }
-    if (aiu && aiu.row === -1 && !aiu.walking && Math.abs(aiu.x - p.x) < 24 && !care) p = { x: aiu.x < p.x ? Math.min(W - 8, aiu.x + 24) : Math.max(140, aiu.x - 24), y: SURF };
+    if (!stay) { var w = WF.wanderAt('cbuddy' + (sc.soul || 0), sc.tsec * 0.8, SHAFT + 34, W - 12, 0, 0, 1); p = { x: Math.round(w.x), y: SURF }; left = w.left; }
+    if (aiu && aiu.row === -1 && !aiu.walking && Math.abs(aiu.x - p.x) < 24 && !care) p = { x: aiu.x < p.x ? Math.min(W - 8, aiu.x + 24) : Math.max(SHAFT + 34, aiu.x - 24), y: SURF };
     if (care && aiu && aiu.row === -1) p = { x: Math.min(W - 10, aiu.x + 24), y: SURF };
     var tp = A.toyPos && A.toyPos('buddy', p); if (tp) p = { x: Math.round(tp.x), y: SURF };
     return { x: p.x, y: p.y, left: left };
   }
   // the drone hovers in the sky, top right
   var droneOff = null;
-  function droneOffset(sc) { if (droneOff) return droneOff; var r0 = A.droneRect(Object.assign({}, sc, { place: 'home', indoor: false })); if (!r0) return { x: 0, y: 0 }; droneOff = { x: 262 - (r0.x + r0.w / 2), y: 12 - r0.y }; return droneOff; }
+  function droneOffset(sc) { if (droneOff) return droneOff; var r0 = A.droneRect(Object.assign({}, sc, { place: 'home', indoor: false })); if (!r0) return { x: 0, y: 0 }; droneOff = { x: 286 - (r0.x + r0.w / 2), y: 16 - r0.y }; return droneOff; }
   CS.droneRect = function (sc) { var r = A.droneRect(Object.assign({}, sc, { place: 'home', indoor: false })); if (!r) return null; var o = droneOffset(sc); return { x: r.x + o.x, y: r.y + o.y, w: r.w, h: r.h }; };
 
   /* ---------- drawing a frame ---------- */
@@ -648,20 +670,21 @@
   CS.render = function (ctx, sc) {
     ctx.setTransform(SC, 0, 0, SC, 0, 0); ctx.imageSmoothingEnabled = false;
     var a = app(), S = a.S, L = setup(S); sc.stageNow = S ? S.stage : 0; sc.castle = true;
-    var cos = sc.cos || {}, night = sc.phase === 'night' || sc.phase === 'dusk', ry = ridgeOf(L);
-    var key = [sc.biome, sc.season, sc.house, sc.accent, lastLay, CS.building ? 'b' + sc.stageNow : '', sc.phase, cos.wall && cos.wall.it && cos.wall.it.id, cos.rug && cos.rug.it && cos.rug.it.id, Math.floor((sc.f || 0) / 15) % 2].join('|');
-    if (stat.key !== key) { stat.back = drawBack(sc, L); stat.front = drawFront(sc, L, CS.building); stat.key = key; }
+    var cos = sc.cos || {}, night = sc.phase === 'night' || sc.phase === 'dusk';
+    var key = [sc.biome, sc.season, sc.house, sc.accent, lastLay, CS.building ? 'b' : '', sc.stageNow, sc.phase, cos.wall && cos.wall.it && cos.wall.it.id, cos.rug && cos.rug.it && cos.rug.it.id, Math.floor((sc.f || 0) / 15) % 2].join('|');
+    if (stat.key !== key) { if (!stat.back || stat.bk !== sc.biome + sc.season) { stat.back = drawBack(sc); stat.bk = sc.biome + sc.season; } stat.front = drawFront(sc, L, CS.building); stat.key = key; }
     if (!layer) layer = big(W, H);
     var Lc = layer.getContext('2d'); Lc.setTransform(SC, 0, 0, SC, 0, 0); Lc.imageSmoothingEnabled = false; Lc.clearRect(0, 0, W, H);
     ctx.clearRect(0, 0, W, H);
-    IN.drawSky(ctx, 0, 0, W, BASE, IN.skyBands(sc.phase, sc.weather)); IN.skyThings(ctx, sc, [0, 0, W, Math.min(90, ry)]);
+    IN.drawSky(ctx, 0, 0, W, BASE, IN.skyBands(sc.phase, sc.weather)); IN.skyThings(ctx, sc, [0, 0, W, RIDGE - 10]);
     Lc.drawImage(stat.back, 0, 0, W, H);
-    // a strange friendly creature wandering the ridge of the hill behind the castle
-    var od = A.oddNow && A.oddNow(sc); CS._od = null;
-    if (od) { var ox = Math.round(od.x * W / 192); CS._od = { x: ox, y: ry + 1, od: od }; Lc.save(); Lc.translate(ox, ry + 1); Lc.translate(-od.x, -od.y); A.drawOdd(Lc, od, sc); Lc.restore(); }
+    if (L.mill) millAt(Lc, MILL_X, ridgeAt(MILL_X) + 3, sc); // the windmill, up on the hill behind
+    var od = A.oddNow && A.oddNow(sc); CS._od = null; // a strange friendly creature wandering the ridge
+    if (od) { var ox = Math.round(od.x * W / 192), oy = ridgeAt(ox) + 2; CS._od = { x: ox, y: oy, od: od }; Lc.save(); Lc.translate(ox, oy); Lc.translate(-od.x, -od.y); A.drawOdd(Lc, od, sc); Lc.restore(); }
     Lc.drawImage(stat.front, 0, 0, W, H);
     Object.keys(L.rooms).forEach(function (k) { if (L.rooms[k] === 'living') { var p = rc(k), b = inner(p.r, p.c); WF.regulatorSmall(Lc, b.x + 80, b.y + 10, sc); } }); // the clock really ticks
     var aiu = CS.aiuNow(sc, L), tg = aiu.tgt, cooking = !aiu.walking && tg.cart && sc.act === 'hibachi';
+    car(Lc, lift.y, false); if (!aiu.ride) car(Lc, lift.y, true); // the elevator car, waiting at its floor
     // the courtyard: each spot, the shop's yard decoration, the food cart, the board
     CS.SLOT_ORDER.forEach(function (sl) { var t = L.orn[sl]; if (t && ORNART[t]) ORNART[t](Lc, CS.SLOTS[sl], sc); });
     if (cos.yard && cos.yard.img) { var yi = cos.yard.img, yx = SHAFT + 44; Lc.drawImage(yi, yx - Math.floor(yi.width / 2), SURF - yi.height); if (cos.yard.it && cos.yard.it.id === 'yard-lantern' && night) { Lc.globalAlpha = 0.35; disc(Lc, yx, SURF - yi.height + 4, 6, P.yellow); Lc.globalAlpha = 1; } }
@@ -679,13 +702,14 @@
     var clipB = function (b) { Lc.save(); if (b) { Lc.beginPath(); Lc.rect(b.x, b.y - 8, b.w, b.h + 8); Lc.clip(); } };
     if (!sc.stage) { clipB(tg.b); Lc.translate(lastMap.x, lastMap.y); IN.drawActor(Lc, sc); Lc.restore(); } // the egg, in the living room
     else if (!hideAiu && !cooking) {
-      if (aiu.walking) WF.drawWalker(Lc, sc, { x: aiu.x, y: aiu.y }, aiu.left, 1, aiu.climb);
+      if (aiu.ride && cr) { drawAiu(Lc, sc, cr, SHAFT, aiu.y, { shadow: false }); car(Lc, aiu.y, true); } // riding the elevator
+      else if (aiu.walking) WF.drawWalker(Lc, sc, { x: aiu.x, y: aiu.y }, aiu.left, 1, false);
       else if (tg.anim && !trick && cr) { clipB(tg.b); ANIM[tg.anim].draw(Lc, tg.b, sc, cr, sc.f || 0); Lc.restore(); }
       else if (cr && !trick && (tg.visitRoom || (tg.out && !(sc.act in OUTSIDE)))) drawAiu(Lc, sc, cr, aiu.x, aiu.y, { flip: aiu.left, eyes: tg.visitRoom ? 'happy' : null });
       else { clipB(tg.b); Lc.translate(lastMap.x, lastMap.y); IN.drawActor(Lc, Object.assign({}, sc, { walk: null })); Lc.restore(); } // the old pictures: outside acts, tricks, evolving
-    }
+    } else if (aiu.ride) car(Lc, aiu.y, true);
     if (pp.inside) drawPet(); // (at night, curled up at the foot of his bed)
-    // the time of day: the sky, the hills and the courtyard darken; the rooms stay lamp-lit
+    // the time of day: the sky, the hills and the courtyard darken; the furnished rooms stay lamp-lit
     var dim = sc.phase === 'night' ? 0.55 : sc.phase === 'dusk' || sc.phase === 'dawn' ? 0.25 : (sc.weather === 'storm' || sc.weather === 'rain') ? 0.18 : 0;
     if (dim) {
       Lc.save(); Lc.globalCompositeOperation = 'source-atop'; Lc.beginPath(); Lc.rect(0, 0, W, H); Object.keys(L.rooms).forEach(function (k) { var p = rc(k), b = inner(p.r, p.c); Lc.rect(b.x, b.y, b.w, b.h); }); Lc.clip('evenodd');
@@ -694,7 +718,7 @@
     }
     ctx.drawImage(layer, 0, 0, W, H);
     if (sc.stage) { var dof = droneOffset(sc); ctx.save(); ctx.translate(dof.x, dof.y); IN.drone(ctx, sc); ctx.restore(); }
-    var wy = Math.max(30, topY(L) - 40); IN.weather(ctx, sc, [0, 0, W / 2, wy]); IN.weather(ctx, sc, [W / 2, 0, W / 2, wy]); IN.weather(ctx, sc, [0, BASE + 7, W, H - BASE - 7]);
+    var wy = RIDGE - 4; IN.weather(ctx, sc, [0, 0, W / 2, wy]); IN.weather(ctx, sc, [W / 2, 0, W / 2, wy]); IN.weather(ctx, sc, [0, BASE + 7, W, H - BASE - 7]);
     if (sc.flash) { var rr = Math.round(10 + (1 - Math.min(1, sc.flash)) * 18); for (var sp = 0; sp < 12; sp++) { var an = sp / 12 * Math.PI * 2; px(ctx, Math.round(aiu.x + Math.cos(an) * rr), Math.round(aiu.y - 14 + Math.sin(an) * rr * 0.7), sp % 2 ? P.yellow : P.white); } }
     if (A.toyDraw) A.toyDraw(ctx, sc);
     if (CS.building) buildOverlay(ctx, sc, L);
@@ -705,19 +729,22 @@
       for (var r = 0; r < ROWS; r++) for (var c = 0; c < COLS; c++) { var k = r + ',' + c; if (CS.canMove(L, stg, CS.moving, k)) { var cr = cellRect(r, c); ctx.globalAlpha = 0.25; R(ctx, cr.x + 4, cr.y + 4, cr.w - 8, cr.h - 8, P.yellow); ctx.globalAlpha = 1; } } }
     if (CS.movingOrn) { var x0 = CS.SLOTS[CS.movingOrn]; ctx.strokeStyle = P.yellow; ctx.strokeRect(x0 - 15.5, SURF - 36.5, 31, 38); CS.SLOT_ORDER.forEach(function (sl) { if (sl !== CS.movingOrn) { ctx.globalAlpha = 0.25; R(ctx, CS.SLOTS[sl] - 14, SURF - 34, 28, 34, P.yellow); ctx.globalAlpha = 1; } }); }
     else CS.SLOT_ORDER.forEach(function (sl) { if (!L.orn[sl]) { dashed(ctx, CS.SLOTS[sl] - 12, SURF - 26, 24, 26, P.yellow); spr(ctx, CS.SLOTS[sl] - 2, SURF - 15, ['..y..', '..y..', 'yyyyy', '..y..', '..y..']); } });
-    if (!L.obs) { var ok = stg >= CS.OBS.stage; dashed(ctx, OBS.x - 9, OBS.y - 30, 18, 18, ok ? P.yellow : P.silver); spr(ctx, OBS.x - 2, OBS.y - 24, ok ? ['..y..', '..y..', 'yyyyy', '..y..', '..y..'] : ['.sss.', 's...s', 'sssss', 'ss.ss', 'sssss']); }
+    if (!L.obs) { var ok = stg >= CS.OBS.stage; dashed(ctx, OBS.x - 9, OBS.y - 36, 18, 18, ok ? P.yellow : P.silver); spr(ctx, OBS.x - 2, OBS.y - 30, ok ? ['..y..', '..y..', 'yyyyy', '..y..', '..y..'] : ['.sss.', 's...s', 'sssss', 'ss.ss', 'sssss']); }
+    if (!L.mill) { var my = ridgeAt(MILL_X); dashed(ctx, MILL_X - 10, my - 26, 20, 26, (sc.stageNow || 0) >= CS.ORN.windmill.stage ? P.yellow : P.silver); spr(ctx, MILL_X - 2, my - 16, ['..y..', '..y..', 'yyyyy', '..y..', '..y..']); }
   }
 
   /* ---------- what's under a tap ---------- */
   function inR(p, r) { return !!(r && p && p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h); }
-  function obsR() { return { x: OBS.x - 12, y: OBS.y - 32, w: 24, h: 32 }; }
+  function obsR() { return { x: SHAFT - 14, y: OBS.y - 34, w: 30, h: 34 }; }
+  function millR() { var my = ridgeAt(MILL_X); return { x: MILL_X - 14, y: my - 38, w: 28, h: 40 }; }
   CS.hitAt = function (pt, sc) {
     if (!pt || !sc) return null;
     var L = CS.current();
     if (CS.building) {
       if (inR(pt, obsR())) return { kind: 'bobs' };
-      if (pt.y > BASE + 2) { var sl = CS.SLOT_ORDER.filter(function (s) { return Math.abs(pt.x - CS.SLOTS[s]) <= 15 && pt.y >= SURF - 40; })[0]; return sl ? { kind: 'bslot', slot: sl } : null; }
-      var r = rowAt(pt.y), c = Math.floor((pt.x - OX) / CW); if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return null;
+      if (inR(pt, millR())) return { kind: 'bmill' };
+      if (pt.y > BASE + 2) { var sl = CS.SLOT_ORDER.filter(function (s) { return Math.abs(pt.x - CS.SLOTS[s]) <= 16 && pt.y >= SURF - 40; })[0]; return sl ? { kind: 'bslot', slot: sl } : null; }
+      var r = rowAt(pt.y), c = colAt(pt.x); if (r < 0 || r >= ROWS || c < 0) return null;
       return { kind: 'bcell', k: r + ',' + c };
     }
     if (inR(pt, CS.droneRect(sc))) return { kind: 'drone' };
@@ -726,6 +753,7 @@
     if (sc.stage && inR(pt, A.BOARD_P)) return { kind: 'board' };
     if (inR(pt, A.CART_P)) return { kind: 'cart' };
     if (L.obs && inR(pt, obsR())) return { kind: 'obs' };
+    if (L.mill && inR(pt, millR())) return { kind: 'orn', id: 'windmill' };
     if (pt.y > BASE + 2) {
       var hit = null; CS.SLOT_ORDER.forEach(function (s) { var t = L.orn[s]; if (t && inR(pt, ornRect(s, t))) hit = t; });
       if (hit && CS.ORN[hit].fun) return { kind: 'landmark', id: hit };
@@ -733,10 +761,10 @@
       if (Math.abs(pt.x - SHAFT) <= 14) return { kind: 'gate' };
       return null;
     }
-    var rr = rowAt(pt.y), cc = Math.floor((pt.x - OX) / CW), t0 = rr >= 0 && rr < ROWS ? L.rooms[rr + ',' + cc] : null;
+    var rr = rowAt(pt.y), cc = colAt(pt.x), t0 = rr >= 0 && rr < ROWS && cc >= 0 ? L.rooms[rr + ',' + cc] : null;
     if (t0) { var d = CS.ROOMS[t0]; if (t0 === 'office') return { kind: 'computer' }; if (d.place) return { kind: 'landmark', id: d.place }; return { kind: 'room', type: t0 }; }
     if (CS._od && Math.abs(pt.x - CS._od.x) <= 12 && pt.y <= CS._od.y + 3 && pt.y >= CS._od.y - 22) return { kind: 'oddity', odd: CS._od.od };
-    return CS.style(sc) === 'cave' && pt.y > topY(L) - 20 ? { kind: 'rock' } : null;
+    return null;
   };
 
   /* ---------- build mode (the hammer under the picture) ---------- */
@@ -747,19 +775,18 @@
     var a = app(), S = a.S, L = CS.current(), k = AIU.ui.k, stage = S.stage || 0;
     if (!hit) return;
     if (hit.kind === 'bobs') return obsSheet(L);
+    if (hit.kind === 'bmill') return millSheet(L);
     if (hit.kind === 'bcell') {
       var key = hit.k, t = L.rooms[key];
       if (CS.moving) {
         if (key === CS.moving) { CS.moving = null; return; }
-        if (!CS.canMove(L, stage, CS.moving, key)) { k.snack(L.rooms[key] ? 'Those two can\'t swap: every room has to stand on another and stay joined to the others.' : 'It can only go where it stands on a room (or the ground), stays joined to the others, and the floor is open.'); return; }
+        if (!CS.canMove(L, stage, CS.moving, key)) { k.snack(L.rooms[key] ? 'Those two can\'t swap: one of the floors isn\'t open yet.' : 'That floor isn\'t open yet.'); return; }
         var r2 = Object.assign({}, L.rooms), from = CS.moving; if (r2[key]) { var tt = r2[key]; r2[key] = r2[from]; r2[from] = tt; } else { r2[key] = r2[from]; delete r2[from]; }
         CS.moving = null; a.beep('knock'); return CS.save({ rooms: r2, orn: L.orn, obs: L.obs });
       }
       if (t) return roomSheet(L, key, t);
       var why = CS.canBuildAt(L, stage, key);
       if (why === 'locked') return k.snack('This floor opens when ' + S.totemName + ' reaches ' + C.stageName(CS.openNeeds(rc(key).r)) + '.');
-      if (why === 'air') return k.snack('A room needs a room under it: the castle grows up from the ground.');
-      if (why === 'far') return k.snack('Build next to a room you already have.');
       return pickRoom(L, key);
     }
     if (hit.kind === 'bslot') {
@@ -789,7 +816,7 @@
     var k = AIU.ui.k, h = U.h, d = CS.ROOMS[t], s;
     var acts = [k.btn('Move', function () { s.remove(); CS.moving = key; k.snack('Tap where it goes (a room there swaps with it).'); }, 'primary')];
     if (!d.core) acts.push(k.btn('Remove', function () {
-      if (!CS.canRemove(L, key)) { k.snack('Not this one: a room stands on it, or the rooms past it would be cut off.'); return; }
+      if (!CS.canRemove(L, key)) { k.snack('One of the four first rooms: it can move, but it stays.'); return; }
       if (!confirm('Remove the ' + d.name.toLowerCase() + '? You get half its tokens back (' + Math.floor((d.cost || 0) / 2) + ').')) return;
       s.remove(); var r2 = Object.assign({}, L.rooms); delete r2[key]; refund(d.cost || 0, t).then(function () { return CS.save({ rooms: r2, orn: L.orn, obs: L.obs }); }).then(function () { k.snack('Removed.'); });
     }, 'del'));
@@ -803,7 +830,7 @@
         if (have) return k.snack('It\'s already out there. Move it instead.');
         if (!ok) return k.snack(d.name + ' comes when ' + S.totemName + ' reaches ' + C.stageName(d.stage) + '.');
         if (!rich) return k.snack('You need ' + (d.cost - (S.tokens || 0)) + ' more tokens.');
-        s.remove(); spend(d.cost, t).then(function (paid) { if (!paid) return k.snack('The wallet came up short.'); var o2 = Object.assign({}, L.orn); o2[sl] = t; CS.save({ rooms: L.rooms, orn: o2, obs: L.obs }).then(function () { a.beep('coin'); k.snack('Built: ' + d.name + '.'); }); });
+        s.remove(); spend(d.cost, t).then(function (paid) { if (!paid) return k.snack('The wallet came up short.'); var o2 = Object.assign({}, L.orn); if (d.back) { CS.save({ rooms: L.rooms, orn: o2, mill: true }).then(function () { a.beep('coin'); k.snack('Built: the windmill, up on the hill.'); }); return; } o2[sl] = t; if (t === 'pond' || t === 'well') wellByPond(o2); CS.save({ rooms: L.rooms, orn: o2 }).then(function () { a.beep('coin'); k.snack('Built: ' + d.name + '.'); }); });
       }));
     });
     s = k.sheet('Build outside', [h('p', { cls: 'small', text: 'You have ' + (S.tokens || 0) + ' tokens. (The observatory goes up on the castle\'s tower: tap the + up there.)' }), list]);
@@ -813,6 +840,16 @@
     var acts = [k.btn('Move', function () { s.remove(); CS.movingOrn = sl; k.snack('Tap the spot where it goes (what\'s there swaps with it).'); }, 'primary')];
     if (!d.core) acts.push(k.btn('Remove', function () { if (!confirm('Remove the ' + d.name.toLowerCase() + '? You get half its tokens back (' + Math.floor((d.cost || 0) / 2) + ').')) return; s.remove(); var o2 = Object.assign({}, L.orn); o2[sl] = null; refund(d.cost || 0, t).then(function () { return CS.save({ rooms: L.rooms, orn: o2, obs: L.obs }); }).then(function () { k.snack('Removed.'); }); }, 'del'));
     s = k.sheet(d.name, [h('p', { text: d.desc }), d.core ? h('p', { cls: 'small', text: 'It can move to another spot, but it stays.' }) : null, h('div', { cls: 'row wrap' }, acts)]);
+  }
+  function millSheet(L) {
+    var k = AIU.ui.k, h = U.h, d = CS.ORN.windmill, s;
+    if (!L.mill) {
+      var S = app().S; if ((S.stage || 0) < d.stage) return k.snack('The windmill comes when ' + S.totemName + ' reaches ' + C.stageName(d.stage) + '.');
+      if ((S.tokens || 0) < d.cost) return k.snack('The windmill is ' + d.cost + ' tokens. You need ' + (d.cost - (S.tokens || 0)) + ' more.');
+      s = k.sheet(d.name, [h('p', { text: d.desc }), h('p', { cls: 'small', text: d.cost + ' tokens (you have ' + (S.tokens || 0) + ').' }), h('div', { cls: 'row wrap' }, k.btn('Build it', function () { s.remove(); spend(d.cost, 'windmill').then(function (paid) { if (!paid) return k.snack('The wallet came up short.'); CS.save({ rooms: L.rooms, orn: L.orn, mill: true }).then(function () { app().beep('coin'); k.snack('Built: the windmill, up on the hill.'); }); }); }, 'primary'))]);
+      return;
+    }
+    s = k.sheet(d.name, [h('p', { text: d.desc }), h('div', { cls: 'row wrap' }, k.btn('Remove', function () { if (!confirm('Take down the windmill? You get half its tokens back (' + Math.floor(d.cost / 2) + ').')) return; s.remove(); refund(d.cost, 'windmill').then(function () { return CS.save({ rooms: L.rooms, orn: L.orn, mill: false }); }).then(function () { k.snack('Removed.'); }); }, 'del'))]);
   }
   function obsSheet(L) {
     var a = app(), S = a.S, k = AIU.ui.k, h = U.h, d = CS.OBS, s;

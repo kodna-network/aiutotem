@@ -1037,6 +1037,9 @@
     R(c, x - 1, y + 2, 3, 2, P.ink); px(c, x, y + 2, lit); px(c, x, y + 3, lit); // the light
     R(c, x - 4, y + 3, 1, 2, P.ink); R(c, x + 4, y + 3, 1, 2, P.ink); // little legs
     if (v && !v.distressed && f % 16 < 2) px(c, x + 2, y - 2, P.white); // a glint
+    // 3.4.0: beacon lights on a little mast on top (red, green, blue, blinking in turn) so it's easy to spot in the sky
+    R(c, x, y - 6, 1, 4, P.ink); R(c, x - 5, y - 8, 11, 3, P.ink);
+    [[-4, P.red], [-1, P.lime], [2, P.sky]].forEach(function (L0, i) { var on = Math.floor(f / 3) % 3 === i || f % 12 < 2; R(c, x + L0[0], y - 7, 2, 1, on ? L0[1] : P.dark); if (on) { c.globalAlpha = 0.35; disc(c, x + L0[0] + 1, y - 7, 3, L0[1]); c.globalAlpha = 1; px(c, x + L0[0], y - 7, P.white); } });
   }
   A.droneRect = function (sc) { if (!sc || !sc.stage || (sc.place && sc.place !== 'home')) return null; var p = dronePos(sc); return { x: p.x - 12, y: p.y - 10, w: 24, h: 18 }; };
   // 2.1.15: tap the house (outside) to send Aiu in; tap the window (inside) to send him out

@@ -1,4 +1,4 @@
-AIU TOTEM 3.3.0 - install guide
+AIU TOTEM 3.4.0 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -18,6 +18,25 @@ ACCOUNTS
     aiu_data/accounts/<username> in DirectAdmin > File Manager (that account is gone for good), or set
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
+
+WHAT'S NEW IN 3.4.0 - THE SHELL AND THE ELEVATOR
+  Upload: the whole aiu folder (api.php and api.cgi only changed their version).
+  - The castle is one big shell now: all twelve chambers stand from the start (bare stone, a plank floor, a crate or
+    a broom), and building a room furnishes one. Floors that aren't open yet are boarded up.
+  - An elevator replaces the ladder: a shaft between the first two columns with a landing on every floor. Aiu walks
+    to it, rides up or down in its little car, and walks to his room. The elevator tower rises above the roofs, and
+    the observatory sits on top of it.
+  - Rooms go anywhere: any chamber on an open floor (the garage at the top, the bedroom on the ground floor). No
+    more "a room needs a room under it".
+  - The pond is a whimsical fountain pond (after the Fountain of Life in Bosch's Garden of Earthly Delights): a ring
+    of mossy rocks, lily pads, a pink ribbed fountain with curling arms and a glassy blue orb, water arcing down, a
+    fish that jumps now and then. The well goes next to it.
+  - The garden is a proper vegetable bed now: a sunflower, tomatoes on a stake, a cabbage (a pumpkin in the fall),
+    carrots and a little sign.
+  - The windmill stands on the hill behind the castle (it doesn't take a courtyard spot any more; a windmill you
+    already had moves up there).
+  - The drone has beacon lights on top (red, green and blue, blinking in turn), so it's easy to spot.
+  - The picture is 320 x 470 (drawn 3x).
 
 WHAT'S NEW IN 3.3.0 - THE CASTLE STANDS UP
   Upload: the whole aiu folder (api.php and api.cgi only changed their version).

@@ -1,0 +1,7 @@
+{
+  "name": "Mini rocket",
+  "category": "toy",
+  "price": 80,
+  "desc": "Small, precise and ready to launch.",
+  "file": "item.png"
+}

@@ -1,0 +1,213 @@
+AIU TOTEM 2.7.0: every way back into a lost account was removed on purpose (a lost password means starting over;
+no one, not even the admin, can get in). These are the 2.6.0 pieces, for the record.
+
+=== api.php: admin recovery ===
+// ------------------------------------------------------------------ 2.6.0: admin recovery. Someone locked out contacts the admin;
+// the admin sets a temporary password here, tells them, and they change it in Settings. Every device is logged out.
+// Their account cards and files open again with their own recovery code (made on their device; the server never has it).
+function act_admin_recover($req) {
+  rate_limit('admin', 8, 3600);
+  $ok = hash_equals(strtolower(ADMIN_USER), strtolower(trim((string) g($req, 'au', '')))) && check_pw(array('salt' => ADMIN_SALT, 'hash' => ADMIN_HASH, 'iter' => 60000), g($req, 'apw', ''));
+  if (!$ok) { @file_put_contents(data_dir() . '/admin.log', date('c') . ' failed admin login from ' . client_ip() . "\n", FILE_APPEND); fail(401, 'bad_admin', 'That admin name or password is wrong.'); }
+  $u = clean_user(g($req, 'u')); $acct = load_account($u);
+  if (!$acct) fail(404, 'no_user', 'There is no account with that username.');
+  $acct['pw'] = make_pw(clean_pw(g($req, 'pw'))); $acct['fails'] = 0; $acct['lock_until'] = 0; save_account($u, $acct);
+  with_lock(acct_dir($u) . '/.tokens.lock', function () use ($u) { write_json(tokens_path($u), array(), true); });
+  @file_put_contents(data_dir() . '/admin.log', date('c') . " temporary password set for $u from " . client_ip() . "\n", FILE_APPEND);
+  return array('ok' => true);
+}
+
+=== api.php: admin settings (the password itself was only ever in the README) ===
+define('ADMIN_USER',  envv('AIU_ADMIN_USER', 'kodna-admin'));              // 2.6.0: the admin, who can set a temporary password for an account
+define('ADMIN_SALT',  'd5403e81c47d84d4016b56fb5f68f124');                 // the admin password is stored only as this PBKDF2 hash (the README has the password)
+define('ADMIN_HASH',  'b1d25cbc91bd16af20f451942ad770cbd9cf8c7ec5c9f0e8e22df70d541c2cf1');
+
+=== api.php: act_forgot ===
+function act_forgot($req) {
+  $u = clean_user(g($req, 'u')); $email = strtolower(trim((string) g($req, 'email', '')));
+  rate_limit('forgot', 5, 3600);
+  $acct = load_account($u);
+  if ($acct && $email !== '' && (string) $acct['email'] !== '' && strtolower((string) $acct['email']) === $email) {
+    $key = rnd_hex(24); $acct['reset_key'] = sha256($key); $acct['reset_exp'] = now_ms() + RESET_TTL * 1000; save_account($u, $acct);
+    send_mail($acct['email'], 'Reset your Aiu Totem password', "Hi $u,\n\nOpen this link within 1 hour to choose a new password:\n\n" . rtrim(APP_URL, '/') . "/#reset/$u/$key\n\nIf you did not ask for this, you can ignore it. Your password has not changed.\n");
+  }
+  return array('ok' => true);
+}
+
+=== api.php: act_reset ===
+function act_reset($req) {
+  $u = clean_user(g($req, 'u')); $pw = clean_pw(g($req, 'pw'));
+  rate_limit('reset', 10, 3600);
+  $acct = load_account($u);
+  $ok = $acct && !empty($acct['reset_key']) && (int) $acct['reset_exp'] > now_ms() && hash_equals($acct['reset_key'], sha256(g($req, 'key', '')));
+  if (!$ok) fail(400, 'bad_reset', 'That reset link is not valid or has expired. Ask for a new one.');
+  $acct['pw'] = make_pw($pw); unset($acct['reset_key'], $acct['reset_exp']);
+  $acct['confirmed'] = true; $acct['fails'] = 0; $acct['lock_until'] = 0;
+  save_account($u, $acct);
+  with_lock(acct_dir($u) . '/.tokens.lock', function () use ($u) { write_json(tokens_path($u), array(), true); });
+  return array('ok' => true);
+}
+
+=== api.cgi: admin recovery ===
+# ------------------------------------------------------------------ 2.6.0: admin recovery (see api.php for the story)
+def act_admin_recover(req)
+  rate_limit!('admin', 8, 3600)
+  ok = secure_eq(ADMIN_USER.downcase, req['au'].to_s.strip.downcase) && check_pw({ 'salt' => ADMIN_SALT, 'hash' => ADMIN_HASH, 'iter' => 60_000 }, req['apw'])
+  unless ok
+    File.open(File.join(DATA_DIR, 'admin.log'), 'a') { |f| f.write("#{Time.now} failed admin login from #{client_ip}\n") } rescue nil
+    fail!(401, 'bad_admin', 'That admin name or password is wrong.')
+  end
+  u = clean_user(req['u'])
+  acct = load_account(u)
+  fail!(404, 'no_user', 'There is no account with that username.') unless acct
+  acct['pw'] = make_pw(clean_pw(req['pw']))
+  acct['fails'] = 0
+  acct['lock_until'] = 0
+  save_account(u, acct)
+  with_lock(File.join(acct_dir(u), '.tokens.lock')) { write_json(tokens_path(u), {}) }
+  File.open(File.join(DATA_DIR, 'admin.log'), 'a') { |f| f.write("#{Time.now} temporary password set for #{u} from #{client_ip}\n") } rescue nil
+  { 'ok' => true }
+end
+
+
+=== api.cgi: admin settings ===
+ADMIN_USER  = ENV['AIU_ADMIN_USER'] || 'kodna-admin'              # 2.6.0: the admin, who can set a temporary password for an account
+ADMIN_SALT  = 'd5403e81c47d84d4016b56fb5f68f124'                 # the admin password is stored only as this PBKDF2 hash (the README has the password)
+ADMIN_HASH  = 'b1d25cbc91bd16af20f451942ad770cbd9cf8c7ec5c9f0e8e22df70d541c2cf1'
+
+=== api.cgi: act_forgot ===
+def act_forgot(req)
+  u = clean_user(req['u'])
+  email = req['email'].to_s.strip.downcase
+  rate_limit!('forgot', 5, 3600)
+  acct = load_account(u)
+  if acct && !email.empty? && !acct['email'].to_s.empty? && acct['email'].to_s.downcase == email
+    key = SecureRandom.hex(24)
+    acct['reset_key'] = sha256(key)
+    acct['reset_exp'] = now_ms + RESET_TTL * 1000
+    save_account(u, acct)
+    base = APP_URL.sub(%r{/*\z}, '/')
+    send_mail(acct['email'], 'Reset your Aiu Totem password',
+              "Hi #{u},\n\nOpen this link within 1 hour to choose a new password:\n\n#{base}#reset/#{u}/#{key}\n\n" \
+              "If you did not ask for this, you can ignore it. Your password has not changed.\n")
+  end
+  { 'ok' => true } # same answer either way, so nobody can fish for accounts
+end
+
+=== api.cgi: act_reset ===
+def act_reset(req)
+  u = clean_user(req['u'])
+  pw = clean_pw(req['pw'])
+  rate_limit!('reset', 10, 3600)
+  acct = load_account(u)
+  ok = acct && acct['reset_key'] && acct['reset_exp'].to_i > now_ms && secure_eq(sha256(req['key']), acct['reset_key'])
+  fail!(400, 'bad_reset', 'That reset link is not valid or has expired. Ask for a new one.') unless ok
+  acct['pw'] = make_pw(pw)
+  acct.delete('reset_key')
+  acct.delete('reset_exp')
+  acct['confirmed'] = true # they proved they own the email
+  acct['fails'] = 0
+  acct['lock_until'] = 0
+  save_account(u, acct)
+  with_lock(File.join(acct_dir(u), '.tokens.lock')) { write_json(tokens_path(u), {}) } # every device must log in again
+  { 'ok' => true }
+end
+
+=== js/ui.js: forgot + admin screens ===
+  // 2.6.0: no email: the admin sets a temporary password, and your recovery code opens your cards and files again
+  ui.forgotScreen = function (un) {
+    screen([logo(), h('h2', { text: 'Forgot your password?' }),
+      h('p', { text: 'Contact the admin (KODNA, at KODNA.net) and tell them your username. They set a temporary password and tell it to you.' }),
+      h('p', { text: 'Then log in with it, change it in Settings > Account & data > Change password, and open Accounts > Cards: type your recovery code there and your cards and files open again.' }),
+      h('p', { cls: 'small', text: 'No recovery code? Everything else comes back (Aiu, your journal, your tiles), but your account cards and files stay locked.' }),
+      btn('Back to log in', function () { ui.loginScreen(un); }, 'primary'), btn('I\'m the admin', function () { ui.adminScreen(un); }, 'ghost')]);
+  };
+  ui.adminScreen = function (un) {
+    var au = inp({ placeholder: 'admin username' }), ap = inp({ type: 'password', placeholder: 'admin password' }), u = inp({ value: un || '', placeholder: 'their username' }), np = inp({ placeholder: '8+ characters, to tell them' }), m = h('p', { cls: 'formmsg' }), go;
+    go = btn('Set the temporary password', function () {
+      if (!au.value.trim() || !ap.value || !u.value.trim()) return msg(m, 'Fill in all four boxes.', true);
+      if (np.value.length < 8) return msg(m, 'The temporary password needs at least 8 characters.', true);
+      busy(go, true, 'Setting it...');
+      app().api('admin_recover', { au: au.value.trim(), apw: ap.value, u: u.value.trim().toLowerCase(), pw: np.value }).then(function () {
+        busy(go, false, 'Set the temporary password'); msg(m, 'Done. Tell ' + u.value.trim() + ' the temporary password. All their devices were logged out. They should change it in Settings, then use their recovery code in Accounts > Cards.'); ap.value = '';
+      }, function (e) { busy(go, false, 'Set the temporary password'); msg(m, e.message, true); });
+    }, 'primary');
+    screen([logo(), h('h2', { text: 'Admin: account recovery' }), h('p', { cls: 'small', text: 'Only for the admin. This sets a temporary password for someone who is locked out (after they contacted you directly). It can\'t open their cards or files: their recovery code does that.' }),
+      field('Admin username', au), field('Admin password', ap), field('Their username', u), field('Temporary password', np), m, go, btn('Back', function () { ui.loginScreen(un); }, 'ghost')]);
+  };
+
+=== js/ui.js: settings button ===
+      acct.push(btn(a.hasRescue() ? 'Recovery code (make a new one)' : 'Make my recovery code', function () { s.remove(); AIU.panels.rescueSheet(); }, a.hasRescue() ? '' : 'primary')); // 2.6.0
+
+=== js/accounts.js: recovery code sheets ===
+  // 2.6.0: the recovery code: make one (shown once, to write down), or use one after the admin gave you a temporary password
+  PN.rescueSheet = function () {
+    var a = app(), k = K(), s, box = h('div'), m = h('p', { cls: 'formmsg' });
+    var go = k.btn(a.hasRescue() ? 'Make a new code' : 'Make my recovery code', function () {
+      k.busy(go, true, 'Making it...');
+      a.rescueMake().then(function (code) {
+        k.clear(box); go.remove();
+        box.appendChild(h('p', { cls: 'rcode', text: code }));
+        box.appendChild(h('p', { text: 'Write this down now and keep it somewhere safe (not on this phone). It is shown only this once. ' + (a.hasRescue() ? 'Any older code no longer works.' : '') }));
+        box.appendChild(k.btn('I wrote it down', function () { s.remove(); ui.renderPanel(true); }, 'primary'));
+      }, function (e) { k.busy(go, false, 'Try again'); k.msg(m, e.message, true); });
+    }, 'primary');
+    s = k.sheet('Recovery code', [h('p', { text: 'If you ever lose your password, the admin can give you a temporary one. Your recovery code then opens your account cards and your files again. Without it, they stay locked for good.' }),
+      h('p', { cls: 'small', text: 'The code never leaves your devices unscrambled: the server can\'t read it.' }), box, m, go]);
+  };
+  function rescueUseForm(into) {
+    var a = app(), k = K(), code = k.inp({ placeholder: 'XXXX-XXXX-XXXX-XXXX', autocapitalize: 'characters', 'aria-label': 'Recovery code' }), pw = k.inp({ type: 'password', placeholder: 'the password you log in with now', autocomplete: 'current-password' }), m = h('p', { cls: 'formmsg' }), go;
+    go = k.btn('Open my cards and files', function () {
+      if (!code.value.trim() || !pw.value) return k.msg(m, 'Type your recovery code and your password.', true);
+      k.busy(go, true, 'Opening...');
+      a.rescueUse(code.value, pw.value).then(function () { FILESRESET(); ui.k.snack('Opened. Everything is locked with your new password now.'); ui.renderPanel(true); }, function (e) { k.busy(go, false, 'Open my cards and files'); k.msg(m, e.message, true); });
+    }, 'primary');
+    into.appendChild(h('details', { cls: 'rescue' }, h('summary', { text: 'Lost your password? Use your recovery code' }),
+      h('p', { cls: 'small', text: 'After the admin gave you a temporary password (and you logged in with it), type your recovery code here.' }), k.field('Recovery code', code), k.field('Your password now', pw), m, go));
+  }
+  function FILESRESET() { if (AIU.files && AIU.files.reset) AIU.files.reset(); }
+
+=== js/accounts.js: nudge ===
+      if (app().vaultMode() === 'sealed' && !app().hasRescue()) p.appendChild(h('div', { cls: 'bcard rnudge' }, h('b', { text: 'Make your recovery code' }), h('p', { cls: 'small', text: 'If you ever lose your password, it opens your cards and files again. It takes a moment.' }), k.btn('Make it now', PN.rescueSheet, 'primary'))); // 2.6.0
+=== js/app.js: rescueMake / rescueUse ===
+  /* 2.6.0: the recovery code (see vault.js). Made on this device when you ask (Settings > User info, or the note in
+     Accounts > Cards), shown once to write down. With it, a temporary password from the admin opens everything again. */
+  function rescueRec() { var r = app.S && C.setting(app.S, 'vaultRescue', null); return r && r.ct ? r : null; }
+  app.hasRescue = function () { return !!rescueRec(); };
+  app.rescueMake = function () {
+    var V = AIU.vault;
+    return app.vaultKey().then(function (k) {
+      if (!k) throw new Error('Open Accounts with your Aiu password first.');
+      var code = V.newCode();
+      return V.wrapRescue(k, code).then(function (rec) { return app.addEvents([{ type: 'set', data: { k: 'vaultRescue', v: rec } }]); }).then(function () { return code; });
+    });
+  };
+  app.rescueUse = function (code, pw) { // your recovery code + the password you log in with now
+    var V = AIU.vault, rec = rescueRec();
+    return (app.prof.token ? app.syncNow('rescue').catch(function () {}) : Promise.resolve()).then(function () {
+      rec = rescueRec(); var lock = lockNow();
+      if (!rec || !lock) throw new Error('This Aiu has no recovery code yet.');
+      return V.openRescue(code, rec).then(function (k) {
+        return V.fits(k, lock).then(function (ok) { if (!ok) throw new Error('That code is from before a password change. Use the newest code you wrote down.'); return keep(k, lock); });
+      }).then(function () { return app.vaultRekey(pw); });
+    });
+  };
+
+=== js/vault.js ===
+  /* 2.6.0: the recovery code. A code you write down (16 letters and numbers) wraps your card key, so if your password is
+     ever lost (the admin sets a temporary one), the code opens your cards and files again. The code itself is kept
+     only scrambled with your card key, so a new password can re-wrap the same code; the server never sees it. */
+  var CODE_CH = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  V.newCode = function () { var u = rand(16), out = ''; for (var i = 0; i < 16; i++) { out += CODE_CH.charAt(u[i] % CODE_CH.length); if (i % 4 === 3 && i < 15) out += '-'; } return out; };
+  V.cleanCode = function (c) { var t = String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); return t.replace(/(.{4})(?=.)/g, '$1-'); };
+  V.wrapRescue = function (key, code) { // -> {salt, iv, ct (the key, wrapped by the code), civ, cct (the code, sealed by the key)}
+    var salt = rand(16);
+    return Promise.all([V.exportKey(key), derive('rescue:' + V.cleanCode(code), salt)]).then(function (r) {
+      return Promise.all([seal(r[1], r[0]), seal(key, code)]).then(function (x) { return { salt: b64(salt), iv: x[0].iv, ct: x[0].ct, civ: x[1].iv, cct: x[1].ct, rounds: ROUNDS }; });
+    });
+  };
+  V.openRescue = function (code, rec) { // -> the card key, or rejects
+    return derive('rescue:' + V.cleanCode(code), unb64(rec.salt), rec.rounds).then(function (k) { return open(k, rec.iv, rec.ct); }).then(function (raw) { return V.importKey(raw); }, function () { throw new Error('That recovery code doesn\'t fit. Check it and try again.'); });
+  };
+  V.codeOf = function (key, rec) { return open(key, rec.civ, rec.cct); }; // the code, read back with the card key (to re-wrap it after a new password)
+

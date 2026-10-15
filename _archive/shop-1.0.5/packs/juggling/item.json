@@ -1,0 +1,17 @@
+{
+  "name": "Juggling balls",
+  "category": "activity",
+  "price": 60,
+  "desc": "Three balls and a lot of practice.",
+  "label": "juggling",
+  "where": "both",
+  "anchor": "above",
+  "fps": 6,
+  "keys": [
+    "juggle",
+    "juggling",
+    "circus"
+  ],
+  "frames": 6,
+  "file": "item.png"
+}

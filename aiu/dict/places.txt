@@ -1,0 +1,411 @@
+#aiu-places 1 - made by KODNA for Aiu Totem. City|State or region|Country code|latitude|longitude|time zone
+# Used to find your city (weather + time zone) and so the butler knows these are places.
+Montgomery|AL|US|32.377|-86.300|America/Chicago
+Birmingham|AL|US|33.519|-86.810|America/Chicago
+Huntsville|AL|US|34.730|-86.586|America/Chicago
+Mobile|AL|US|30.695|-88.040|America/Chicago
+Juneau|AK|US|58.302|-134.420|America/Juneau
+Anchorage|AK|US|61.218|-149.900|America/Anchorage
+Fairbanks|AK|US|64.838|-147.716|America/Anchorage
+Phoenix|AZ|US|33.448|-112.074|America/Phoenix
+Tucson|AZ|US|32.222|-110.975|America/Phoenix
+Mesa|AZ|US|33.415|-111.831|America/Phoenix
+Flagstaff|AZ|US|35.198|-111.651|America/Phoenix
+Little Rock|AR|US|34.746|-92.290|America/Chicago
+Fayetteville|AR|US|36.063|-94.157|America/Chicago
+Sacramento|CA|US|38.582|-121.494|America/Los_Angeles
+Los Angeles|CA|US|34.052|-118.244|America/Los_Angeles
+San Diego|CA|US|32.716|-117.161|America/Los_Angeles
+San Jose|CA|US|37.339|-121.894|America/Los_Angeles
+San Francisco|CA|US|37.775|-122.419|America/Los_Angeles
+Fresno|CA|US|36.738|-119.787|America/Los_Angeles
+Oakland|CA|US|37.804|-122.271|America/Los_Angeles
+Long Beach|CA|US|33.770|-118.194|America/Los_Angeles
+Bakersfield|CA|US|35.373|-119.019|America/Los_Angeles
+Anaheim|CA|US|33.836|-117.914|America/Los_Angeles
+Riverside|CA|US|33.953|-117.396|America/Los_Angeles
+Santa Barbara|CA|US|34.420|-119.698|America/Los_Angeles
+Denver|CO|US|39.739|-104.990|America/Denver
+Colorado Springs|CO|US|38.834|-104.821|America/Denver
+Boulder|CO|US|40.015|-105.271|America/Denver
+Fort Collins|CO|US|40.585|-105.084|America/Denver
+Hartford|CT|US|41.764|-72.685|America/New_York
+New Haven|CT|US|41.308|-72.928|America/New_York
+Bridgeport|CT|US|41.187|-73.195|America/New_York
+Dover|DE|US|39.158|-75.524|America/New_York
+Wilmington|DE|US|39.746|-75.547|America/New_York
+Washington|DC|US|38.907|-77.037|America/New_York
+Tallahassee|FL|US|30.438|-84.281|America/New_York
+Jacksonville|FL|US|30.332|-81.656|America/New_York
+Miami|FL|US|25.762|-80.192|America/New_York
+Tampa|FL|US|27.951|-82.457|America/New_York
+Orlando|FL|US|28.538|-81.379|America/New_York
+St. Petersburg|FL|US|27.768|-82.640|America/New_York
+Fort Lauderdale|FL|US|26.122|-80.137|America/New_York
+Pensacola|FL|US|30.421|-87.217|America/Chicago
+Gainesville|FL|US|29.652|-82.325|America/New_York
+Atlanta|GA|US|33.749|-84.388|America/New_York
+Savannah|GA|US|32.081|-81.091|America/New_York
+Augusta|GA|US|33.474|-82.010|America/New_York
+Honolulu|HI|US|21.307|-157.858|Pacific/Honolulu
+Boise|ID|US|43.615|-116.202|America/Boise
+Springfield|IL|US|39.782|-89.650|America/Chicago
+Chicago|IL|US|41.878|-87.630|America/Chicago
+Aurora|IL|US|41.761|-88.320|America/Chicago
+Rockford|IL|US|42.271|-89.094|America/Chicago
+Peoria|IL|US|40.694|-89.589|America/Chicago
+Indianapolis|IN|US|39.768|-86.158|America/Indiana/Indianapolis
+Fort Wayne|IN|US|41.079|-85.139|America/Indiana/Indianapolis
+South Bend|IN|US|41.676|-86.252|America/Indiana/Indianapolis
+Evansville|IN|US|37.972|-87.571|America/Chicago
+Des Moines|IA|US|41.587|-93.625|America/Chicago
+Cedar Rapids|IA|US|41.978|-91.666|America/Chicago
+Topeka|KS|US|39.048|-95.678|America/Chicago
+Wichita|KS|US|37.688|-97.336|America/Chicago
+Kansas City|KS|US|39.114|-94.627|America/Chicago
+Frankfort|KY|US|38.201|-84.873|America/New_York
+Louisville|KY|US|38.253|-85.759|America/Kentucky/Louisville
+Lexington|KY|US|38.041|-84.504|America/New_York
+Baton Rouge|LA|US|30.452|-91.187|America/Chicago
+New Orleans|LA|US|29.951|-90.072|America/Chicago
+Shreveport|LA|US|32.525|-93.750|America/Chicago
+Augusta|ME|US|44.311|-69.780|America/New_York
+Portland|ME|US|43.659|-70.257|America/New_York
+Bangor|ME|US|44.801|-68.778|America/New_York
+Annapolis|MD|US|38.978|-76.492|America/New_York
+Baltimore|MD|US|39.290|-76.612|America/New_York
+Boston|MA|US|42.360|-71.059|America/New_York
+Worcester|MA|US|42.263|-71.802|America/New_York
+Springfield|MA|US|42.101|-72.590|America/New_York
+Cambridge|MA|US|42.374|-71.119|America/New_York
+Lansing|MI|US|42.733|-84.556|America/Detroit
+Detroit|MI|US|42.331|-83.046|America/Detroit
+Grand Rapids|MI|US|42.963|-85.668|America/Detroit
+Muskegon|MI|US|43.234|-86.248|America/Detroit
+Holland|MI|US|42.788|-86.109|America/Detroit
+Kalamazoo|MI|US|42.292|-85.587|America/Detroit
+Ann Arbor|MI|US|42.281|-83.743|America/Detroit
+Flint|MI|US|43.013|-83.687|America/Detroit
+Saginaw|MI|US|43.419|-83.951|America/Detroit
+Traverse City|MI|US|44.763|-85.621|America/Detroit
+Marquette|MI|US|46.544|-87.395|America/Detroit
+Fremont|MI|US|43.468|-85.942|America/Detroit
+Whitehall|MI|US|43.410|-86.349|America/Detroit
+Ludington|MI|US|43.955|-86.453|America/Detroit
+Big Rapids|MI|US|43.698|-85.484|America/Detroit
+Newaygo|MI|US|43.420|-85.800|America/Detroit
+Sterling Heights|MI|US|42.580|-83.030|America/Detroit
+Warren|MI|US|42.515|-83.015|America/Detroit
+Dearborn|MI|US|42.322|-83.176|America/Detroit
+Battle Creek|MI|US|42.321|-85.180|America/Detroit
+Jackson|MI|US|42.246|-84.401|America/Detroit
+St. Paul|MN|US|44.954|-93.090|America/Chicago
+Minneapolis|MN|US|44.978|-93.265|America/Chicago
+Duluth|MN|US|46.787|-92.101|America/Chicago
+Rochester|MN|US|44.012|-92.480|America/Chicago
+Jackson|MS|US|32.299|-90.185|America/Chicago
+Gulfport|MS|US|30.367|-89.093|America/Chicago
+Jefferson City|MO|US|38.577|-92.174|America/Chicago
+Kansas City|MO|US|39.100|-94.579|America/Chicago
+St. Louis|MO|US|38.627|-90.199|America/Chicago
+Springfield|MO|US|37.209|-93.292|America/Chicago
+Helena|MT|US|46.589|-112.039|America/Denver
+Billings|MT|US|45.783|-108.501|America/Denver
+Missoula|MT|US|46.872|-113.994|America/Denver
+Lincoln|NE|US|40.814|-96.702|America/Chicago
+Omaha|NE|US|41.257|-95.935|America/Chicago
+Carson City|NV|US|39.164|-119.767|America/Los_Angeles
+Las Vegas|NV|US|36.170|-115.140|America/Los_Angeles
+Reno|NV|US|39.530|-119.814|America/Los_Angeles
+Concord|NH|US|43.208|-71.538|America/New_York
+Manchester|NH|US|42.996|-71.455|America/New_York
+Trenton|NJ|US|40.221|-74.756|America/New_York
+Newark|NJ|US|40.736|-74.172|America/New_York
+Jersey City|NJ|US|40.728|-74.078|America/New_York
+Atlantic City|NJ|US|39.364|-74.423|America/New_York
+Santa Fe|NM|US|35.687|-105.938|America/Denver
+Albuquerque|NM|US|35.084|-106.650|America/Denver
+Las Cruces|NM|US|32.312|-106.778|America/Denver
+Albany|NY|US|42.653|-73.757|America/New_York
+New York|NY|US|40.713|-74.006|America/New_York
+Brooklyn|NY|US|40.678|-73.944|America/New_York
+Buffalo|NY|US|42.886|-78.878|America/New_York
+Rochester|NY|US|43.157|-77.609|America/New_York
+Syracuse|NY|US|43.049|-76.147|America/New_York
+Raleigh|NC|US|35.780|-78.639|America/New_York
+Charlotte|NC|US|35.227|-80.843|America/New_York
+Greensboro|NC|US|36.073|-79.792|America/New_York
+Durham|NC|US|35.994|-78.899|America/New_York
+Asheville|NC|US|35.595|-82.551|America/New_York
+Wilmington|NC|US|34.226|-77.945|America/New_York
+Bismarck|ND|US|46.808|-100.784|America/Chicago
+Fargo|ND|US|46.877|-96.790|America/Chicago
+Columbus|OH|US|39.961|-82.999|America/New_York
+Cleveland|OH|US|41.499|-81.694|America/New_York
+Cincinnati|OH|US|39.103|-84.512|America/New_York
+Toledo|OH|US|41.664|-83.555|America/New_York
+Akron|OH|US|41.081|-81.519|America/New_York
+Dayton|OH|US|39.759|-84.192|America/New_York
+Oklahoma City|OK|US|35.468|-97.516|America/Chicago
+Tulsa|OK|US|36.154|-95.993|America/Chicago
+Salem|OR|US|44.943|-123.035|America/Los_Angeles
+Portland|OR|US|45.515|-122.679|America/Los_Angeles
+Eugene|OR|US|44.052|-123.087|America/Los_Angeles
+Bend|OR|US|44.058|-121.315|America/Los_Angeles
+Harrisburg|PA|US|40.273|-76.884|America/New_York
+Philadelphia|PA|US|39.953|-75.165|America/New_York
+Pittsburgh|PA|US|40.441|-79.996|America/New_York
+Allentown|PA|US|40.608|-75.490|America/New_York
+Erie|PA|US|42.129|-80.085|America/New_York
+Providence|RI|US|41.824|-71.413|America/New_York
+Columbia|SC|US|34.000|-81.035|America/New_York
+Charleston|SC|US|32.777|-79.931|America/New_York
+Greenville|SC|US|34.853|-82.394|America/New_York
+Myrtle Beach|SC|US|33.689|-78.887|America/New_York
+Pierre|SD|US|44.368|-100.351|America/Chicago
+Sioux Falls|SD|US|43.545|-96.731|America/Chicago
+Rapid City|SD|US|44.081|-103.231|America/Denver
+Nashville|TN|US|36.163|-86.781|America/Chicago
+Memphis|TN|US|35.150|-90.049|America/Chicago
+Knoxville|TN|US|35.961|-83.921|America/New_York
+Chattanooga|TN|US|35.046|-85.310|America/New_York
+Austin|TX|US|30.267|-97.743|America/Chicago
+Houston|TX|US|29.760|-95.370|America/Chicago
+San Antonio|TX|US|29.424|-98.494|America/Chicago
+Dallas|TX|US|32.777|-96.797|America/Chicago
+Fort Worth|TX|US|32.755|-97.331|America/Chicago
+El Paso|TX|US|31.762|-106.485|America/Denver
+Arlington|TX|US|32.736|-97.108|America/Chicago
+Corpus Christi|TX|US|27.801|-97.396|America/Chicago
+Lubbock|TX|US|33.578|-101.855|America/Chicago
+Amarillo|TX|US|35.222|-101.831|America/Chicago
+Plano|TX|US|33.020|-96.699|America/Chicago
+Salt Lake City|UT|US|40.761|-111.891|America/Denver
+Provo|UT|US|40.234|-111.659|America/Denver
+St. George|UT|US|37.096|-113.568|America/Denver
+Montpelier|VT|US|44.260|-72.576|America/New_York
+Burlington|VT|US|44.476|-73.212|America/New_York
+Richmond|VA|US|37.541|-77.436|America/New_York
+Virginia Beach|VA|US|36.853|-75.978|America/New_York
+Norfolk|VA|US|36.851|-76.286|America/New_York
+Arlington|VA|US|38.880|-77.107|America/New_York
+Roanoke|VA|US|37.271|-79.941|America/New_York
+Olympia|WA|US|47.038|-122.901|America/Los_Angeles
+Seattle|WA|US|47.606|-122.332|America/Los_Angeles
+Spokane|WA|US|47.659|-117.426|America/Los_Angeles
+Tacoma|WA|US|47.253|-122.444|America/Los_Angeles
+Vancouver|WA|US|45.639|-122.661|America/Los_Angeles
+Charleston|WV|US|38.350|-81.633|America/New_York
+Morgantown|WV|US|39.630|-79.956|America/New_York
+Madison|WI|US|43.073|-89.401|America/Chicago
+Milwaukee|WI|US|43.039|-87.906|America/Chicago
+Green Bay|WI|US|44.513|-88.013|America/Chicago
+Cheyenne|WY|US|41.140|-104.820|America/Denver
+Casper|WY|US|42.867|-106.313|America/Denver
+Jackson|WY|US|43.480|-110.762|America/Denver
+San Juan|PR|US|18.466|-66.106|America/Puerto_Rico
+Toronto|ON|CA|43.653|-79.383|America/Toronto
+Ottawa|ON|CA|45.421|-75.697|America/Toronto
+Montreal|QC|CA|45.502|-73.567|America/Toronto
+Quebec City|QC|CA|46.813|-71.208|America/Toronto
+Vancouver|BC|CA|49.283|-123.121|America/Vancouver
+Calgary|AB|CA|51.045|-114.072|America/Edmonton
+Edmonton|AB|CA|53.546|-113.494|America/Edmonton
+Winnipeg|MB|CA|49.895|-97.138|America/Winnipeg
+Halifax|NS|CA|44.649|-63.575|America/Halifax
+Windsor|ON|CA|42.315|-83.037|America/Toronto
+Mexico City||MX|19.433|-99.133|America/Mexico_City
+Guadalajara||MX|20.659|-103.350|America/Mexico_City
+Monterrey||MX|25.687|-100.316|America/Monterrey
+Cancun||MX|21.162|-86.851|America/Cancun
+Tijuana||MX|32.515|-117.038|America/Tijuana
+Havana||CU|23.113|-82.366|America/Havana
+Kingston||JM|17.971|-76.793|America/Jamaica
+Guatemala City||GT|14.634|-90.507|America/Guatemala
+San Jose||CR|9.928|-84.091|America/Costa_Rica
+Panama City||PA|8.983|-79.517|America/Panama
+Bogota||CO|4.711|-74.072|America/Bogota
+Lima||PE|-12.046|-77.043|America/Lima
+Quito||EC|-0.180|-78.468|America/Guayaquil
+Caracas||VE|10.481|-66.904|America/Caracas
+Santiago||CL|-33.449|-70.669|America/Santiago
+Buenos Aires||AR|-34.604|-58.382|America/Argentina/Buenos_Aires
+Sao Paulo||BR|-23.551|-46.633|America/Sao_Paulo
+Rio de Janeiro||BR|-22.907|-43.173|America/Sao_Paulo
+Brasilia||BR|-15.794|-47.882|America/Sao_Paulo
+Montevideo||UY|-34.901|-56.165|America/Montevideo
+La Paz||BO|-16.500|-68.150|America/La_Paz
+Asuncion||PY|-25.264|-57.576|America/Asuncion
+London||GB|51.507|-0.128|Europe/London
+Manchester||GB|53.481|-2.243|Europe/London
+Birmingham||GB|52.486|-1.890|Europe/London
+Edinburgh||GB|55.953|-3.188|Europe/London
+Glasgow||GB|55.864|-4.252|Europe/London
+Cardiff||GB|51.482|-3.179|Europe/London
+Belfast||GB|54.597|-5.930|Europe/London
+Dublin||IE|53.350|-6.260|Europe/Dublin
+Paris||FR|48.857|2.352|Europe/Paris
+Lyon||FR|45.764|4.836|Europe/Paris
+Marseille||FR|43.296|5.370|Europe/Paris
+Nice||FR|43.710|7.262|Europe/Paris
+Brussels||BE|50.850|4.352|Europe/Brussels
+Amsterdam||NL|52.368|4.904|Europe/Amsterdam
+Rotterdam||NL|51.924|4.478|Europe/Amsterdam
+Luxembourg||LU|49.612|6.130|Europe/Luxembourg
+Berlin||DE|52.520|13.405|Europe/Berlin
+Hamburg||DE|53.551|9.994|Europe/Berlin
+Munich||DE|48.135|11.582|Europe/Berlin
+Frankfurt||DE|50.111|8.682|Europe/Berlin
+Cologne||DE|50.938|6.960|Europe/Berlin
+Zurich||CH|47.377|8.542|Europe/Zurich
+Geneva||CH|46.204|6.143|Europe/Zurich
+Bern||CH|46.948|7.447|Europe/Zurich
+Vienna||AT|48.208|16.374|Europe/Vienna
+Rome||IT|41.903|12.496|Europe/Rome
+Milan||IT|45.464|9.190|Europe/Rome
+Naples||IT|40.852|14.268|Europe/Rome
+Venice||IT|45.441|12.316|Europe/Rome
+Florence||IT|43.770|11.256|Europe/Rome
+Madrid||ES|40.417|-3.704|Europe/Madrid
+Barcelona||ES|41.385|2.173|Europe/Madrid
+Seville||ES|37.389|-5.984|Europe/Madrid
+Valencia||ES|39.470|-0.376|Europe/Madrid
+Lisbon||PT|38.722|-9.139|Europe/Lisbon
+Porto||PT|41.158|-8.629|Europe/Lisbon
+Copenhagen||DK|55.676|12.568|Europe/Copenhagen
+Oslo||NO|59.914|10.752|Europe/Oslo
+Stockholm||SE|59.329|18.069|Europe/Stockholm
+Helsinki||FI|60.170|24.938|Europe/Helsinki
+Reykjavik||IS|64.147|-21.942|Atlantic/Reykjavik
+Warsaw||PL|52.230|21.012|Europe/Warsaw
+Krakow||PL|50.065|19.945|Europe/Warsaw
+Prague||CZ|50.076|14.438|Europe/Prague
+Budapest||HU|47.498|19.040|Europe/Budapest
+Bratislava||SK|48.149|17.107|Europe/Bratislava
+Ljubljana||SI|46.057|14.506|Europe/Ljubljana
+Zagreb||HR|45.815|15.982|Europe/Zagreb
+Belgrade||RS|44.787|20.457|Europe/Belgrade
+Bucharest||RO|44.427|26.103|Europe/Bucharest
+Sofia||BG|42.698|23.322|Europe/Sofia
+Athens||GR|37.984|23.728|Europe/Athens
+Istanbul||TR|41.008|28.978|Europe/Istanbul
+Ankara||TR|39.934|32.860|Europe/Istanbul
+Kyiv||UA|50.450|30.523|Europe/Kyiv
+Vilnius||LT|54.687|25.280|Europe/Vilnius
+Riga||LV|56.950|24.105|Europe/Riga
+Tallinn||EE|59.437|24.754|Europe/Tallinn
+Moscow||RU|55.756|37.617|Europe/Moscow
+Saint Petersburg||RU|59.934|30.336|Europe/Moscow
+Cairo||EG|30.044|31.236|Africa/Cairo
+Casablanca||MA|33.573|-7.590|Africa/Casablanca
+Marrakesh||MA|31.630|-7.981|Africa/Casablanca
+Tunis||TN|36.806|10.182|Africa/Tunis
+Lagos||NG|6.524|3.379|Africa/Lagos
+Abuja||NG|9.077|7.399|Africa/Lagos
+Accra||GH|5.604|-0.187|Africa/Accra
+Dakar||SN|14.716|-17.467|Africa/Dakar
+Nairobi||KE|-1.292|36.822|Africa/Nairobi
+Addis Ababa||ET|9.030|38.740|Africa/Addis_Ababa
+Kampala||UG|0.347|32.582|Africa/Kampala
+Dar es Salaam||TZ|-6.792|39.208|Africa/Dar_es_Salaam
+Kinshasa||CD|-4.441|15.266|Africa/Kinshasa
+Luanda||AO|-8.839|13.289|Africa/Luanda
+Johannesburg||ZA|-26.204|28.047|Africa/Johannesburg
+Cape Town||ZA|-33.925|18.424|Africa/Johannesburg
+Durban||ZA|-29.859|31.022|Africa/Johannesburg
+Harare||ZW|-17.829|31.052|Africa/Harare
+Jerusalem||IL|31.769|35.216|Asia/Jerusalem
+Tel Aviv||IL|32.085|34.782|Asia/Jerusalem
+Amman||JO|31.954|35.911|Asia/Amman
+Beirut||LB|33.894|35.502|Asia/Beirut
+Riyadh||SA|24.713|46.675|Asia/Riyadh
+Jeddah||SA|21.485|39.193|Asia/Riyadh
+Dubai||AE|25.205|55.271|Asia/Dubai
+Abu Dhabi||AE|24.454|54.377|Asia/Dubai
+Doha||QA|25.285|51.531|Asia/Qatar
+Kuwait City||KW|29.376|47.977|Asia/Kuwait
+Baghdad||IQ|33.315|44.366|Asia/Baghdad
+Tehran||IR|35.689|51.389|Asia/Tehran
+Karachi||PK|24.861|67.010|Asia/Karachi
+Lahore||PK|31.520|74.359|Asia/Karachi
+Islamabad||PK|33.684|73.048|Asia/Karachi
+Kabul||AF|34.555|69.207|Asia/Kabul
+Delhi||IN|28.704|77.102|Asia/Kolkata
+New Delhi||IN|28.614|77.209|Asia/Kolkata
+Mumbai||IN|19.076|72.878|Asia/Kolkata
+Bangalore||IN|12.972|77.595|Asia/Kolkata
+Chennai||IN|13.083|80.271|Asia/Kolkata
+Kolkata||IN|22.573|88.364|Asia/Kolkata
+Hyderabad||IN|17.385|78.487|Asia/Kolkata
+Dhaka||BD|23.811|90.412|Asia/Dhaka
+Kathmandu||NP|27.717|85.324|Asia/Kathmandu
+Colombo||LK|6.927|79.861|Asia/Colombo
+Bangkok||TH|13.756|100.502|Asia/Bangkok
+Chiang Mai||TH|18.788|98.985|Asia/Bangkok
+Hanoi||VN|21.028|105.834|Asia/Ho_Chi_Minh
+Ho Chi Minh City||VN|10.823|106.630|Asia/Ho_Chi_Minh
+Phnom Penh||KH|11.556|104.928|Asia/Phnom_Penh
+Kuala Lumpur||MY|3.139|101.687|Asia/Kuala_Lumpur
+Singapore||SG|1.352|103.820|Asia/Singapore
+Jakarta||ID|-6.208|106.846|Asia/Jakarta
+Bali||ID|-8.340|115.092|Asia/Makassar
+Manila||PH|14.600|120.984|Asia/Manila
+Cebu||PH|10.316|123.885|Asia/Manila
+Beijing||CN|39.904|116.407|Asia/Shanghai
+Shanghai||CN|31.230|121.474|Asia/Shanghai
+Guangzhou||CN|23.129|113.264|Asia/Shanghai
+Shenzhen||CN|22.543|114.058|Asia/Shanghai
+Chengdu||CN|30.573|104.066|Asia/Shanghai
+Hong Kong||HK|22.320|114.169|Asia/Hong_Kong
+Taipei||TW|25.033|121.565|Asia/Taipei
+Seoul||KR|37.567|126.978|Asia/Seoul
+Busan||KR|35.180|129.076|Asia/Seoul
+Tokyo||JP|35.690|139.692|Asia/Tokyo
+Osaka||JP|34.694|135.502|Asia/Tokyo
+Kyoto||JP|35.012|135.768|Asia/Tokyo
+Sapporo||JP|43.062|141.354|Asia/Tokyo
+Okinawa||JP|26.212|127.681|Asia/Tokyo
+Ulaanbaatar||MN|47.886|106.906|Asia/Ulaanbaatar
+Sydney|NSW|AU|-33.869|151.209|Australia/Sydney
+Melbourne|VIC|AU|-37.814|144.963|Australia/Melbourne
+Brisbane|QLD|AU|-27.470|153.026|Australia/Brisbane
+Perth|WA|AU|-31.950|115.860|Australia/Perth
+Adelaide|SA|AU|-34.929|138.601|Australia/Adelaide
+Canberra|ACT|AU|-35.281|149.130|Australia/Sydney
+Darwin|NT|AU|-12.463|130.846|Australia/Darwin
+Hobart|TAS|AU|-42.882|147.327|Australia/Hobart
+Auckland||NZ|-36.849|174.763|Pacific/Auckland
+Wellington||NZ|-41.287|174.776|Pacific/Auckland
+Christchurch||NZ|-43.532|172.636|Pacific/Auckland
+Suva||FJ|-18.124|178.450|Pacific/Fiji
+# 2.2.0: more small towns in the southern Appalachians (western North Carolina, north Georgia, east Tennessee)
+Murphy|NC|US|35.088|-84.035|America/New_York
+Andrews|NC|US|35.202|-83.824|America/New_York
+Hayesville|NC|US|35.046|-83.818|America/New_York
+Brasstown|NC|US|35.033|-83.956|America/New_York
+Marble|NC|US|35.175|-83.927|America/New_York
+Robbinsville|NC|US|35.323|-83.807|America/New_York
+Bryson City|NC|US|35.428|-83.447|America/New_York
+Cherokee|NC|US|35.474|-83.315|America/New_York
+Franklin|NC|US|35.182|-83.382|America/New_York
+Highlands|NC|US|35.053|-83.197|America/New_York
+Cashiers|NC|US|35.110|-83.096|America/New_York
+Sylva|NC|US|35.373|-83.226|America/New_York
+Waynesville|NC|US|35.489|-82.989|America/New_York
+Brevard|NC|US|35.233|-82.734|America/New_York
+Hendersonville|NC|US|35.319|-82.461|America/New_York
+Blairsville|GA|US|34.876|-83.959|America/New_York
+Young Harris|GA|US|34.933|-83.847|America/New_York
+Hiawassee|GA|US|34.949|-83.757|America/New_York
+Blue Ridge|GA|US|34.864|-84.324|America/New_York
+McCaysville|GA|US|34.985|-84.371|America/New_York
+Ellijay|GA|US|34.695|-84.482|America/New_York
+Dahlonega|GA|US|34.533|-83.985|America/New_York
+Clayton|GA|US|34.878|-83.401|America/New_York
+Copperhill|TN|US|34.995|-84.374|America/New_York
+Ducktown|TN|US|35.034|-84.385|America/New_York
+Benton|TN|US|35.174|-84.653|America/New_York
+Cleveland|TN|US|35.160|-84.877|America/New_York
+Tellico Plains|TN|US|35.363|-84.297|America/New_York
+Maryville|TN|US|35.757|-83.970|America/New_York
+Gatlinburg|TN|US|35.714|-83.510|America/New_York

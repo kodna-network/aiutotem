@@ -1,0 +1,1087 @@
+AIU TOTEM 2.3.1: code taken out or changed (kept here, never deleted). - lines are 2.3.0, + lines replaced them. New file: js/minis.js.
+
+=================== js/accounts.js
+@@ -17,7 +17,7 @@
+   AIU.hooks.open.push(function () { VS.cards = null; VS.sig = null; VS.meTried = false; VS.meMaking = false; VS.q = ''; VS.filter = 'All'; if (PN.state) { PN.state.aview = null; PN.state.psub = null; PN.state.doc = null; PN.state.person = null; PN.state.folder = null; } }); // 2.2.0: another profile, other cards
+   PN.accounts = function () {
+     var a = app(), k = K(), mode = a.vaultMode();
+-    if (PN.state.aview === 'profile') { ui.panelHead('Accounts', [], null); return AIU.business.profileView(); } // 2.2.0: the profile card's page
++    if (PN.state.aview === 'profile') { ui.panelHead('My profile', [], null); return AIU.business.profileView(); } // 2.2.0: the profile card's page
+     ui.panelHead('Accounts', [k.btn('+ New', function () { editCard(null); }, 'mini primary'), k.btn('About privacy', moreSheet, 'mini ghost')], null);
+     if (mode === 'none') { body().appendChild(k.empty('This browser can\'t scramble account cards (it needs a secure https page). Open Aiu from https://kodna.net/aiu.')); return; }
+     if (mode === 'plain') return list();
+@@ -34,7 +34,7 @@
+       a.vaultUsePassword(pw.value).then(function () { if (after) after(); else ui.renderPanel(true); }, function (e) { k.busy(go, false, lock ? 'Open my cards' : 'Set up Accounts'); k.msg(m, e.message, true); });
+     }, 'primary');
+     pw.addEventListener('keydown', function (e) { if (e.key === 'Enter') go.click(); });
+-    if (!into) p.appendChild(AIU.profiles.card()); // 2.2.0: the profile card is always at the top
++    // 2.3.1: Accounts is just your account cards now (your profile is in Settings > Account & data > My profile)
+     p.appendChild(h('div', { cls: 'pinwrap' }, h('h3', { cls: 'ltitle', text: lock ? 'Open Accounts on this device' : 'Set up Accounts' }),
+       h('p', { cls: 'small', text: 'Your account cards are scrambled with your Aiu password before they sync, so the server can\'t read them. Type your Aiu password once; this device remembers the key (not the password).' }),
+       pw, m, go,
+@@ -79,7 +79,6 @@
+       if (!cards.some(function (c) { return c.key === ME; }) && !VS.meTried) { VS.meTried = true; ensureMe(cards).then(function (made) { if (made) { VS.cards = null; ui.renderPanel(true); } }); }
+       k.clear(p);
+       var me = cards.filter(function (c) { return c.key === ME && !c.locked; })[0];
+-      p.appendChild(AIU.profiles.card()); // 2.2.0: the "Me" card is your profile now (your private details are inside it, under ID)
+       cards = cards.filter(function (c) { return c.key !== ME; });
+       var q = k.inp({ placeholder: 'Search name, username, email...', value: VS.q, 'aria-label': 'Search accounts' });
+       var listBox = h('div');
+
+=================== js/app.js
+@@ -377,8 +377,8 @@
+     }
+   };
+   app.setMode = function (mode, ms) { app.mode = mode; app.modeStart = Date.now(); app.modeUntil = Date.now() + ms; };
+-  /* ---------- 2.2.0: Aiu passes your calm thing on to the buddy ----------
+-     You check in a calm thing in Vitals; Aiu gives the buddy the same kind of care, for a few seconds (bigger refills take a
++  /* ---------- 2.2.0: Aiu passes your calm thing on to the pet ----------
++     You check in a calm thing in Vitals; Aiu gives the pet the same kind of care, for a few seconds (bigger refills take a
+      little longer): gut = a snack, a drink = water, heart = a hug, arms & legs = a brushing, brain = a story, rest = a blanket. */
+   var CARE = { gut: 'feed', heart: 'hug', move: 'brush', brain: 'read', rest: 'tuck' };
+   app.careBuddy = function (sys, item, pts) {
+@@ -892,7 +892,7 @@
+     if (app.mode && now < app.modeUntil) return false;
+     if (app.trip) return false; // 2.1.15: walking in or out (the toss waits its turn)
+     if (app.forceAct && now < app.forceAct.until) return false;
+-    if (app.care) return false; // 2.2.0: passing care on to the buddy
++    if (app.care) return false; // 2.2.0: passing care on to the pet
+     if (AIU.play && AIU.play.active()) return false;
+     if (document.querySelector('.sheet, .gov')) return false;
+     if (born && now - born < HATCH_CAST_MS) return false;
+@@ -953,7 +953,7 @@
+   var MBOX = [784, 659, 784, 880, 784, 659, 587, 659, 523, 587, 659, 784, 880, 784, 659, 523];
+   app.beep = function (kind) {
+     if (app.dev.mute || !actx) return;
+-    if (!kind) { if (app.dev.sound === 'off') return; kind = app.dev.sound; } // 2.1.7: "Off" only silences the reminder sound, not Aiu and the buddy
++    if (!kind) { if (app.dev.sound === 'off') return; kind = app.dev.sound; } // 2.1.7: "Off" only silences the reminder sound, not Aiu and the pet
+     try {
+       var t = actx.currentTime;
+       var tone = function (type, f0, f1, start, dur, vol) {
+@@ -1267,7 +1267,7 @@
+     if (app.flash > 0) app.flash = Math.max(0, app.flash - 0.12);
+   }
+   function asset(slot) { var v = C.setting(app.S, slot, null), a = v && app.assets[v]; return a && a.img.complete && a.img.naturalWidth ? { id: v, img: a.img, info: a.info || {} } : null; }
+-  // the buddy's alignment (2.1.6: from your Vitals, stressors aren't counted): a week of calm check-ins = Light (a halo), worn out with hardly any = Shadow (horns), else Balanced
++  // the pet's alignment (2.1.6: from your Vitals, stressors aren't counted): a week of calm check-ins = Light (a halo), worn out with hardly any = Shadow (horns), else Balanced
+   var alignMemo = { k: '' };
+   app.alignment = function () {
+     var S = app.S, GB = S && S.gaba ? S.gaba : {}, d = U.dayStr(new Date(app.trueNow())), dis = !!(AIU.vitals && AIU.vitals.distressed(S)), k = app.pid + d + '|' + Object.keys(GB).length + '|' + dis;
+@@ -1323,7 +1323,7 @@
+       board: app.boardInfo || null,
+       vit: S.hatched && AIU.vitals ? AIU.vitals.state(S) : null, // 2.1.13: the drone's light // 2.1.11: the Today counter, pinned on the bounty board
+       walk: aiuIn ? null : app.tripWalk(indoor), doorOpen: !!(indoor && app.tripWalk(indoor) && app.tripWalk(indoor).door), pat: Date.now() - (app.patAt || 0) < 900, // 2.1.15: walking in or out; happy eyes after a pat
+-      bplay: AIU.play ? AIU.play.buddyState() : null, // 2.1.7: the buddy eating, drinking or doing a trick
++      bplay: AIU.play ? AIU.play.buddyState() : null, // 2.1.7: the pet eating, drinking or doing a trick
+       stressed: !!(AIU.vitals && AIU.vitals.distressed(S)), // 2.1.6: Vitals worn down: Aiu looks tired (and doesn't grow)
+       shop: { hat: asset('hat'), toy: asset('toy'), backdrop: asset('backdrop'), house: A.HOUSES[house] ? null : asset('house'), decor: asset('decor') }
+     };
+@@ -1684,7 +1684,7 @@
+   // Import into the profile that's open: only adds what's missing, and only the same Totem (same egg)
+   app.importCapsule = function (file) {
+     return app.readCapsule(file).then(function (parts) {
+-      if (!parts.length) throw new Error('That file has no Totem events.');
++      if (!parts.length) throw new Error('That file is not an Aiu backup.');
+       var myEgg = app.S.egg, eggOf = function (p) { return p.events.filter(function (e) { return e.type === 'egg'; }).sort(C.cmpT)[0]; };
+       var part = parts.length === 1 ? parts[0] : parts.filter(function (p) { var e = eggOf(p); return myEgg && e && e.id === myEgg.id; })[0];
+       if (!part) throw new Error('That capsule has ' + parts.length + ' profiles. Use "Import as new profiles" instead.');
+@@ -1735,7 +1735,7 @@
+     opts = opts || {};
+     var into = opts.account && app.prof && !app.prof.local ? app.prof : null, made = [], grp = null;
+     return (opts.parts ? Promise.resolve(opts.parts) : app.readCapsule(file)).then(function (parts) {
+-      if (!parts.length) throw new Error('That file has no Totem events.');
++      if (!parts.length) throw new Error('That file is not an Aiu backup.');
+       return parts.reduce(function (pr, part, i) {
+         return pr.then(function () {
+           var name = String(part.profile.name || '').slice(0, 40), kind = part.profile.kind === 'business' ? 'business' : 'personal', pid, p, now = Date.now() + i;
+
+=================== js/art.js
+@@ -80,13 +80,13 @@
+     build: { label: 'building a birdhouse', where: 'out', base: true },
+     butterfly: { label: 'chasing a butterfly', where: 'out', base: true },
+     newborn: { label: 'just hatched, looking around', where: 'both' }, // 2.1.10: the first 10 minutes after hatching (never picked at random)
+-    // 2.1.5: Aiu looks after the travel buddy
+-    petbuddy: { label: 'petting the buddy', where: 'out' }, // 2.2.0: not a 20-minute hobby any more: Aiu looks after the buddy in short bursts when you check in a calm thing (care_*)
+-    feedbuddy: { label: 'giving the buddy a snack', where: 'out' },
+-    waterbuddy: { label: 'giving the buddy water', where: 'out' },
+-    care_feed: { label: 'feeding the buddy', where: 'out', ritual: true }, care_water: { label: 'giving the buddy water', where: 'out', ritual: true },
+-    care_hug: { label: 'hugging the buddy', where: 'out', ritual: true }, care_brush: { label: 'brushing the buddy', where: 'out', ritual: true },
+-    care_read: { label: 'reading to the buddy', where: 'out', ritual: true }, care_tuck: { label: 'tucking the buddy in for a rest', where: 'out', ritual: true },
++    // 2.1.5: Aiu looks after the pet
++    petbuddy: { label: 'petting the pet', where: 'out' }, // 2.2.0: not a 20-minute hobby any more: Aiu looks after the pet in short bursts when you check in a calm thing (care_*)
++    feedbuddy: { label: 'giving the pet a snack', where: 'out' },
++    waterbuddy: { label: 'giving the pet water', where: 'out' },
++    care_feed: { label: 'feeding the pet', where: 'out', ritual: true }, care_water: { label: 'giving the pet water', where: 'out', ritual: true },
++    care_hug: { label: 'hugging the pet', where: 'out', ritual: true }, care_brush: { label: 'brushing the pet', where: 'out', ritual: true },
++    care_read: { label: 'reading to the pet', where: 'out', ritual: true }, care_tuck: { label: 'tucking the pet in for a rest', where: 'out', ritual: true },
+     sandcastle: { label: 'building a sandcastle', where: 'out', base: true, need: 'sand' },
+     snowman: { label: 'building a snowman', where: 'out', base: true, need: 'snow' },
+     journal: { label: 'writing in his journal', where: 'both', base: true }, // 2.1.15: more to do from day one
+@@ -1065,14 +1065,14 @@
+     if (st0 >= 4) { line(c, bx - 4, fy - 14, bx - 9, fy - 18, P.bark); line(c, bx + 4, fy - 14, bx + 9, fy - 18, P.bark); R(c, bx - 3, fy - 17, 7, 1, acc || P.red); }
+     if (st0 >= 5) { R(c, bx - 3, fy - 24, 7, 1, P.ink); R(c, bx - 2, fy - 28, 5, 4, P.ink); px(c, bx - 2, fy - 25, P.red); }
+   }
+-  // 2.0.8: the travel buddy, wearing a saddle: tap it for the mini games. A horse, a ghost, a dog, a cat or a conjure (a summoned spirit).
+-  // Each Totem gets one at random (by its egg); Settings > Totem > Travel buddy changes it. Indoors it stays outside: the computer is the hub.
++  // 2.0.8: the pet, wearing a saddle: tap it for the mini games. A horse, a ghost, a dog, a cat or a conjure (a summoned spirit).
++  // Each Totem gets one at random (by its egg); Settings > Totem > Pet changes it. Indoors it stays outside: the computer is the hub.
+   A.BUDDIES = { horse: 'Horse', ghost: 'Ghost', dog: 'Dog', cat: 'Cat', conjure: 'Conjure (a summoned spirit)', eagle: 'Eagle (on its post)', parrot: 'Parrot (on its post)', penguin: 'Penguin', beardog: 'Bear Dog' };
+   var BUDDY_LIST = ['horse', 'ghost', 'dog', 'cat', 'conjure']; // the egg still picks from the first five (2.1.7: so nobody's buddy changes); the new ones are chosen in Settings
+   A.NOGEAR = { ghost: 1, conjure: 1, eagle: 1, parrot: 1, penguin: 1 }; // 2.1.7: spirits (gear falls right through) and birds go bare
+   A.POSTED = { eagle: 1, parrot: 1 }; // birds sit on a post
+   A.buddyOf = function (soul, pref) { return A.BUDDIES[pref] ? pref : BUDDY_LIST[((soul >>> 5) >>> 0) % BUDDY_LIST.length]; };
+-  A.BUDDY_OUT = { x: 64, fy: 96 }; A.AIU_OUT = 136; // 2.1.5: the buddy waits by the house; Aiu has the right side
++  A.BUDDY_OUT = { x: 64, fy: 96 }; A.AIU_OUT = 136; // 2.1.5: the pet waits by the house; Aiu has the right side
+   function parts2(c, parts) { parts.forEach(function (q) { R(c, q[0] - 1, q[1] - 1, q[2] + 2, q[3] + 2, P.ink); }); parts.forEach(function (q) { R(c, q[0], q[1], q[2], q[3], q[4]); }); }
+   function saddle(c, x, y, w, noStirrup) { // blanket with trim, seat with horn and cantle, stirrup
+     R(c, x, y, w, 5, P.red); R(c, x, y + 4, w, 1, P.yellow); R(c, x, y, w, 1, P.plum);
+@@ -1227,7 +1227,7 @@
+     if (f % 60 < 6) bang(c, bx, by - 31);
+     return { x: bx + 1, y: by - 22 };
+   }
+-  // indoors the buddy stays outside; the hub is the computer on the desk
++  // indoors the pet stays outside; the hub is the computer on the desk
+   var PCX = -94; // 2.1.5: the desk sits on the left, under the window (it was at x 110)
+   function computer(c, f) {
+     c.save(); c.translate(PCX, 0);
+@@ -1260,11 +1260,11 @@
+       : b === 'eagle' ? eagle(c, x, fy, f, sleepy) : b === 'parrot' ? parrot(c, x, fy, f, sleepy) : b === 'penguin' ? penguin(c, x, fy, f, sleepy) : b === 'beardog' ? bearDog(c, x, fy, f, sleepy, g) : conjure(c, x, fy, f, sleepy, g);
+     alignMark(c, hd, al, f); return hd;
+   };
+-  A.buddyHead = null; // 2.1.7: where the buddy's head is in the world (for treats and hearts)
++  A.buddyHead = null; // 2.1.7: where the pet's head is in the world (for treats and hearts)
+   function drawBuddy(c, sc) {
+     if (!sc.stage || (sc.place && sc.place !== 'home')) return;
+     if (sc.indoor) return computer(c, sc.f);
+-    var b = A.buddyOf(sc.soul, sc.buddy), mx = A.BUDDY_OUT.x + 11, bp = sc.bplay || null, a0 = bp && bp.a, t = bp ? bp.p : 0, ms = bp ? bp.e : 0; // 2.1.5: mirrored, so the buddy faces Aiu
++    var b = A.buddyOf(sc.soul, sc.buddy), mx = A.BUDDY_OUT.x + 11, bp = sc.bplay || null, a0 = bp && bp.a, t = bp ? bp.p : 0, ms = bp ? bp.e : 0; // 2.1.5: mirrored, so the pet faces Aiu
+     var bx = A.BUDDY_OUT.x, fy = A.BUDDY_OUT.fy, f = sc.f, dy = 0, dx = 0, mirror = true, belly = false, sleepy = sc.phase === 'night';
+     if (a0) {
+       sleepy = a0 === 'nap';
+@@ -1307,7 +1307,7 @@
+   }
+   function buddyBowl(c, fy, water) { var bx = A.BUDDY_OUT.x + 28; R(c, bx - 1, fy - 3, 10, 4, P.ink); R(c, bx, fy - 3, 8, 3, P.red); R(c, bx + 1, fy - 3, 6, 1, water ? P.sky : P.bark); return bx; }
+   function bone(c, x, y) { R(c, x, y, 6, 2, P.white); R(c, x - 1, y - 1, 2, 2, P.white); R(c, x - 1, y + 1, 2, 2, P.white); R(c, x + 5, y - 1, 2, 2, P.white); R(c, x + 5, y + 1, 2, 2, P.white); }
+-  var NEAR = function (f) { return { dx: A.BUDDY_OUT.x + 50 - A.AIU_OUT, flip: true, dy: f % 4 < 2 ? 0 : -1 }; }; // next to the buddy, facing it
++  var NEAR = function (f) { return { dx: A.BUDDY_OUT.x + 50 - A.AIU_OUT, flip: true, dy: f % 4 < 2 ? 0 : -1 }; }; // next to the pet, facing it
+   function slotP(sc) { return ((sc.tsec || 0) % 1200) / 1200; } // how far into this 20-minute visit (0..1)
+   function buildStage(sc) { return Math.min(5, Math.floor(slotP(sc) * 7)); } // 0..5 over ~14 minutes, then it's done
+   A.ACT_DRAW = {
+@@ -1321,7 +1321,7 @@
+     waterbuddy: { pose: function (f) { var p0 = NEAR(f); p0.eyes = f % 10 < 5 ? 'happy' : 'open'; return p0; },
+       back: function (c, x, fy, f) { var bx = buddyBowl(c, fy, true); for (var i = 0; i < 2; i++) { var t = (f + i * 6) % 12, dy0 = fy - 22 + t * 1.6; R(c, bx + 3 + i * 2, dy0, 2, 3, P.sky); px(c, bx + 3 + i * 2, dy0 - 1, P.cyan); } if (f % 12 > 9) { px(c, bx + 1, fy - 5, P.cyan); px(c, bx + 6, fy - 5, P.cyan); } } },
+     board: { pose: function (f, sc) { return { dx: sc && sc.indoor ? 22 : A.BOARD_OUT.x + 30 - A.AIU_OUT, flip: true, dy: f % 6 < 3 ? 0 : -1, eyes: f % 10 < 5 ? 'open' : 'happy' }; } }, // 2.1.11: he walks to the board
+-    // 2.2.0: Aiu passes your calm thing on to the buddy (a few seconds each): gut = a snack, water = its bowl, heart = a hug,
++    // 2.2.0: Aiu passes your calm thing on to the pet (a few seconds each): gut = a snack, water = its bowl, heart = a hug,
+     // arms & legs = a brushing, brain = a story, rest = a blanket and a nap
+     care_feed: { pose: function (f) { var p0 = NEAR(f); p0.eyes = 'happy'; return p0; },
+       back: function (c, x, fy, f) { var bx = buddyBowl(c, fy, false), t = f % 10; if (t < 6) { var k = t / 6; bone(c, Math.round(x - 10 + (bx + 2 - (x - 10)) * k), Math.round(fy - 14 - Math.sin(k * Math.PI) * 12 + k * 11)); } else bone(c, bx + 1, fy - 5); } },
+
+=================== js/business.js
+@@ -112,18 +112,23 @@
+     st.person = null;
+     if (st.doc && S.pdocs[st.doc] && !S.pdocs[st.doc].removed) return docView(S, S.pdocs[st.doc]);
+     st.doc = null;
+-    var p = body(), sub = st.psub || 'id', subs = [['id', 'ID'], ['docs', 'Documents'], ['finance', 'Finance']];
+-    if (kind === 'personal') subs.push(['you', 'Personality']);
++    // 2.3.1: three big picture buttons (easy for anyone): My info (with About me inside), Docs, Money
++    var p = body(), sub = st.psub || 'id', biz = kind === 'business';
++    if (sub === 'you') sub = 'id';
++    var subs = [['id', biz ? 'Business info' : 'My info', 'person', biz ? 'Name, address, tax ID' : 'Name, birthday, address, about me'], ['docs', 'Docs', 'pen', 'Letters, plans, résumé'], ['finance', 'Money', 'coin', 'In, out, bills']];
+     if (!subs.some(function (x) { return x[0] === sub; })) sub = 'id';
+-    p.appendChild(h('div', { cls: 'row spread' }, k.btn('< Accounts', function () { st.aview = null; ui.renderPanel(true); }, 'mini ghost'),
+-      h('span', { cls: 'row' }, k.btn('Switch', function () { AIU.profiles.switcher(); }, 'mini'), k.btn('Edit', function () { AIU.profiles.editSheet(a.pid); }, 'mini'))));
++    p.appendChild(h('div', { cls: 'row spread' }, k.btn('< Account cards', function () { st.aview = null; ui.renderPanel(true); }, 'mini ghost'),
++      h('span', { cls: 'row' }, k.btn('Change profile', function () { AIU.profiles.switcher(); }, 'mini'), k.btn('Rename', function () { AIU.profiles.editSheet(a.pid); }, 'mini'))));
+     p.appendChild(h('div', { cls: 'profhead' }, AIU.profiles.avatar(a.pid), h('div', { cls: 'col' }, h('h3', { cls: 'ltitle', text: a.profName() }),
+-      h('span', { cls: 'small', text: (kind === 'business' ? 'Business profile' : 'Personal profile') + (a.prof.u ? ' · @' + a.prof.u : ' · this device only') + (S.egg ? ' · ' + S.totemName : '') }))));
+-    p.appendChild(h('div', { cls: 'seg bsub' }, subs.map(function (x) { return k.btn(x[1], function () { st.psub = x[0]; ui.renderPanel(true); }, sub === x[0] ? 'on' : ''); })));
++      h('span', { cls: 'small', text: (biz ? 'Business profile' : 'Personal profile') + (S.egg ? ' · ' + S.totemName + '\'s home' : '') }))));
++    p.appendChild(h('div', { cls: 'ptiles', role: 'tablist' }, subs.map(function (x) {
++      var b = h('button', { type: 'button', role: 'tab', 'aria-selected': String(sub === x[0]), cls: 'ptile' + (sub === x[0] ? ' on' : ''), onclick: function () { st.psub = x[0]; ui.renderPanel(true); } }, ui.pix(x[2]), h('b', { text: x[1] }), h('span', { cls: 'small', text: x[3] }));
++      return b;
++    })));
+     if (sub === 'docs') return docList(S, PL.ME, p);
+     if (sub === 'finance') return PN.financeInto(p, '');
+-    if (sub === 'you') return youView(S, p);
+     idView(S, kind, p);
++    if (!biz) { var you = h('div'); youView(S, you); p.appendChild(k.acc('prof-you', 'About me (personality)', [you], false)); } // 2.3.1: personality lives under My info
+   };
+   // ID: who this entity is. A person's own details live on a scrambled card (like every account card);
+   // a business also has its profile form (identity, EIN, offer, purpose, market, money, legal).
+
+=================== js/farm.js
+@@ -79,6 +79,10 @@
+     ]
+   };
+   PL.CHORES = CHORES;
++  // 2.3.1: the herd grows: every 4th time you care for an animal, a baby arrives (up to a few of each)
++  var HERD0 = { chickens: 3, goats: 2, horse: 1, cow: 1, pigs: 2, sheep: 2, rabbits: 2 }, HERDMAX = { chickens: 8, goats: 4, horse: 2, cow: 3, pigs: 4, sheep: 4, rabbits: 6 };
++  var BABY = { chickens: 'An egg hatched: a fluffy new chick!', goats: 'A baby goat (a kid) was born!', horse: 'A foal was born!', cow: 'A calf was born!', pigs: 'Piglets!', sheep: 'A little lamb was born!', rabbits: 'Baby bunnies (kits)!' };
++  PL.herd = function (S, an) { var v = PL.get(S, 'barn', 'herd:' + an, null); return v === null ? HERD0[an] || 1 : +v; };
+   PL.barnState = function (S) {
+     var B = PL.all(S, 'barn'), days = +B.days || 0, has = [];
+     ANIMALS.forEach(function (an, i) { if (days >= UNLOCK[i]) has.push(an); });
+@@ -112,8 +116,11 @@
+     R(c, 0, 0, 192, 108, P.bark); for (var x = 0; x < 192; x += 8) R(c, x, 0, 1, 80, P.ink); // plank walls
+     R(c, 0, 0, 192, 4, P.ink); R(c, 0, 18, 192, 2, P.ink); for (var bx = 20; bx < 192; bx += 44) { line(c, bx, 20, bx + 20, 4, P.ink); }
+     R(c, 150, 26, 26, 22, P.sky); R(c, 162, 26, 2, 22, P.bark); R(c, 150, 36, 26, 2, P.bark); // window
+-    R(c, 6, 50, 26, 14, P.yellow); for (var hy = 50; hy < 64; hy += 3) R(c, 6, hy, 26, 1, P.sand); // hay bales
+-    R(c, 12, 40, 18, 10, P.yellow); for (var hy2 = 40; hy2 < 50; hy2 += 3) R(c, 12, hy2, 18, 1, P.sand);
++    R(c, 2, 66, 30, 14, P.yellow); for (var hy = 66; hy < 80; hy += 3) R(c, 2, hy, 30, 1, P.sand); R(c, 2, 66, 30, 1, P.wood); R(c, 2, 72, 30, 1, P.wood); // hay bales, stacked on the floor
++    R(c, 8, 54, 20, 12, P.yellow); for (var hy2 = 54; hy2 < 66; hy2 += 3) R(c, 8, hy2, 20, 1, P.sand); R(c, 8, 60, 20, 1, P.wood);
++    R(c, 0, 24, 192, 3, P.wood); R(c, 0, 27, 192, 1, P.ink); for (var lx = 40; lx < 140; lx += 9) { R(c, lx, 16, 8, 8, P.yellow); R(c, lx, 19, 8, 1, P.sand); } // the hay loft up top
++    R(c, 36, 66, 54, 2, P.wood); R(c, 36, 72, 54, 2, P.wood); for (var fp = 36; fp <= 90; fp += 18) R(c, fp, 62, 2, 18, P.wood); // a stall fence
++    for (var nb = 0; nb < 3; nb++) { R(c, 104 + nb * 14, 46, 12, 10, P.wood); R(c, 105 + nb * 14, 47, 10, 8, P.bark); R(c, 105 + nb * 14, 52, 10, 3, P.yellow); } R(c, 102, 56, 44, 2, P.wood); // nest boxes
+     R(c, 0, 80, 192, 28, P.wood); for (var s = 0; s < 40; s++) px(c, (s * 37) % 192, 82 + (s * 13) % 24, P.yellow); // straw floor
+     R(c, 0, 79, 192, 1, P.ink);
+     var gx = 40; st.has.slice().reverse().forEach(function (an, i) { if (gx > 186) return; var y = 98 + (i % 2) * 6, w = DRAW[an](c, gx, y, f), o = byId[an]; if (o) PL.marker(c, V, gx + w / 2, y - 26, o, function () { V.an = an; V.render(); }); gx += w + 4; });
+@@ -122,13 +129,16 @@
+   }
+   function barnView(V, S) {
+     var b = V.body, st = PL.barnState(S), k = KK(), a = app(), hs = PL.barnHealth(S);
+-    if (V.an) { // caring for one animal: a chore question
+-      var an = V.an, o = hs.filter(function (x) { return x.p.id === an; })[0], box = h('div'), q = pickN(CHORES[an].map(function (c) { return Object.assign({ an: an }, c); }), 1, U.hash32(an + today() + (o ? o.n : 0)))[0];
+-      b.appendChild(PL.card(ANAME[an], [o ? PL.meterRow(o, function () {}) : null, box, k.btn('< All the animals', function () { V.an = null; V.render(); }, 'ghost')]));
+-      PL.quiz(box, [q], function () {
+-        var kv = {}, first = !PL.lessonsToday(S, 'barn'); kv['fix:' + an] = today(); kv['fixN:' + an] = (o ? o.n : 0) + 1; if (first) { kv.days = st.days + 1; kv.did = today(); }
+-        PL.learned('barn', an, kv).then(function () { V.happy = Date.now(); a.beep('chirp'); V.an = null; V.render(); KK().snack(ANAME[an] + ': all taken care of.'); });
+-      }, { count: false });
++    if (V.an) { // 2.3.1: caring for one animal: feed, water, then one more job (eggs, milking, mucking out...), all hands-on
++      var an = V.an, o = hs.filter(function (x) { return x.p.id === an; })[0], extra = (PL.BARN_JOBS[an] || ['poop']), jobs = ['feed', 'water', extra[(o ? o.n : 0) % extra.length]], step = 0;
++      var back = function () { V.an = null; V.render(); };
++      var next = function () {
++        if (step < jobs.length) { var j = jobs[step++]; return PL.play(V, function () { return PL.BN_GAMES[j](an); }, next, back); }
++        var kv = {}, first = !PL.lessonsToday(S, 'barn'), n = (o ? o.n : 0) + 1, herd = PL.herd(S, an), born = n % 4 === 0 && herd < HERDMAX[an];
++        kv['fix:' + an] = today(); kv['fixN:' + an] = n; if (first) { kv.days = st.days + 1; kv.did = today(); } if (born) kv['herd:' + an] = herd + 1;
++        PL.learned('barn', an, kv).then(function () { V.happy = Date.now(); a.beep('chirp'); V.an = null; V.render(); KK().snack(born ? BABY[an] : ANAME[an] + ': all taken care of.'); });
++      };
++      next();
+       return;
+     }
+     b.appendChild(PL.card('How everyone is doing', [h('p', { cls: 'small', text: 'Each animal needs you about once a day. Tap one (in the picture or here) for its chore.' }),
+@@ -265,9 +275,11 @@
+     var b = V.body, g = PL.greenState(S), k = KK(), a = app(), sys = PL.greenSys(S);
+     if (!PL.all(S, 'greenhouse').sysStart) PL.set('greenhouse', { sysStart: today() });
+     if (V.mode && V.mode.sys) { // fixing a system: a question
+-      var so = sys.filter(function (x) { return x.p.id === V.mode.sys; })[0], sbox = h('div'), sq = pickN(so.p.cards, 1, U.hash32(so.p.id + today() + so.n))[0];
++      var so = sys.filter(function (x) { return x.p.id === V.mode.sys; })[0], done = function () { PL.fixed('greenhouse', so.p.id, so.n).then(function () { V.happy = Date.now(); a.beep('chirp'); V.mode = null; V.render(); KK().snack(so.p.name + ': good as new.'); }); };
++      if (PL.GH_GAMES && PL.GH_GAMES[so.p.id]) { PL.play(V, PL.GH_GAMES[so.p.id], done, function () { V.mode = null; V.render(); }); return; } // 2.3.1: a hands-on mini game
++      var sbox = h('div'), sq = pickN(so.p.cards, 1, U.hash32(so.p.id + today() + so.n))[0];
+       b.appendChild(PL.card(so.p.name, [PL.meterRow(so, function () {}), sbox, k.btn('Back', function () { V.mode = null; V.render(); }, 'ghost')]));
+-      PL.quiz(sbox, [sq], function () { PL.fixed('greenhouse', so.p.id, so.n).then(function () { V.happy = Date.now(); a.beep('chirp'); V.mode = null; V.render(); KK().snack(so.p.name + ': good as new.'); }); }, { count: false });
++      PL.quiz(sbox, [sq], done, { count: false });
+       return;
+     }
+     function save(kv) { if (!g.started) kv.started = true; if (!('seeds' in kv) && !g.started) kv.seeds = g.seeds; return PL.set('greenhouse', kv); }
+
+=================== js/games.js
+@@ -1,4 +1,4 @@
+-/* AIU TOTEM 2.0.8 - the mini games. Tap the travel buddy in the yard (or the computer when Aiu is inside) for the hub.
++/* AIU TOTEM 2.0.8 - the mini games. Tap the pet in the yard (or the computer when Aiu is inside) for the hub.
+    Three games, all drawn in code like the world, all made by KODNA:
+      Slice  - swipe the seashells and logs that fly up; miss one or crack a rainbow egg and you lose a heart.
+      Wilds  - a turn-based battle with a wild pixel creature. Tap on time for stronger hits and blocks.
+@@ -1178,7 +1178,7 @@
+   }
+   GM.hub = function () {
+     var a = app(), k = AIU.ui.k, S = a.S, sc = a.sceneState(), s;
+-    if (!sc.stage) { k.snack('Hatch your egg first. Then your buddy takes you to the games.'); return; }
++    if (!sc.stage) { k.snack('Hatch your egg first. Then your pet takes you to the games.'); return; }
+     var bd = A.BUDDIES[A.buddyOf(sc.soul, sc.buddy)].replace(/ \(.*\)$/, '').toLowerCase(), gear = A.gearOf(A.buddyOf(sc.soul, sc.buddy), sc.gear);
+     var bn = AIU.core.setting(S, 'buddyName', ''); if (bn) bd = bd + ' ' + bn;
+     var intro = sc.indoor ? 'The computer is on. Pick a game.' : 'Your ' + bd + (gear === 'saddle' ? ' is saddled up' : gear === 'backpack' ? ' has its backpack on' : ' is ready to go') + '. Where to?';
+
+=================== js/help.js
+@@ -12,14 +12,14 @@
+     ['The screen', [
+       'At the bottom: five colorful buttons. Quest (your tiles), Plan (the calendar), Log (today and your book), Accounts (your profile and your logins, kept scrambled) and Settings. A small dot on Settings shows sync: green = synced, yellow = syncing, orange = waiting or offline, red = log in again, grey = this device only.',
+       'At the top: the heart bar (how much Aiu has grown) and the leaf bar (Aiu Vitals: it turns red when he\'s worn out; tap it to check in). Under the world, a black ticker says what Aiu is doing, with a tip.',
+-      'The world is Aiu\'s whole place in one picture: the house in the middle, the barn and the greenhouse on the left, the garage and the lab on the right, a tool shed, a well, an outhouse with a moon on its door behind the house, a stream with a bridge, a pond in the field, the bounty board and Aiu\'s food cart. Chickens and other animals from the barn wander around.',
++      'The world is Aiu\'s whole place in one picture. Behind the stream: the house in the middle, the well and the outhouse (moon door) tucked behind it, the barn and the greenhouse on the left, Aiu\'s food cart, the garage and the lab (with its telescope) on the right. In front: the field with the pond, and the bounty board. The pet and the barn animals stay on the left side of the field, out of Aiu\'s way.',
+       'Tap a building and Aiu walks there with you; then you\'re inside it (see "Places"). Tap the shed, the well or the outhouse for a little surprise.',
+-      'Hold your finger on Aiu, the buddy or an animal for half a second and you pick it up. Drag it anywhere and let go. Drop Aiu on a building and he goes in. Drop him on the buddy or an animal and they bonk, tumble and hug. Try the pond, the roof, the drone, or shaking him while you hold him. It\'s just for fun.',
++      'Hold your finger on Aiu, the pet or an animal for half a second and you pick it up. Drag it anywhere and let go. Drop Aiu on a building and he goes in. Drop him on the pet or an animal and they bonk, tumble and hug. Try the pond, the roof, the drone, or shaking him while you hold him. It\'s just for fun.',
+       'The bounty board (bottom left) shows how many things matter today. A red pin blinks while a reminder rings. Tap it for the list.',
+       'The little drone in the sky is Aiu Vitals: green = doing well, yellow = getting tired, blinking red = worn out. Tap it to check in.',
+       'When Aiu goes inside, you see the whole house as a dollhouse: the bathroom and the bedroom upstairs, the kitchen and the living room downstairs. He\'s in whichever corner he\'s busy in. Tap the front door (the green arrow sign) to look out at the yard while he stays in; tap the house to look back in.',
+       'Tap Aiu for a pat on the back: a heart and a music note float up. Rub him (drag side to side) for a back rub. Every 10 pets = +1 growth, up to 3 a day.',
+-      'Tap your travel buddy to look after it: Snack, Water, and Games (all the mini games live here). When you check off a calm thing in Vitals, Aiu does the same kind of thing for the buddy (feeds it, gives it water, hugs it, brushes it, tucks it in).',
++      'Tap your pet to look after it: Snack, Water, and Games (all the mini games live here). When you check off a calm thing in Vitals, Aiu does the same kind of thing for the pet (feeds it, gives it water, hugs it, brushes it, tucks it in).',
+       'On nice evenings Aiu cooks at his food cart in the yard, like a little street-food chef. Tap the cart and he\'ll start cooking.'
+     ]],
+     ['Quest: tiles', [
+@@ -58,9 +58,8 @@
+       'Book also holds your cover (Read the whole book, Title and author), the Glossary (the words and names you use most; tap one to search it) and Your life so far (a summary of everything in the book). To print the whole book, use Settings > Save as PDF.'
+     ]],
+     ['Profiles', [
+-      'Your profile card sits at the top of Accounts: your username and the profile that\'s open. Each profile is its own Aiu: a fresh egg, its own journal, tiles, plan, profile and account cards. One is open at a time; the others carry on where you left them. Make as many as you like (+ Profile): one for you, one for a business, one for a project.',
+-      'Tap the card to open the profile: ID (who this profile is: you, or a business with its address and tax ID), Documents (papers filled in from the ID, including a résumé template), Finance (money in and out, bills, cash flow, net worth) and, for a personal profile, Personality.',
+-      'Switch changes profiles. Edit renames it or changes it between personal and business. Deleting a profile needs your password and typing DELETE PROFILE. The first profile is your account itself and can\'t be deleted on its own.',
++      'Your profile is in Settings > Account & data > My profile (Accounts is just your account cards). It has three big buttons: My info (your name, birthday, address, and About me), Docs (letters, plans, a résumé) and Money (money in and out, bills). Each profile is its own Aiu: a fresh egg, its own journal, tiles, plan, profile and account cards. One is open at a time; the others carry on where you left them. Make as many as you like (Your profiles > + New profile): one for you, one for a business, one for a project.',
++      'Change profile switches to another one. Rename renames it or changes it between personal and business. Deleting a profile needs your password and typing DELETE PROFILE. The first profile is your account itself and can\'t be deleted on its own.',
+       'Backups (in Your profiles, or Settings > Account & data): Save this one, or save all of them in one .zip. Open a backup and Aiu looks inside first: if it\'s an Aiu you already have, it only adds what\'s missing (or tells you nothing is missing); if it\'s new, it adds it as a new profile. Nothing you have is ever erased or replaced.'
+     ]],
+     ['Aiu Vitals', [
+@@ -76,8 +75,8 @@
+       'Your profile card sits at the top (see Profiles). It can\'t be deleted. Each profile has its own account cards.'
+     ]],
+     ['Mini games', [
+-      'Your travel buddy waits by the house: a horse, a dog, a cat, a Bear Dog (a bear with a long dog tail), a penguin, an eagle or a parrot (on their post), a ghost or a conjure (a little star spirit from a summoning circle). Tap it and choose Games. When Aiu is inside, the buddy stays out and the computer on the desk opens the games. Settings > Aiu & buddy picks the buddy and its gear (a saddle, a collar, a backpack or nothing). Ghosts, conjures and birds never wear gear.',
+-      'The buddy shows how your week went: a halo (Light) after a week of calm check-ins, little horns (Shadow) when Aiu is worn out and there were hardly any, nothing in between.',
++      'Your pet waits by the house: a horse, a dog, a cat, a Bear Dog (a bear with a long dog tail), a penguin, an eagle or a parrot (on their post), a ghost or a conjure (a little star spirit from a summoning circle). Tap it and choose Games. When Aiu is inside, the pet stays out and the computer on the desk opens the games. Settings > Aiu & pet picks the pet and its gear (a saddle, a collar, a backpack or nothing). Ghosts, conjures and birds never wear gear.',
++      'The pet shows how your week went: a halo (Light) after a week of calm check-ins, little horns (Shadow) when Aiu is worn out and there were hardly any, nothing in between.',
+       'Slice: 40 seconds on the beach: swipe the flying seashells and logs, and don\'t crack the rainbow eggs; 30 to win. Combos (3 or more in one swipe) add seconds, up to 40 more. Wilds: a quick battle with a wild creature; tap when the ring meets the target, and Block right when the "!" shows. Wilds Cup: three battles in a row, then the champ.',
+       'Spar: box with your Aiu. Jab left and right; hold Block when it winds up (it flashes), then counter fast while it\'s dizzy. Dash: a foot race; tap left, right, left, right and Jump the hurdles.',
+       'Fling: 45 seconds. Tap fast to charge, swipe to throw Aiu through the valley forest, down the foothills and into the cave; throw it again whenever it slows down. Score is distance, coins, gems and trees knocked over; reach the treasure to win. Gems add 3 seconds and every 5 coins add 1 (up to 45 more).',
+@@ -87,9 +86,9 @@
+     ]],
+     ['Places', [
+       'The buildings around the house are slow, hands-on lessons with no timer. Each one works like Vitals for things: its parts wear down day by day, and a worn part blinks red in the picture. Tap it, do the job, and it\'s good as new. Each place grows Aiu +3 the first time you fix something there each day.',
+-      'Garage: Aiu has one ride at a time (a car, a bicycle, a motorcycle, a horse carriage or a spaceship); change it in Settings > Aiu & buddy. You see the whole ride with dots on its parts: oil, tires, brakes, battery, wipers, suspension and more. At most 3 need work at once; the engine computer (check engine light) only comes up when everything else is fine. Each job: tap the real steps in order (a wrong tap gives a hint), then a question. Advanced parts are optional. The shop manual lets you practice any job.',
+-      'Barn: each animal has a care meter that runs down over a day. Tap one for its chore (a real question about caring for it). Chickens first; new animals move in as you keep up: goats, a horse, a cow, pigs, sheep and rabbits.',
+-      'Greenhouse: the systems (watering, grow lights, soil, vents, pests, clean glass) wear down too. Below them, four pots: sow a seed and care for it once a day; it grows a stage each day, then you harvest its seeds. Cross two varieties that flower at the same time for a new hybrid seed. Nothing wilts while you\'re away.',
++      'Garage: Aiu has one ride at a time (a car, a bicycle, a motorcycle, a horse carriage or a spaceship); change it in Settings > Aiu & pet. You see the whole ride with dots on its parts: oil, tires, brakes, battery, wipers, suspension and more. At most 3 need work at once; the engine computer (check engine light) only comes up when everything else is fine. Each job: tap the real steps in order (a wrong tap gives a hint), then a question. Advanced parts are optional. The shop manual lets you practice any job.',
++      'Barn: each animal has a care meter that runs down over a day. Tap one to look after it: toss the feed, fill the water, then one more job (collect eggs, milk the goat or cow, scoop the poop, muck out the old hay, brush the coat). Every 4th time you care for an animal, a baby is born. Chickens first; new animals move in as you keep up: goats, a horse, a cow, pigs, sheep and rabbits.',
++      'Greenhouse: the systems wear down too, and each fix is a quick hands-on game: flick the bugs off a leaf and pick the right spray, keep the temperature in the green with the vents, water to the line, set the grow light, sort the compost, wipe the glass. If it goes wrong, just try again. Below them, four pots: sow a seed and care for it once a day; it grows a stage each day, then you harvest its seeds. Cross two varieties that flower at the same time for a new hybrid seed. Nothing wilts while you\'re away.',
+       'Lab: the stations (3D printer, computer, breadboard, shelf, air) need fixing now and then. And pick a track (Code, Prompt craft, 3D design & printing, Electronics, Think for yourself) for three cards a day.',
+       'For learning only: follow your own vehicle\'s manual, ask a vet about real animals, and stay away from wall power.'
+     ]],
+@@ -97,10 +96,10 @@
+       'Aiu hatches from an egg into a random type (Settings > Creature type changes it) and evolves inside that type. What he turns into is a surprise: each evolution rolls its own colors, markings and shape, nudged by his strongest Vitals part at the time.',
+       'What helps: entries (+10 for 80+ letters), tile steps (+2) and finished tiles (+5), Vitals check-ins (+2), answering Aiu\'s questions (+2), petting (+1 per 10), mini game wins (+1, up to 3 a day), full Vitals (+10 once a day). There\'s a daily cap, and a worn-out (distressed) Aiu doesn\'t grow. Each finish and each step counts once: undoing and doing it again (Start it again, flipping the light back) doesn\'t earn more.',
+       'What else helps: fixing something at each place (+3 each, once a day per place).',
+-      'Aiu also lives his own little life, by the time of day: brushing his teeth and a bath, cooking and dishes, tea, laundry, working on his laptop, writing in his journal, catching bugs with a net, weed whacking, playing fetch with the buddy, fishing, a kite, chasing butterflies and more. Each one takes a while, and he cleans up when he\'s done.'
++      'Aiu also lives his own little life, by the time of day: brushing his teeth and a bath, cooking and dishes, tea, laundry, working on his laptop, writing in his journal, catching bugs with a net, weed whacking, playing fetch with the pet, fishing, a kite, chasing butterflies and more. Each one takes a while, and he cleans up when he\'s done.'
+     ]],
+     ['Looks', [
+-      'Settings > Look & sound: light, dark, or match your device; text size; sound on or off; Aiu\'s voice (creature babble, a real voice from your device, or silent); Tap text to hear it (tap a line and Aiu reads it aloud); and the reminder sound with a Play it button. Every tile, journal page and lesson card also has a Listen button.',
++      'Settings > Look & sound: Style (Toy box, bright and bubbly, or Retro, paper and ink); light, dark, or match your device; text size; sound on or off; Aiu\'s voice (creature babble, a real voice from your device, or silent); Tap text to hear it (tap a line and Aiu reads it aloud); and the reminder sound with a Play it button. Every tile, journal page and lesson card also has a Listen button.',
+       'Settings > Reminders, weather & time: notifications and a badge on the app icon showing today\'s count (they work while Aiu is open; on iPhone, add Aiu to your Home Screen first).'
+     ]],
+     ['Saving and your data', [
+
+=================== js/mind.js
+@@ -1351,7 +1351,7 @@
+   var CRISIS = /\b(kill(ing)? myself|suicid|want to die|wanna die|wish i (was|were) dead|end (my|it all)|don'?t want to (live|be alive|be here anymore)|hurt(ing)? myself|self[- ]?harm|cut(ting)? myself)\b/;
+   var HEAVY = /\b(depressed|hopeless|overwhelmed|anxious|panic|lost|stuck|worthless|alone|lonely|can'?t cope|burn(ed|t)? out|falling apart)\b/;
+   M.crisisLine = function (S) {
+-    return 'I\'m really glad you told me, ' + S.callMe + '. I\'m a little pixel buddy, not a counselor, but you deserve real support right now. ' +
++    return 'I\'m really glad you told me, ' + S.callMe + '. I\'m a little pixel friend, not a counselor, but you deserve real support right now. ' +
+       'Please contact your local crisis hotline. In the US you can call or text 988 (Suicide & Crisis Lifeline) any time, day or night. ' +
+       'If you might act on these thoughts or you\'re in danger, call your local emergency number now. ' +
+       'Is there someone you trust you could reach out to today? Please be safe. I\'m here and I\'ll keep you company.';
+
+=================== js/places.js
+@@ -72,8 +72,18 @@
+     V.say = function (txt) { V.bubble = { t: Date.now(), text: txt }; };
+     ov.addEventListener('keydown', function (e) { if (e.key === 'Escape') V.close(); });
+     var last = 0;
+-    function loop(ts) { if (!V.alive) return; requestAnimationFrame(loop); if (ts - last < 110) return; last = ts; V.f++; var c = cv.getContext('2d'); c.setTransform(4, 0, 0, 4, 0, 0); c.imageSmoothingEnabled = false; c.clearRect(0, 0, 192, 108); V.hot = []; def.draw(c, V, app().S); }
+-    cv.addEventListener('click', function (e) { // 2.3.0: tap a part in the picture
++    function loop(ts) {
++      if (!V.alive) return; requestAnimationFrame(loop); var T0 = V.task;
++      if (!T0 && ts - last < 110) return; var dt = last ? Math.min(0.05, (ts - last) / 1000) : 0; last = ts; if (!T0 || Math.floor(ts / 110) !== Math.floor((ts - dt * 1000) / 110)) V.f++;
++      var c = cv.getContext('2d'); c.setTransform(4, 0, 0, 4, 0, 0); c.imageSmoothingEnabled = false; c.clearRect(0, 0, 192, 108);
++      if (T0) { if (!T0.over && T0.step) T0.step(dt); T0.draw(c, V); return; } // 2.3.1: a hands-on mini game is running in the picture
++      V.hot = []; def.draw(c, V, app().S);
++    }
++    function ptOf(e) { var r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * 192, y: (e.clientY - r.top) / r.height * 108 }; }
++    ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach(function (ev) {
++      cv.addEventListener(ev, function (e) { var T0 = V.task; if (!T0 || T0.over) return; e.preventDefault(); var p = ptOf(e); if (ev === 'pointerdown') { V.pdown = true; try { cv.setPointerCapture(e.pointerId); } catch (x) {} if (T0.down) T0.down(p); } else if (ev === 'pointermove') { if (T0.move) T0.move(p, V.pdown); } else { V.pdown = false; if (T0.up) T0.up(p); } }, { passive: false });
++    });
++    cv.addEventListener('click', function (e) { if (V.task) return; // 2.3.0: tap a part in the picture
+       var r = cv.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * 192, y = (e.clientY - r.top) / r.height * 108, best = null, bd = 1e9;
+       (V.hot || []).forEach(function (hs) { var d = Math.hypot(hs.x - x, hs.y - y); if (d < (hs.r || 9) && d < bd) { bd = d; best = hs; } });
+       if (best && best.tap) best.tap();
+
+=================== js/play.js
+@@ -1,7 +1,7 @@
+-/* AIU TOTEM 2.1.7 - Play: you look after the buddy and play with Aiu yourself, right in the world.
+-   Snack: a treat flies in and the buddy catches it and munches. Keep feeding: its tummy fills, and once it's full it does a
++/* AIU TOTEM 2.1.7 - Play: you look after the pet and play with Aiu yourself, right in the world.
++   Snack: a treat flies in and the pet catches it and munches. Keep feeding: its tummy fills, and once it's full it does a
+    trick instead (jump, spin, roll over, dance) or takes a nap. Water: drops splash into its bowl and it laps them up.
+-   Tap the buddy to pet it; rub it (drag back and forth) and it purrs. Tap Aiu: a different trick each time. Rub Aiu: he wiggles.
++   Tap the pet to pet it; rub it (drag back and forth) and it purrs. Tap Aiu: a different trick each time. Rub Aiu: he wiggles.
+    Just for fun: nothing here earns points (petting Aiu still counts toward the small daily petting growth, as before).
+    The tummy and water levels are kept on this device only and slowly empty again over a few hours. */
+ (function () {
+@@ -21,7 +21,7 @@
+   function save() { try { app().saveLocal(); } catch (e) {} if (PL.onChange) PL.onChange(); }
+   PL.levels = function () { var s = st(); return { tummy: Math.round(s.tummy), water: Math.round(s.water) }; };
+ 
+-  /* ---------- the buddy's moves ---------- */
++  /* ---------- the pet's moves ---------- */
+   var DUR = { munch: 900, drink: 1100, happy: 450, jump: 750, spin: 800, roll: 1500, dance: 1300, purr: 400, nap: 4200 };
+   // 2.1.8: one thing at a time. A move plays to the end before the next one starts (eating more just keeps it eating).
+   var SOFT = { purr: 1, happy: 1 };
+@@ -79,7 +79,7 @@
+   };
+   function hearts(n, at) { var p = at || head(); for (var i = 0; i < (n || 2); i++) fx.push({ k: 'heart', x: p.x - 4 + i * 4 + Math.random() * 3, y: p.y - 6, vx: (Math.random() - 0.5) * 6, vy: -16 - Math.random() * 8, t0: Date.now() + i * 90, life: 1100 }); }
+   PL.hearts = hearts;
+-  PL.pet = function () { // a tap on the buddy
++  PL.pet = function () { // a tap on the pet
+     if (!outside()) return;
+     var now = Date.now(); petRun = now - lastPet < 2500 ? petRun + 1 : 1; lastPet = now;
+     hearts(2); app().beep('chirp');
+@@ -98,7 +98,7 @@
+   // 2.1.15: rubbing Aiu is a back rub while he works: hearts and happy eyes, no wiggle that stops his activity
+   PL.aiuRub = function () { var a = app(), now = Date.now(); a.patAt = now; if (now - (PL._ah || 0) > 260) { PL._ah = now; var p = A.actorPos(a.view && a.view.sc || {}); hearts(1, { x: p.x, y: p.y - 22 }); } };
+   PL.active = function () { return fx.length > 0 || !!bAct; };
+-  // 2.2.0: Aiu gives the buddy the care you just gave yourself (app.careBuddy): the buddy reacts, and its tummy and bowl fill
++  // 2.2.0: Aiu gives the pet the care you just gave yourself (app.careBuddy): the pet reacts, and its tummy and bowl fill
+   PL.careAct = function (kind, dur) {
+     var s = st();
+     if (kind === 'feed') { s.tummy = Math.min(100, s.tummy + 25); setTimeout(function () { act('munch', Math.max(900, dur - 2400)); app().beep('munch'); }, 1200); }
+
+=================== js/profiles.js
+@@ -96,7 +96,7 @@
+     if (pid !== a.pid && !first) {
+       var pw = k.inp({ type: 'password', placeholder: 'your Aiu password' }), ph = k.inp({ placeholder: 'type DELETE PROFILE' }), dm = h('p', { cls: 'formmsg' });
+       del.push(h('details', null, h('summary', { text: 'Delete this profile' }),
+-        h('p', { cls: 'small', text: 'Permanently deletes ' + a.profName(pid) + ' (its Aiu, journal, tiles, plan, documents, Finance and cards)' + (p.local ? ' from this device.' : ' from the server and this device. There are no server backups.') + ' Download a capsule of it first if you want to keep a copy. Type DELETE PROFILE to confirm.' }),
++        h('p', { cls: 'small', text: 'Permanently deletes ' + a.profName(pid) + ' (its Aiu, journal, tiles, plan, documents, Finance and cards)' + (p.local ? ' from this device.' : ' from the server and this device. There are no server backups.') + ' Save a backup of it first if you want to keep a copy. Type DELETE PROFILE to confirm.' }),
+         p.local ? null : pw, ph, dm, k.btn('Delete this profile', function () {
+           if (ph.value.trim() !== 'DELETE PROFILE') return k.msg(dm, 'Type DELETE PROFILE exactly.', true);
+           a.deleteProfile(pid, pw.value, ph.value.trim()).then(function () { s.remove(); k.snack('Deleted.'); }, function (e) { k.msg(dm, e.message, true); });
+
+=================== js/rooms.js
+@@ -5,7 +5,7 @@
+    is nice; the outhouse is drawn with the rest of the property (world.js).
+    New things he does: brushing his teeth, a bath, pan-frying, chopping vegetables, making tea, washing dishes, eating at the
+    table, cooking at his food cart (with karate chops and an onion volcano), working on his laptop, catching bugs, weed
+-   whacking, playing fetch with the buddy and hanging the laundry. Props are put away when he's done: the yard stays tidy. */
++   whacking, playing fetch with the pet and hanging the laundry. Props are put away when he's done: the yard stays tidy. */
+ (function () {
+   'use strict';
+   var A = AIU.art, P = A.P, K = A.prim, R = K.R, px = K.px, spr = K.spr, disc = K.disc, ell = K.ell, tri = K.tri, line = K.line, U = AIU.util;
+@@ -79,7 +79,7 @@
+      2.3.0: it replaces the firepit. A wooden cart on two big wheels, a little roof, a noren curtain and red paper lanterns
+      that glow in the evening. When Aiu cooks out here he's the chef inside it. (The outhouse is drawn by world.js now.) */
+   A.FIRE = { x: 170, y: 101 }; // the cart's center and ground (old yard pixels)
+-  A.CART_P = { x: 141, y: 88, w: 42, h: 46 }; // its tap area on the property
++  A.CART_P = { x: 106, y: 62, w: 28, h: 27 }; // its tap area on the property (2.3.1: behind the stream)
+   A.DOORS = { bath: { x: 168, y: 18, w: 24, h: 80 } }; // 2.3.0: the bathroom's way out is its noren doorway
+   A.behindHouse = function () {};
+   A.yardFixtures = function () {};
+@@ -201,8 +201,8 @@
+       var sp = f % 2; R(c, ex - 3, ey, 7, 1, sp ? P.white : P.silver); px(c, ex - 3 + (sp ? 6 : 0), ey - 1, P.white);
+       for (var i = 0; i < 5; i++) { var k = (f * 2 + i * 3) % 10; px(c, ex + d * (2 + k), ey - 2 - Math.floor(k * (10 - k) / 8), i % 2 ? P.green : P.lime); }
+     } });
+-  // fetch with the buddy: the ball arcs over and back
+-  add('fetch', { label: 'playing fetch with the buddy', where: 'out', base: true }, {
++  // fetch with the pet: the ball arcs over and back
++  add('fetch', { label: 'playing fetch with the pet', where: 'out', base: true }, {
+     pose: function (f, sc) { var k = ((sc.tsec || 0) % 4) / 4; return { dy: k < 0.1 ? -2 : 0, flip: true, eyes: k > 0.85 ? 'happy' : 'open' }; },
+     front: function (c, x, fy, f, cw, ch, sc) {
+       var k = ((sc.tsec || 0) % 4) / 4, hd = A.buddyHead || { x: A.BUDDY_OUT.x + 18, y: fy - 22 }, sx = x - Math.round(cw / 2), sy = fy - Math.round(ch * 0.6), tx = hd.x + 2, ty = hd.y + 2, p, bx, by;
+
+=================== js/toybox.js
+@@ -1,12 +1,12 @@
+ /* AIU TOTEM 2.3.0 - the toy box: playing with the property with your finger.
+-   Tap   - does the usual thing: pat Aiu, pet the buddy, open the bounty board or the drone, or send Aiu to a building
++   Tap   - does the usual thing: pat Aiu, pet the pet, open the bounty board or the drone, or send Aiu to a building
+            (he walks there and you go in with him).
+-   Hold  - about half a second on Aiu, the buddy or an animal picks it up (it wiggles and lifts). Drag it anywhere.
+-   Drop  - Aiu on a building: he goes in. On the buddy or an animal: they bonk, tumble, get up and hug. On the bounty
++   Hold  - about half a second on Aiu, the pet or an animal picks it up (it wiggles and lifts). Drag it anywhere.
++   Drop  - Aiu on a building: he goes in. On the pet or an animal: they bonk, tumble, get up and hug. On the bounty
+            board: he reads it. On the pond: splash. On the drone: a little ride. On the house roof: he slides down.
+            Shake him hard while you hold him and coins fall out. Anything else just walks back to what it was doing.
+    It's all just for fun: patting still counts the same as before (no extra growth from dropping things around).
+-   A quick drag with no hold is still a back rub on Aiu or the buddy. Nothing here locks the screen: the world keeps going. */
++   A quick drag with no hold is still a back rub on Aiu or the pet. Nothing here locks the screen: the world keeps going. */
+ (function () {
+   'use strict';
+   var U = AIU.util, A = AIU.art, P = A.P, K = A.prim, R = K.R, px = K.px, spr = K.spr, disc = K.disc, ell = K.ell, line = K.line;
+@@ -135,7 +135,7 @@
+       land(p, dizzy);
+       return;
+     }
+-    // the buddy or an animal: it shakes off and wanders back
++    // the pet or an animal: it shakes off and wanders back
+     A.toyOver[h.who] = { x: Math.round(p.x), y: Math.max(98, Math.min(140, Math.round(p.y))), t: now };
+     if (h.who === 'buddy' && inR(p, A.BOARD_P)) { anims.push({ kind: 'pins', start: now, end: now + 2200 }); app().beep('knock'); }
+     else if (h.who === 'buddy' && AIU.play && AIU.play.careAct) { app().beep('purr'); }
+@@ -185,7 +185,7 @@
+     }
+   };
+   var bpic = null, bkey = '';
+-  function buddyPic(sc) { // the buddy on its own (no post), for carrying around
++  function buddyPic(sc) { // the pet on its own (no post), for carrying around
+     var b = A.buddyOf(sc.soul, sc.buddy), k = b + sc.gear + sc.align + (sc.f % 8 < 4);
+     if (bpic && bkey === k) return bpic;
+     bpic = document.createElement('canvas'); bpic.width = 60; bpic.height = 48; var c = bpic.getContext('2d'); c.imageSmoothingEnabled = false;
+
+=================== js/ui.js
+@@ -11,6 +11,7 @@
+     var t = (AIU.app.dev && AIU.app.dev.theme) || 'auto';
+     document.documentElement.setAttribute('data-size', (AIU.app.dev && AIU.app.dev.textSize) || 'normal');
+     if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
++    document.documentElement.classList.toggle('toy', ((AIU.app.dev && AIU.app.dev.style) || 'toy') === 'toy'); // 2.3.0: the toy-box look (or the retro paper-and-ink look)
+     var col = (AIU.app.dev && AIU.app.dev.color) || 'classic'; if (col === 'classic') document.documentElement.removeAttribute('data-color'); else document.documentElement.setAttribute('data-color', col); // 2.1.5: color themes
+   };
+ 
+@@ -60,11 +61,11 @@
+     var file = h('input', { type: 'file', accept: '.zip,.jsonl,application/zip', cls: 'hidden', 'aria-hidden': 'true' }), m = h('p', { cls: 'formmsg' });
+     file.addEventListener('change', function () {
+       var f = file.files[0]; if (!f) return; file.value = '';
+-      msg(m, 'Reading the capsule...');
++      msg(m, 'Reading the backup...');
+       (onDone ? onDone(f) : app().importNewProfiles(f, { account: false }).then(function (made) { msg(m, made.length > 1 ? 'Imported ' + made.length + ' profiles.' : 'Imported.'); return app().openProfile(made[0]); }))
+         .catch(function (e) { msg(m, e.message || String(e), true); });
+     });
+-    return h('div', { cls: 'stack' }, file, btn(label || 'Import a capsule (.zip)', function () { file.click(); }, 'ghost'), m);
++    return h('div', { cls: 'stack' }, file, btn(label || 'Open a backup (.zip)', function () { file.click(); }, 'ghost'), m);
+   }
+   ui.importCapsuleRow = importCapsuleRow;
+   ui.welcome = function () {
+@@ -107,7 +108,7 @@
+     pw.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+     screen([logo(), h('h2', { text: 'Log in' }), note ? h('p', { cls: 'note', text: note }) : null, field('Username', u), field('Password', pw), m, go, extra,
+       h('p', { cls: 'small' }, h('a', { href: '#', onclick: function (e) { e.preventDefault(); ui.forgotScreen(u.value); }, text: 'Forgot password?' })),
+-      importCapsuleRow(null, 'Or import a capsule (.zip) to this device'),
++      importCapsuleRow(null, 'Or open a backup (.zip) on this device'),
+       btn('Back', ui.welcome, 'ghost')]);
+   };
+   function finishLogin(pid) {
+@@ -146,7 +147,7 @@
+     screen([logo(), h('h2', { text: opts.link ? 'Create an account to sync' : 'Sign up' }),
+       h('p', { cls: 'small', text: 'One account can hold several Aiu profiles, each with its own egg. Your data is private to you.' }),
+       field('Username', u, 'You\'ll need it to log in or reset your password.'), field('Email', em, 'Only used to confirm your account and reset your password.'),
+-      field('Password', pw), field('Password again', pw2), m, go, opts.link ? null : importCapsuleRow(null, 'Or import a capsule (.zip) to this device'), btn('Back', opts.link ? ui.main : ui.welcome, 'ghost')]);
++      field('Password', pw), field('Password again', pw2), m, go, opts.link ? null : importCapsuleRow(null, 'Or open a backup (.zip) on this device'), btn('Back', opts.link ? ui.main : ui.welcome, 'ghost')]);
+   };
+ 
+   ui.checkEmailScreen = function (un, email, pw, sent) {
+@@ -205,8 +206,8 @@
+       h('p', { text: 'Give it a name and tap Begin to crack it open. Write in your journal, check off your quests, and it will grow up knowing you.' }),
+       others.length || a.prof.tid || a.prof.pname ? h('p', { cls: 'small', text: 'Profile: ' + a.profName() + ' (' + (a.profKind() === 'business' ? 'business' : 'personal') + '). A fresh start: its own egg, journal, tiles, plan and account cards.' }) : null,
+       field('Name your egg', n), field('What should it call you?', me), m, go,
+-      h('p', { cls: 'small', text: 'Have a capsule from before? Bring it in here instead of a new egg.' }),
+-      importCapsuleRow(function (f) { return a.importCapsule(f).then(function (r) { if (!a.S.egg) throw new Error('That capsule has no egg in it.'); ui.snack('Imported ' + r.added + ' events.'); ui.main(); }); }, 'Import a capsule into this profile'),
++      h('p', { cls: 'small', text: 'Have a backup from before? Open it here instead of a new egg.' }),
++      importCapsuleRow(function (f) { return a.importCapsule(f).then(function (r) { if (!a.S.egg) throw new Error('That backup has no egg in it.'); ui.snack('Imported ' + r.added + ' events.'); ui.main(); }); }, 'Open a backup into this profile'),
+       others.length ? btn('Back to ' + a.profName(others[0]), function () { a.openProfile(others[0]); }, 'ghost') : null]);
+   };
+   ui.loading = function (text) { ui.bar(text, null, true); }; // a small note at the top, not a screen
+@@ -273,7 +274,7 @@
+     person: ['..kkk..', '..kak..', '..kkk..', '.kkkkk.', 'k.kkk.k', '..k.k..', '..k.k..'],
+     speaker: ['...k....', '..kk..k.', 'kkkk.k.k', 'kkkk.k.k', 'kkkk.k.k', '..kk..k.', '...k....']
+   };
+-  // 2.0.8: did the tap land on the travel buddy (outdoors) or the computer (indoors)? That opens the mini games.
++  // 2.0.8: did the tap land on the pet (outdoors) or the computer (indoors)? That opens the mini games.
+   ui.hubHit = function (e) { var h0 = ui.hitAt(e); return !!(h0 && (h0.kind === 'buddy' || h0.kind === 'computer')); }; // 2.3.0: from the property's hit test
+   ui.hitAt = function (e) { var v = app().view; return v && v.sc && A.hitAt ? A.hitAt(ui.worldPt(e), v.sc) : null; };
+   ui.pix = function (name, cls) {
+@@ -313,13 +314,13 @@
+     els.mute = h('button', { type: 'button', cls: 'gear mute', onclick: function () { a.setMute(!a.dev.mute); if (!a.dev.mute) { a.beep('chirp'); a.speak('Sound on!'); } ui.renderPanel(false); } });
+     gear.innerHTML = '<svg viewBox="0 0 8 8" width="20" height="20" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M3 0h2v1h1v1h1v1h1v2H7v1H6v1H5v1H3V7H2V6H1V5H0V3h1V2h1V1h1zM3 3v2h2V3z"/></svg>';
+     // tap Aiu = a pat on the back (a heart and a note, and a tiny bit of growth); he keeps working
+-    els.canvas = h('canvas', { width: A.W * (A.SCALE || 1), height: A.H * (A.SCALE || 1), cls: 'scene', role: 'button', tabindex: '0', 'aria-label': a.S.totemName + '\'s place. Tap him to pat him, tap the buddy to look after it, tap a building to go there. Hold and drag to pick things up.', onclick: function (e) { sceneTap(e); },
++    els.canvas = h('canvas', { width: A.W * (A.SCALE || 1), height: A.H * (A.SCALE || 1), cls: 'scene', role: 'button', tabindex: '0', 'aria-label': a.S.totemName + '\'s place. Tap him to pat him, tap the pet to look after it, tap a building to go there. Hold and drag to pick things up.', onclick: function (e) { sceneTap(e); },
+       onkeydown: function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); a.pet(); } } });
+     (function () { var last = 0; els.canvas.addEventListener('touchend', function (e) { var t = Date.now(); if (t - last < 350) { e.preventDefault(); if (e.changedTouches && e.changedTouches[0]) els.canvas.dispatchEvent(new MouseEvent('click', { clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY, bubbles: true })); } last = t; }, { passive: false }); })(); // 2.1.3: fast petting on iPhone: no zoom, every tap still counts
+     rubbing(els.canvas);
+     if (AIU.toy) AIU.toy.attach(els.canvas); // 2.3.0: hold and drag to pick things up
+-    // 2.1.7: the care bar under the world (tap the buddy): Snack and Water as often as you like, Games, and how full it is
+-    els.care = h('div', { cls: 'care', hidden: true, role: 'group', 'aria-label': 'Look after your buddy' });
++    // 2.1.7: the care bar under the world (tap the pet): Snack and Water as often as you like, Games, and how full it is
++    els.care = h('div', { cls: 'care', hidden: true, role: 'group', 'aria-label': 'Look after your pet' });
+     els.btext = h('span', { cls: 'btext' });
+     els.bubble = h('div', { cls: 'emofloat', 'aria-live': 'polite' }, els.btext); // one emoji over Aiu's head
+     els.fx = h('div', { cls: 'fx', 'aria-hidden': 'true' });
+@@ -429,11 +430,11 @@
+     updatePill();
+     els.name.textContent = S.totemName;
+     els.stage.textContent = C.stageName(S.stage) + (S.hatched && AIU.art.kindName ? ' · ' + AIU.art.kindName(S.accentSeed, C.setting(S, 'ckind', 'auto')) : '') + (S.hatched && C.setting(S, 'skin', 'current') !== 'current' && S.skinForm !== S.form ? ' · old look' : '');
+-    els.stage.title = S.skinForm !== S.form ? 'Wearing the Stage ' + (S.skinForm && S.skinForm.stage) + ' look. Change it in Settings > Aiu & buddy > Look.' : '';
++    els.stage.title = S.skinForm !== S.form ? 'Wearing the Stage ' + (S.skinForm && S.skinForm.stage) + ' look. Change it in Settings > Aiu & pet > Look.' : '';
+     var sc = a.sceneState(), w = sc.weatherInfo, wtxt = w.source === 'guess' ? '' : ' · ' + w.label + (w.temp !== undefined ? ' ' + w.temp + '°' + w.units : '') + (w.stale && w.source === 'live' ? ' (' + w.ago + ')' : '');
+     if (a.hatching) els.status.textContent = 'The egg is cracking!';
+     else if (!S.hatched) els.status.textContent = (sc.eggProgress > 0.9 ? 'The egg is cracking!' : 'Hatches in ' + a.fmtDur(S.hatchAt - a.trueNow())) + wtxt;
+-    else { var tips = ['Tap a building to go there!', 'Hold and drag to pick things up.', 'Tap the buddy for games.', 'Tap the drone for Vitals.', 'Tap the board for today\'s list.']; els.status.textContent = 'is ' + sc.actLabel + (sc.indoor && sc.place === 'home' && sc.act !== 'sleep' ? ' inside' : '') + wtxt + ' · ' + tips[Math.floor(Date.now() / 20000) % tips.length]; }
++    else { var tips = ['Tap a building to go there!', 'Hold and drag to pick things up.', 'Tap the pet for games.', 'Tap the drone for Vitals.', 'Tap the board for today\'s list.']; els.status.textContent = 'is ' + sc.actLabel + (sc.indoor && sc.place === 'home' && sc.act !== 'sleep' ? ' inside' : '') + wtxt + ' · ' + tips[Math.floor(Date.now() / 20000) % tips.length]; }
+     els.status.setAttribute('data-name', S.totemName);
+     if (els.canvas) els.canvas.setAttribute('aria-label', 'Pet ' + S.totemName + '. ' + els.status.textContent);
+     // growth bar
+@@ -466,11 +467,11 @@
+       a.addLine('Heads up, ' + S.callMe + ': we\'re off-grid. I\'ll keep everything on this device and sync when we\'re back online. Until then, if this device is lost or reset, or its browser data is cleared, those changes are gone. Going away for a while? Save a capsule first.', false);
+     }
+     if (a.sync.state === 'login') b = 'Log in again to sync. Everything you do is still saved on this device.';
+-    else if (!a.prof.local && old < a.trueNow() - 3 * 86400000) { b = 'Not synced for ' + Math.floor((a.trueNow() - old) / 86400000) + ' days. Get online soon, or save a capsule to be safe.'; act = ['Save capsule', function () { a.exportCapsule(); }]; }
++    else if (!a.prof.local && old < a.trueNow() - 3 * 86400000) { b = 'Not synced for ' + Math.floor((a.trueNow() - old) / 86400000) + ' days. Get online soon, or save a backup to be safe.'; act = ['Save a backup', function () { a.exportCapsule(); }]; }
+     else if (a.sync.clockWarn) b = 'This device\'s clock looks off by ' + Math.abs(a.sync.clockWarn) + ' min. Aiu is using the server\'s time.';
+     else if (g.full) b = 'Growth bar full! Sync to evolve.';
+     else if (g.readyAtSync) b = a.prof.local ? '' : (a.sync.state === 'ok' ? 'Evolving...' : 'Ready to evolve! Get online and sync.');
+-    else if (offgrid && S.unsent) { b = 'Off-grid: ' + S.unsent + ' change' + (S.unsent === 1 ? ' is' : 's are') + ' only on this device until you sync.'; act = ['Save capsule', function () { a.exportCapsule(); }]; }
++    else if (offgrid && S.unsent) { b = 'Off-grid: ' + S.unsent + ' change' + (S.unsent === 1 ? ' is' : 's are') + ' only on this device until you sync.'; act = ['Save a backup', function () { a.exportCapsule(); }]; }
+     clear(els.banner);
+     if (b) { els.banner.appendChild(h('span', { text: b })); if (act) els.banner.appendChild(btn(act[0], act[1], 'mini')); }
+     els.banner.style.display = b ? '' : 'none';
+@@ -540,7 +541,7 @@
+     if (hit.kind === 'board') return ui.todaySheet(); // the bounty board: today's list
+     if (hit.kind === 'aiu') { a.pet(); if (AIU.vitals && AIU.vitals.distressed(a.S) && Date.now() - tiredAsk > 90000) { tiredAsk = Date.now(); setTimeout(ui.vitalsSheet, 500); } return; }
+     if (hit.kind === 'computer') return AIU.games.hub();
+-    if (hit.kind === 'buddy') { if (AIU.play) AIU.play.pet(); return ui.careBar(true); } // the buddy: look after it, and all the games
++    if (hit.kind === 'buddy') { if (AIU.play) AIU.play.pet(); return ui.careBar(true); } // the pet: look after it, and all the games
+     if (hit.kind === 'door') { a.peek = { until: Date.now() + 15 * 60000 }; a.beep('door'); return; } // look out at the yard (he stays in his room)
+     if (hit.kind === 'animal') { a.beep('chirp'); try { ui.hearts(1); } catch (x) {} return; }
+     if (hit.kind === 'cart') { var cs = a.view && a.view.sc; if (cs && cs.act === 'hibachi') { a.react('happy'); return; } a.forceAct = { id: 'hibachi', until: Date.now() + 3 * 60000 }; a.react('hobby'); return; }
+@@ -548,7 +549,7 @@
+     if (hit.kind === 'pond') { a.beep('splash'); return; }
+   }
+   function unlockSoon() { try { app().unlock(); } catch (x) {} }
+-  // rub = drag side to side over the buddy or Aiu (up and down still scrolls the page)
++  // rub = drag side to side over the pet or Aiu (up and down still scrolls the page)
+   function rubbing(cv) {
+     var d = null;
+     cv.addEventListener('pointerdown', function (e) { var a0 = app(); if (!a0.S || !a0.S.hatched || a0.hatching) { d = null; return; } var h0 = ui.hitAt(e); d = { x: e.clientX, y: e.clientY, n: 0, who: h0 && h0.kind === 'buddy' ? 'buddy' : h0 && h0.kind === 'aiu' ? 'aiu' : null, rub: false }; });
+@@ -565,7 +566,7 @@
+   ui.careBar = function (open) {
+     var a = app(), S = a.S, c = els.care, k = ui.k; if (!c || !S) return;
+     if (!open) { c.hidden = true; return; }
+-    var b = A.buddyOf(S.accentSeed, C.setting(S, 'buddy', 'auto')), nm = C.setting(S, 'buddyName', '') || A.BUDDIES[b].replace(/ \(.*\)$/, ''); // 2.2.0: the buddy's own name
++    var b = A.buddyOf(S.accentSeed, C.setting(S, 'buddy', 'auto')), nm = C.setting(S, 'buddyName', '') || A.BUDDIES[b].replace(/ \(.*\)$/, ''); // 2.2.0: the pet's own name
+     function meter(lbl, v) { return h('span', { cls: 'cmeter', role: 'img', 'aria-label': lbl + ' ' + (v >= 100 ? 'full' : v + '%') }, h('span', { text: lbl }), h('i', null, h('b', { style: 'width:' + v + '%' })), h('span', { cls: 'cfull', text: v >= 100 ? 'Full' : '' })); }
+     function draw() {
+       var lv = AIU.play.levels(); clear(c);
+@@ -1074,7 +1075,7 @@
+     [tn, cm].forEach(function (x) { x.addEventListener('change', saveNames); x.addEventListener('blur', saveNames); x.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); x.blur(); saveNames(); } }); });
+     var forms = { current: 'Newest form (always)' }; S.forms.forEach(function (f) { forms[String(f.stage)] = 'Stage ' + f.stage + ' - ' + C.stageName(f.stage); });
+     // 2.1.7: no preview of the stages to come: each evolution is a surprise
+-    var gearF = field('Buddy gear', sel(Object.assign({ auto: 'Best fit' }, A.GEAR), C.setting(S, 'gear', 'auto'), function (v) { a.setSetting('gear', v); }), 'Ghosts, conjures and birds never wear any: it falls right through them.');
++    var gearF = field('Pet gear', sel(Object.assign({ auto: 'Best fit' }, A.GEAR), C.setting(S, 'gear', 'auto'), function (v) { a.setSetting('gear', v); }), 'Ghosts, conjures and birds never wear any: it falls right through them.');
+     function gearShow() { gearF.hidden = !!A.NOGEAR[A.buddyOf(a.S.accentSeed, C.setting(a.S, 'buddy', 'auto'))]; }
+     gearShow();
+     var G0 = AIU.places && AIU.places.garageState ? AIU.places.garageState(S) : { kind: null };
+@@ -1086,13 +1087,13 @@
+         field('World', sel(A.BIOMES, C.setting(S, 'biome', 'meadow'), function (v) { a.setSetting('biome', v); }))),
+       field('Which look', sel(forms, C.setting(S, 'skin', 'current'), function (v) { a.setSetting('skin', v); }), 'Only changes how it looks. It keeps growing and evolving underneath.'),
+       field('Creature type', sel(Object.assign({ auto: 'Random, picked by its egg (' + A.kindName(S.accentSeed, 'auto') + ')' }, A.KINDS, { classic: 'Classic (the 1.0.5 look)' }), C.setting(S, 'ckind', 'auto'), function (v) { a.setSetting('ckind', v).then(function () { }); }), 'Every egg hatches into a random type, and it evolves within that type. Change it here any time. How it grows stays a surprise: every evolution rolls its own colors and markings.'),
+-      field('Travel buddy', sel(Object.assign({ auto: 'Random, picked by its egg (' + A.BUDDIES[A.buddyOf(S.accentSeed, 'auto')].replace(/ \(.*\)$/, '') + ')' }, A.BUDDIES), C.setting(S, 'buddy', 'auto'), function (v) { a.setSetting('buddy', v).then(gearShow); }), 'It waits in the yard. Tap it to feed it, give it water, or play the mini games.'),
++      field('Pet', sel(Object.assign({ auto: 'Random, picked by its egg (' + A.BUDDIES[A.buddyOf(S.accentSeed, 'auto')].replace(/ \(.*\)$/, '') + ')' }, A.BUDDIES), C.setting(S, 'buddy', 'auto'), function (v) { a.setSetting('buddy', v).then(gearShow); }), 'It waits in the yard. Tap it to feed it, give it water, or play the mini games.'),
+       gearF,
+-      (function () { // 2.2.0: the buddy's name (saves when you tap Done or leave the box)
++      (function () { // 2.2.0: the pet's name (saves when you tap Done or leave the box)
+         var bn = inp({ value: C.setting(S, 'buddyName', ''), maxLength: 24, placeholder: 'e.g. Mochi', enterkeyhint: 'done', autocapitalize: 'words' });
+         function saveBn() { var v = bn.value.trim().slice(0, 24); if (v !== C.setting(a.S, 'buddyName', '')) a.setSetting('buddyName', v).then(function () { nmsg.textContent = 'Saved.'; }); }
+         bn.addEventListener('change', saveBn); bn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); bn.blur(); } });
+-        return field('Buddy\'s name', bn, 'Leave it empty to just call it by its kind.');
++        return field('Pet\'s name', bn, 'Leave it empty to just call it by its kind.');
+       })(),
+       field(S.totemName + '\'s ride (one at a time)', sel({ none: 'None yet', car: 'Car', bike: 'Bicycle', moto: 'Motorcycle', carriage: 'Horse carriage', ship: 'Spaceship' }, G0.kind || 'none', function (v) { // 2.3.0: change it any time; it starts fresh
+         if (!AIU.places) return; AIU.places.set('garage', { vehicle: v === 'none' ? null : v, start: U.today() }).then(function () { nmsg.textContent = v === 'none' ? 'No ride for now.' : 'New ride! It\'s in the garage.'; });
+@@ -1120,6 +1121,7 @@
+     var remMsg = h('span', { cls: 'small', 'aria-live': 'polite' });
+     var look = [
+       h('div', { cls: 'row wrap' }, btn(dev.mute ? 'Sound: off (tap to turn on)' : 'Sound: on (tap to turn off)', function (e) { a.setMute(!a.dev.mute); if (!a.dev.mute) { a.unlock(); a.beep('chirp'); } e.target.textContent = a.dev.mute ? 'Sound: off (tap to turn on)' : 'Sound: on (tap to turn off)'; }, 'primary soundbtn')), // 2.2.0: the sound switch lives here now
++      field('Style', sel({ toy: 'Toy box (bright and bubbly)', retro: 'Retro (paper and ink)' }, dev.style || 'toy', function (v) { devSet('style', v); ui.applyTheme(); })),
+       h('div', { cls: 'row2' }, field('Theme', sel({ auto: 'Match my device', light: 'Light', dark: 'Dark' }, dev.theme, function (v) { devSet('theme', v); })),
+         field('Color', sel({ classic: 'Classic', green: 'Green', blue: 'Blue', red: 'Red' }, dev.color || 'classic', function (v) { devSet('color', v); }))),
+       field('Text size', sel({ normal: 'Normal', large: 'Large', huge: 'Extra large' }, dev.textSize || 'normal', function (v) { devSet('textSize', v); ui.applyTheme(); })),
+@@ -1207,7 +1209,7 @@
+     });
+     var data = [
+       h('p', { cls: 'small', text: S.total + ' events' + (S.unsent && !a.prof.local ? ' (' + S.unsent + ' waiting to sync)' : '') + ' · saved in this browser (' + AIU.store.kind + ')' }),
+-      h('div', { cls: 'row wrap' }, btn('Backups: save or open', function () { AIU.profiles.backups(); }, 'primary'), btn('Your profiles', function () { AIU.profiles.switcher(); })), dm, // 2.3.0: one simple place for backups
++      h('div', { cls: 'row wrap' }, btn('My profile: info, docs, money', function () { s.remove(); var st = AIU.panels.state; st.aview = 'profile'; st.psub = 'id'; ui.go('accounts'); ui.toPanel(); }, 'primary'), btn('Backups: save or open', function () { AIU.profiles.backups(); }), btn('Your profiles', function () { AIU.profiles.switcher(); })), dm, // 2.3.0: one simple place for backups
+       h('p', { cls: 'small', text: 'A backup is your own copy of an Aiu in a .zip file. Opening an old one only adds what\'s missing: it never erases anything.' }),
+       h('p', { cls: 'small caution', text: a.prof.local ?
+         'Careful: this Aiu lives only in this browser. Clearing browser data, a private window, or losing the device deletes it. Save a backup now and then.' :
+@@ -1230,19 +1232,19 @@
+     var ph = inp({ placeholder: 'type FORGET' }), dm2 = h('p', { cls: 'formmsg' });
+     var danger = [
+       h('details', null, h('summary', { text: 'Forget this device\'s copy' }),
+-        h('p', { cls: 'small', text: a.prof.local ? 'This deletes the only copy of this Totem unless you downloaded a capsule. Type FORGET to confirm.' : 'Removes the Totem from this browser only. Your account keeps it' + (S.unsent ? ', except ' + S.unsent + ' changes that have not synced yet' : '') + '. Type FORGET to confirm.' }),
++        h('p', { cls: 'small', text: a.prof.local ? 'This deletes the only copy of this Totem unless you saved a backup. Type FORGET to confirm.' : 'Removes the Totem from this browser only. Your account keeps it' + (S.unsent ? ', except ' + S.unsent + ' changes that have not synced yet' : '') + '. Type FORGET to confirm.' }),
+         ph, dm2, btn('Forget this device\'s copy', function () { if (ph.value.trim() !== 'FORGET') return msg(dm2, 'Type FORGET exactly.', true); s.remove(); a.forgetDevice(); }, 'danger'))
+     ];
+     if (!a.prof.local) {
+       var dpw = inp({ type: 'password', placeholder: 'password' }), dph = inp({ placeholder: 'DELETE ' + a.prof.u.toUpperCase() }), dm3 = h('p', { cls: 'formmsg' });
+       danger.push(h('details', null, h('summary', { text: 'Delete my account' }),
+-        h('p', { cls: 'small', text: 'Permanently deletes your account and every profile in it (' + a.groupPids().map(function (k) { return a.profName(k); }).join(', ') + ') from the server (there are no server backups). Download a capsule first if you want to keep a copy. Type DELETE ' + a.prof.u.toUpperCase() + ' to confirm.' }),
++        h('p', { cls: 'small', text: 'Permanently deletes your account and every profile in it (' + a.groupPids().map(function (k) { return a.profName(k); }).join(', ') + ') from the server (there are no server backups). Save a backup first if you want to keep a copy. Type DELETE ' + a.prof.u.toUpperCase() + ' to confirm.' }),
+         dpw, dph, dm3, btn('Delete my account', function () {
+           a.api('delete_account', { u: a.prof.u, token: a.prof.token, pw: dpw.value, phrase: dph.value.trim() }).then(function () { s.remove(); a.forgetGroup(); }, function (e) { msg(dm3, e.message, true); });
+         }, 'danger')));
+     }
+     // 2.0: what used to sit in the header: name, stage and type, sync status, and the sound switch
+-    var top0 = [ // 2.3.0: just the sync status up top (the name and stage are under Aiu & buddy)
++    var top0 = [ // 2.3.0: just the sync status up top (the name and stage are under Aiu & pet)
+       h('p', { cls: 'small', text: 'Sync: ' + (ui.syncText || (a.prof.local ? 'This device only' : a.sync.state)) }),
+       !a.prof.local ? h('div', { cls: 'row wrap' }, btn('Sync now', function () { a.syncNow('manual').then(function () { s.remove(); ui.settings(); }, function () { s.remove(); ui.settings(); }); })) : null
+     ];
+@@ -1303,13 +1305,13 @@
+     function grp(id, title, kids) { return acc('set-' + id, title, kids, false); }
+     s = sheet('Settings', [
+       h('div', { cls: 'settop' }, top0),
+-      grp('aiu', S.totemName + ' & buddy', totem),
++      grp('aiu', S.totemName + ' & pet', totem),
+       grp('look', 'Look & sound', look),
+       grp('time', 'Reminders, weather & time', rem.concat([h('h4', { text: 'Weather & time' })], world)),
+       grp('acct', 'Account & data', acct.concat([h('h4', { text: 'Your data' })], device, data, [h('h4', { text: 'Danger zone' })], danger)),
+       grp('pdf', 'Save as PDF', pdfSec), // 2.2.0: its own folded section
+       grp('help', 'Help & about', help.concat([ver,
+-        h('p', { cls: 'small', text: 'Everything in Aiu is made by KODNA Network (https://KODNA.net) or is public domain: our own pixel fonts, creatures, buddies, world, sounds and word lists; live weather is from the US National Weather Service (public domain). Colors: the Sweetie 16 palette.' }),
++        h('p', { cls: 'small', text: 'Everything in Aiu is made by KODNA Network (https://KODNA.net) or is public domain: our own pixel fonts, creatures, pets, world, sounds and word lists; live weather is from the US National Weather Service (public domain). Colors: the Sweetie 16 palette.' }),
+         h('p', { cls: 'small', text: 'Aiu is a little companion, not a counselor or a doctor. If you are ever in crisis, contact your local crisis hotline or emergency number (in the US, call or text 988). Please be safe.' })])),
+       devSec
+     ]);
+
+=================== js/vitals.js
+@@ -117,7 +117,7 @@
+     ev.data.sys = k || V.sysFor(a.S, item);
+     return a.addEvents([ev], true).then(function (list) {
+       a.react('check', ''); V.remember({ t: 'yes', id: list && list[0] && list[0].id, item: item, d: d });
+-      if (a.careBuddy) a.careBuddy(ev.data.sys, item, pts); // 2.2.0: Aiu passes the same care on to the buddy
++      if (a.careBuddy) a.careBuddy(ev.data.sys, item, pts); // 2.2.0: Aiu passes the same care on to the pet
+       return list;
+     });
+   };
+
+=================== js/world.js
+@@ -5,12 +5,12 @@
+      Middle:    the house in the center, the barn and the greenhouse on the left, the garage and the lab on the right,
+                 a tool shed and a well by the path, the outhouse tucked behind the house (its moon door peeking out),
+                 a stream with a little bridge
+-     Field:     a round pond in the middle, where Aiu plays and the buddy and the animals roam
++     Field:     a round pond in the middle, where Aiu plays and the pet and the animals roam
+      Front:     the bounty board (bottom left), Aiu's food cart (bottom right), tall grass and flowers
+    The canvas is drawn 4x bigger than the art so things can be drawn at 3/4 or 5/4 size and stay crisp (the house is 3/4
+    size, the horse is bigger than the cat). Rooms (the house, the kitchen, the bathroom) are the same 192x108 pictures as
+    before, under a strip of wall with a regulator clock.
+-   Coordinates: property = 192x144. The old "yard" pictures (Aiu's activities, the buddy) are drawn shifted by A.YARD. */
++   Coordinates: property = 192x144. The old "yard" pictures (Aiu's activities, the pet) are drawn shifted by A.YARD. */
+ (function () {
+   'use strict';
+   var U = AIU.util, A = AIU.art, P = A.P, K = A.prim, R = K.R, px = K.px, spr = K.spr, disc = K.disc, ell = K.ell, tri = K.tri, line = K.line, dith = K.dith, IN = A._in;
+@@ -31,9 +31,9 @@
+     { id: 'barn', r: { x: 4, y: 34, w: 32, h: 30 }, door: { x: 20, y: 62 } },
+     { id: 'lab', r: { x: 160, y: 26, w: 30, h: 38 }, door: { x: 174, y: 62 } },
+     { id: 'greenhouse', r: { x: 33, y: 62, w: 30, h: 22 }, door: { x: 48, y: 82 } },
+-    { id: 'garage', r: { x: 134, y: 62, w: 32, h: 22 }, door: { x: 150, y: 82 } },
++    { id: 'garage', r: { x: 141, y: 62, w: 32, h: 22 }, door: { x: 157, y: 82 } },
+     { id: 'shed', r: { x: 64, y: 70, w: 16, h: 16 }, door: { x: 72, y: 85 } },
+-    { id: 'well', r: { x: 116, y: 70, w: 16, h: 17 }, door: { x: 124, y: 86 } },
++    { id: 'well', r: { x: 57, y: 32, w: 18, h: 24 }, door: { x: 66, y: 54 } }, // 2.3.1: behind the house (left), across from the outhouse
+     { id: 'outhouse', r: { x: 109, y: 32, w: 13, h: 12 }, door: { x: 116, y: 52 } },
+     { id: 'house', r: { x: 70, y: 28, w: 52, h: 48 }, door: HOUSE_DOOR }
+   ];
+@@ -64,7 +64,7 @@
+     for (var i = 0; i < 160; i++) px(c, Math.floor(r() * W), 46 + Math.floor(r() * (H - 46)), C0.g1); // grass flecks
+     // trees and bushes along the far rise, between the buildings
+     var kinds = { meadow: 'round', forest: 'pine', desert: 'cactus', tundra: 'pine', pond: 'round', beach: 'palm' }, tk = kinds[sc.biome] || 'round';
+-    [44, 60, 66, 132, 142, 156].forEach(function (x, j) { IN.tree(c, tk, x, 52 + (j % 2) * 2, sc.season); });
++    [44, 132, 156].forEach(function (x, j) { IN.tree(c, tk, x, 52 + (j % 2) * 2, sc.season); });
+     if (sc.biome === 'forest') [2, 186, 190].forEach(function (x) { IN.tree(c, 'pine', x, 76, sc.season); });
+     // the stream, with a little arched bridge on the path
+     for (var x = 0; x < W; x++) { var y = streamY(x); R(c, x, y, 1, 5, C0.water[0]); if ((x + y) % 7 === 0) px(c, x, y + 1, C0.water[1]); px(c, x, y - 1, P.ink); px(c, x, y + 5, C0.g1); }
+@@ -79,7 +79,7 @@
+     if ((sc.season === 'spring' || sc.season === 'summer') && sc.biome !== 'desert' && sc.biome !== 'tundra') for (var fl = 0; fl < 22; fl++) { var fx = Math.floor(r() * W), fy = 98 + Math.floor(r() * 44); px(c, fx, fy, U.pick(r, [P.pink, P.yellow, P.white])); px(c, fx, fy + 1, P.green); }
+     // the buildings
+     outhouse(c, sc);
+-    barn(c, 6, 62, sc); lab(c, 162, 62, sc); greenhouse(c, 35, 82, sc); garage(c, 136, 82, sc); shed(c, 65, 85, sc); well(c, 118, 86, sc);
++    well(c, 60, 54, sc); barn(c, 6, 62, sc); lab(c, 162, 62, sc); greenhouse(c, 35, 82, sc); garage(c, 143, 82, sc); shed(c, 65, 85, sc); // 2.3.1: every building behind the stream; the food cart stands where the well was
+     // the house, 3/4 size (drawn from the same house pictures as always)
+     var hv = houseSprites(sc); stat.houseCv = hv.unlit; stat.houseLit = hv.lit;
+     c.drawImage(hv.unlit, HOUSE_DOOR.x - 33 * HS, HOUSE_DOOR.y - 72 * HS, hv.unlit.width * HS / SC, hv.unlit.height * HS / SC);
+@@ -114,8 +114,11 @@
+   function lab(c, x, base, sc) { // a coral tower with a blue observatory dome and an antenna
+     var top = base - 30;
+     R(c, x + 4, top + 6, 18, 30, P.pink); R(c, x + 4, top + 6, 2, 30, P.orange); for (var y = top + 10; y < base; y += 6) R(c, x + 4, y, 18, 1, P.orange);
+-    ell(c, x + 13, top + 6, 11, 8, P.blue, true); ell(c, x + 13, top + 6, 9, 6, P.sky, true); R(c, x + 12, top - 2, 3, 8, P.navy); line(c, x + 13, top - 2, x + 19, top - 7, P.silver); // dome + telescope slot
+-    R(c, x + 13, top - 12, 1, 6, P.silver); px(c, x + 13, top - 13, P.red); // antenna
++    R(c, x + 2, top + 5, 22, 2, P.dark); for (var rx = x + 3; rx < x + 24; rx += 3) R(c, rx, top + 2, 1, 3, P.dark); R(c, x + 2, top + 2, 22, 1, P.dark); // a railing around the roof
++    ell(c, x + 13, top + 5, 10, 9, P.ink, true); ell(c, x + 13, top + 5, 9, 8, P.silver, true); ell(c, x + 11, top + 3, 4, 3, P.white, true); // the observatory dome
++    R(c, x + 12, top - 3, 4, 8, P.ink); // the open slot
++    for (var tz = 0; tz < 9; tz++) R(c, x + 13 + tz, top - 1 - tz, 3, 3, P.blue); for (var tz2 = 0; tz2 < 9; tz2++) px(c, x + 13 + tz2, top - 1 - tz2, P.sky); R(c, x + 21, top - 12, 4, 4, P.ink); R(c, x + 22, top - 11, 2, 2, P.cyan); // the telescope poking out at the sky
++    R(c, x + 6, top - 8, 1, 6, P.silver); px(c, x + 6, top - 9, P.red); // antenna
+     disc(c, x + 13, top + 16, 3, P.silver); disc(c, x + 13, top + 16, 2, P.cyan); // round window
+     R(c, x + 10, base - 9, 7, 9, P.navy); R(c, x + 11, base - 8, 5, 8, P.blue); px(c, x + 15, base - 4, P.yellow); // door
+     R(c, x, base - 8, 4, 8, P.silver); R(c, x + 1, base - 9, 2, 1, P.silver); disc(c, x + 2, base - 11, 1, P.lime); // a little flask tank
+@@ -180,7 +183,7 @@
+     rabbits: function (c, x, y, f, k) { var hop = (f + k * 4) % 14 < 2 ? 2 : 0; ell(c, x, y - 2 - hop, 2, 1, P.sand); R(c, x + 1, y - 4 - hop, 2, 2, P.sand); R(c, x + 1, y - 7 - hop, 1, 3, P.sand); px(c, x + 2, y - 3 - hop, P.ink); }
+   };
+   A._ANI = ANI;
+-  A.animalsIn = function (S) { var PL = AIU.places; if (!PL || !PL.barnState || !S) return []; var has = PL.barnState(S).has, out = []; has.forEach(function (an) { if (!ANI[an]) return; var n = an === 'chickens' ? 3 : an === 'cow' ? 1 : 2; for (var k = 0; k < n; k++) out.push({ kind: an, k: k, id: an + k }); }); return out.slice(0, 9); };
++  A.animalsIn = function (S) { var PL = AIU.places; if (!PL || !PL.barnState || !S) return []; var has = PL.barnState(S).has, out = []; has.forEach(function (an) { if (!ANI[an]) return; var n = PL.herd ? Math.min(an === 'chickens' ? 5 : 3, PL.herd(S, an)) : 2; /* 2.3.1: babies join the herd */ for (var k = 0; k < n; k++) out.push({ kind: an, k: k, id: an + k }); }); return out.slice(0, 12); };
+   // a slow wander, the same on every device; animals that walk off one side come back on the other
+   function wanderAt(id, t, x0, x1, y0, y1, speed) {
+     var seed = U.hash32(id), r = U.rng(seed), leg = 9 + r() * 6, n = Math.floor(t / leg), p = (t % leg) / leg;
+@@ -189,25 +192,25 @@
+     return { x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e, left: b.x < a.x, moving: mv > 0 && mv < 1 };
+   }
+   A.animalPos = function (an, sc) {
+-    var w = wanderAt('ani' + an.id, sc.tsec * (an.kind === 'rabbits' ? 1.6 : an.kind === 'cow' ? 0.5 : 1), -10, 202, 98, 112, 1);
+-    var x = ((w.x % 212) + 212) % 212 - 10; // wrap around the sides
++    var w = wanderAt('ani' + an.id, sc.tsec * (an.kind === 'rabbits' ? 1.6 : an.kind === 'cow' ? 0.5 : 1), 6, 82, 99, 112, 1);
++    var x = w.x; // 2.3.1: the animals keep to the left side of the field, by the barn (out of Aiu's way)
+     if (Math.abs(x - 96) < 26 && w.y > 108) w.y = 106; // stay out of the pond
+     var p = { x: Math.round(x), y: Math.round(w.y), left: w.left }, tp = A.toyPos && A.toyPos('ani:' + an.id, p); // you moved it: it stays a moment, then wanders back
+     return tp ? { x: Math.round(tp.x), y: Math.round(tp.y), left: p.left } : p;
+   };
+ 
+-  /* ---------- the buddy roams the field (at its own size), and comes home when Aiu needs it ---------- */
++  /* ---------- the pet roams the field (at its own size), and comes home when Aiu needs it ---------- */
+   var BSIZE = { horse: 1.25, beardog: 1.25, dog: 1, eagle: 1, cat: 0.75, ghost: 0.75, conjure: 0.75, penguin: 0.75, parrot: 0.75 };
+   A.buddySize = function (b) { return BSIZE[b] || 1; };
+   var HOMEBOUND = /^(care_|petbuddy|feedbuddy|waterbuddy|fetch|ride|board)/;
+   A.buddyRoam = function (sc) { // offset from its home spot (in old yard pixels)
+     var b = A.buddyOf(sc.soul, sc.buddy), PLY = AIU.play, r = { dx: 0, dy: 0 }, hx = A.BUDDY_OUT.x + 11 + A.YARD.x, hy = A.BUDDY_OUT.fy + A.YARD.y;
+-    if (!(A.POSTED[b] || sc.phase === 'night' || (sc.act && HOMEBOUND.test(sc.act)) || (PLY && PLY.active && PLY.active()) || sc.bplay && sc.bplay.a)) { var w = wanderAt('buddy' + (sc.soul || 0), sc.tsec * 0.8, -12, 80, 2, 12, 1); r = { dx: Math.round(w.x), dy: Math.round(w.y), left: w.left }; }
++    if (!(A.POSTED[b] || sc.phase === 'night' || (sc.act && HOMEBOUND.test(sc.act)) || (PLY && PLY.active && PLY.active()) || sc.bplay && sc.bplay.a)) { var w = wanderAt('buddy' + (sc.soul || 0), sc.tsec * 0.8, 0, 26, 0, 10, 1); r = { dx: Math.round(w.x), dy: Math.round(w.y), left: w.left }; } // 2.3.1: the pet stays on the left, out of Aiu's way
+     var tp = A.toyPos && A.toyPos('buddy', { x: hx + r.dx, y: hy + r.dy }); // you moved it
+     return tp ? { dx: Math.round(tp.x - hx), dy: Math.round(tp.y - hy) } : r;
+   };
+   var bcv = null;
+-  function drawBuddyP(L, sc) { // the buddy at its size, wherever it has wandered
++  function drawBuddyP(L, sc) { // the pet at its size, wherever it has wandered
+     if (A.toyHide && A.toyHide('buddy')) return;
+     var b = A.buddyOf(sc.soul, sc.buddy), s = A.buddySize(b), ro = A.buddyRoam(sc), BX = A.BUDDY_OUT.x, BY = A.BUDDY_OUT.fy;
+     if (!bcv) bcv = big(120, 80);
+@@ -360,16 +363,15 @@
+     if (sc.aiuIn) { var wp = houseToP(47, 76); if (sc.f % 12 < 8) { px(L, Math.round(wp.x), Math.round(wp.y - 6), P.yellow); px(L, Math.round(wp.x) + 1, Math.round(wp.y - 7), P.white); } }
+     // the animals from the barn, back to front
+     var anis = A.animalsIn(app().S).map(function (an) { var p = A.animalPos(an, sc); return { an: an, p: p }; }).filter(function (o) { return !(A.toyHide && A.toyHide('ani:' + o.an.id)); });
+-    // the field: animals, the buddy and Aiu, sorted by how far back they stand
++    // the field: animals, the pet and Aiu, sorted by how far back they stand
+     var wk = A.walkerPos(sc), items = [];
+     anis.forEach(function (o) { items.push({ y: o.p.y, draw: function () { L.save(); if (o.p.left) { L.translate(o.p.x * 2, 0); L.scale(-1, 1); } ANI[o.an.kind](L, o.p.x, o.p.y, sc.f, o.an.k); L.restore(); } }); });
+-    if (A.yardBack) { L.save(); L.translate(A.YARD.x, A.YARD.y); A.yardBack(L, sc); L.restore(); }
++    var cooking = sc.act === 'hibachi' && !sc.aiuIn && !wk && !(A.toyHide && A.toyHide('aiu'));
++    drawCart(L, sc, cooking);
+     var ro = A.buddyRoam(sc); items.push({ y: A.BUDDY_OUT.fy + A.YARD.y + ro.dy, draw: function () { drawBuddyP(L, sc); } });
+     if (wk) items.push({ y: wk.p.y, draw: function () { drawWalker(L, sc, wk.p, wk.left); } });
+-    else if (!sc.aiuIn && !(app().visit && app().visit.phase === 'in') && !(A.toyHide && A.toyHide('aiu'))) items.push({ y: A.AIU_SPOT.y + 0.5, draw: function () { L.save(); L.translate(A.YARD.x, A.YARD.y); IN.drawActor(L, sc); L.restore(); } });
++    else if (!cooking && !sc.aiuIn && !(app().visit && app().visit.phase === 'in') && !(A.toyHide && A.toyHide('aiu'))) items.push({ y: A.AIU_SPOT.y + 0.5, draw: function () { L.save(); L.translate(A.YARD.x, A.YARD.y); IN.drawActor(L, sc); L.restore(); } });
+     items.sort(function (a, b) { return a.y - b.y; }).forEach(function (it) { it.draw(); });
+-    // the food cart (and its lantern), in front of the field
+-    if (A.yardLive) { L.save(); L.translate(A.YARD.x, A.YARD.y); A.yardLive(L, sc); L.restore(); }
+     if (sc.stage) board(L, sc);
+     // night: darken the ground, then let the windows glow
+     var dim = sc.phase === 'night' ? 0.55 : sc.phase === 'dusk' || sc.phase === 'dawn' ? 0.25 : (sc.weather === 'storm' || sc.weather === 'rain') ? 0.18 : 0;
+@@ -384,14 +386,25 @@
+     if (A.toyDraw) A.toyDraw(ctx, sc);
+   }
+ 
++  // 2.3.1: Aiu's food cart stands behind the stream (where the well was), at 3/4 size. When he cooks, he's the chef inside it.
++  A.CART_AT = { x: 120, y: 88, s: 0.5 }; // 2.3.1: half size, so it sits back in the landscape
++  function drawCart(L, sc, cooking) {
++    if (!A.yardLive) return; var C0 = A.CART_AT;
++    L.save(); L.translate(C0.x, C0.y); L.scale(C0.s, C0.s); L.translate(-A.FIRE.x, -A.FIRE.y);
++    if (A.yardBack) A.yardBack(L, sc);
++    if (cooking) IN.drawActor(L, sc);
++    A.yardLive(L, sc); L.restore();
++  }
++
+   /* ---------- where things are, in property pixels ---------- */
+   A.actorPosP = function (sc) {
+     var wk = A.walkerPos(sc); if (wk) return { x: wk.p.x, y: wk.p.y, s: depthScale(wk.p.y) };
++    if (sc.act === 'hibachi' && !A.isRoom(sc)) return { x: A.CART_AT.x, y: A.CART_AT.y - 4, s: 0.5 };
+     var o = A.frameOff(sc), p = A.actorPos(sc); return { x: p.x + o.x, y: p.y + o.y, s: 1 };
+   };
+   A.droneRectP = function (sc) { var r = A.droneRect(Object.assign({}, sc, { place: 'home' })); if (!r) return null; var o = A.isRoom(sc) ? (sc.place === 'library' ? { x: 0, y: OFF } : DRONE_IN) : SKYOFF; return { x: r.x + o.x, y: r.y + o.y, w: r.w, h: r.h }; };
+   function inR(pt, r) { return !!(r && pt && pt.x >= r.x && pt.x <= r.x + r.w && pt.y >= r.y && pt.y <= r.y + r.h); }
+-  // What's under a tap (property pixels). The thing on top wins: Aiu, the buddy and the animals, then the board and the
++  // What's under a tap (property pixels). The thing on top wins: Aiu, the pet and the animals, then the board and the
+   // drone, then the buildings. Something walking past never blocks a building for long: only a tap right on it counts.
+   A.hitAt = function (pt, sc) {
+     if (!pt || !sc) return null;
+
+=================== style.css
+@@ -1101,36 +1101,53 @@
+ :root { --toybg: #5fcdf1; --toydot: rgba(255, 255, 255, .42); --rad: 14px; }
+ @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --toybg: #16304e; --toydot: rgba(115, 239, 247, .13); } }
+ :root[data-theme="dark"] { --toybg: #16304e; --toydot: rgba(115, 239, 247, .13); }
+-html.page3, html.page3 body { background-color: var(--toybg); background-image: radial-gradient(var(--toydot) 20%, transparent 22%), radial-gradient(var(--toydot) 20%, transparent 22%); background-size: 56px 56px; background-position: 0 0, 28px 28px; }
+-html.page3 body { padding-bottom: calc(5.4rem + env(safe-area-inset-bottom)); }
+-.page3 .panel2, .sheetin, .bcard { border: 3px solid var(--ink); border-radius: var(--rad); box-shadow: 4px 4px 0 var(--ink); overflow: hidden; }
+-.page3 .stage { border: 3px solid var(--ink); border-radius: var(--rad); box-shadow: 4px 4px 0 var(--ink); overflow: hidden; }
+-.page3 .wbar .smeters { border: 3px solid var(--ink); border-radius: var(--rad); box-shadow: 3px 3px 0 var(--ink); }
+-.page3 .phead { background: #3b5dc9; border-bottom: 3px solid var(--ink); }
+-.page3 .ptitle { color: #ffcd75; text-shadow: -2px 0 #1a1c2c, 2px 0 #1a1c2c, 0 -2px #1a1c2c, 0 2px #1a1c2c, 3px 3px 0 #1a1c2c; letter-spacing: 1px; }
+-.page3 .phead .btn.ghost { color: #f4f4f4; }
+-.btn { border-radius: 12px; }
+-.btn.mini { border-radius: 10px; }
+-.chip, .btn.chip { border-radius: 999px; }
+-.field input, .field select, .field textarea, input[type="search"], .addrow input { border-radius: 10px; }
++html.toy.page3, html.toy.page3 body { background-color: var(--toybg); background-image: radial-gradient(var(--toydot) 20%, transparent 22%), radial-gradient(var(--toydot) 20%, transparent 22%); background-size: 56px 56px; background-position: 0 0, 28px 28px; }
++html.toy.page3 body { padding-bottom: calc(5.4rem + env(safe-area-inset-bottom)); }
++html.toy.page3 .panel2, html.toy .sheetin, html.toy .bcard { border: 3px solid var(--ink); border-radius: var(--rad); box-shadow: 4px 4px 0 var(--ink); overflow: hidden; }
++html.toy.page3 .stage { border: 3px solid var(--ink); border-radius: var(--rad); box-shadow: 4px 4px 0 var(--ink); overflow: hidden; }
++html.toy.page3 .wbar .smeters { border: 3px solid var(--ink); border-radius: var(--rad); box-shadow: 3px 3px 0 var(--ink); }
++html.toy.page3 .phead { background: #3b5dc9; border-bottom: 3px solid var(--ink); }
++html.toy.page3 .ptitle { color: #ffcd75; text-shadow: -2px 0 #1a1c2c, 2px 0 #1a1c2c, 0 -2px #1a1c2c, 0 2px #1a1c2c, 3px 3px 0 #1a1c2c; letter-spacing: 1px; }
++html.toy.page3 .phead .btn.ghost { color: #f4f4f4; }
++html.toy .btn { border-radius: 12px; }
++html.toy .btn.mini { border-radius: 10px; }
++html.toy .chip, html.toy .btn.chip { border-radius: 999px; }
++html.toy .field input, html.toy .field select, html.toy .field textarea, html.toy input[type="search"], html.toy .addrow input { border-radius: 10px; }
+ /* the tab bar along the bottom: one bright color each, with a label */
+-.page3 .app2 .top { position: fixed; top: auto; bottom: 0; left: 0; right: 0; z-index: 40; margin: 0; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); background: #1a1c2c; border: 0; }
+-.page3 .hicons { gap: 6px; max-width: 760px; margin: 0 auto; }
+-.page3 .hicons button { flex-direction: column; gap: 2px; min-height: 4.1rem; border: 3px solid #f4f4f4; border-radius: 12px; color: #1a1c2c; box-shadow: inset 0 -5px 0 rgba(0, 0, 0, .2); background: #ffcd75; }
+-.page3 .hicons button::after { content: attr(data-label); font-family: 'Pixel', ui-monospace, monospace; font-size: 0.55rem; line-height: 1.2; text-transform: uppercase; }
+-.page3 .hicons button[data-tab="quests"] { background: #ffcd75; }
+-.page3 .hicons button[data-tab="planner"] { background: #a7f070; }
+-.page3 .hicons button[data-tab="journal"] { background: #f5a3b5; }
+-.page3 .hicons button[data-tab="accounts"] { background: #ef7d57; }
+-.page3 .hicons button.gear { background: #73eff7; }
+-.page3 .hicons button.on { background-color: #f4f4f4 !important; color: #1a1c2c; transform: translateY(-3px); box-shadow: 0 4px 0 #ffcd75; }
+-.page3 .hicons button svg { width: 1.7rem; height: 1.7rem; }
++html.toy.page3 .app2 .top { position: fixed; top: auto; bottom: 0; left: 0; right: 0; z-index: 40; margin: 0; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); background: #1a1c2c; border: 0; }
++html.toy.page3 .hicons { gap: 6px; max-width: 760px; margin: 0 auto; }
++html.toy.page3 .hicons button { flex-direction: column; gap: 2px; min-height: 4.1rem; border: 3px solid #f4f4f4; border-radius: 12px; color: #1a1c2c; box-shadow: inset 0 -5px 0 rgba(0, 0, 0, .2); background: #ffcd75; }
++html.toy.page3 .hicons button::after { content: attr(data-label); font-family: 'Pixel', ui-monospace, monospace; font-size: 0.55rem; line-height: 1.2; text-transform: uppercase; }
++html.toy.page3 .hicons button[data-tab="quests"] { background: #ffcd75; }
++html.toy.page3 .hicons button[data-tab="planner"] { background: #a7f070; }
++html.toy.page3 .hicons button[data-tab="journal"] { background: #f5a3b5; }
++html.toy.page3 .hicons button[data-tab="accounts"] { background: #ef7d57; }
++html.toy.page3 .hicons button.gear { background: #73eff7; }
++html.toy.page3 .hicons button.on { background-color: #f4f4f4 !important; color: #1a1c2c; transform: translateY(-3px); box-shadow: 0 4px 0 #ffcd75; }
++html.toy.page3 .hicons button svg { width: 1.7rem; height: 1.7rem; }
+ /* the ticker under the world */
+-.ticker { display: block; background: #1a1c2c; color: #f4f4f4; border: 3px solid var(--ink); border-radius: 12px; padding: 8px 10px; margin: 8px 0 2px; font-size: 1.0625rem; line-height: 1.3; }
+-.ticker::before { content: "\3010" attr(data-name) "\3011 "; color: #ffcd75; font-weight: bold; }
+-.ticker:empty { display: none; }
++html.toy .ticker { display: block; background: #1a1c2c; color: #f4f4f4; border: 3px solid var(--ink); border-radius: 12px; padding: 8px 10px; margin: 8px 0 2px; font-size: 1.0625rem; line-height: 1.3; }
++html.toy .ticker::before { content: "\3010" attr(data-name) "\3011 "; color: #ffcd75; font-weight: bold; }
++html.toy .ticker:empty { display: none; }
+ /* the world sits on a soft shadow; the sheet title is chunky too */
+-.sheetin > h2, .sheetin .shead h2 { color: #3b5dc9; }
+-@media (max-width: 380px) { .page3 .hicons button::after { font-size: 0.48rem; } }
+-.page3 .toast { bottom: calc(6.2rem + env(safe-area-inset-bottom)); }
+-@media (min-width: 1000px) { .page3 .world { top: 10px; } }
++html.toy .sheetin > h2, html.toy .sheetin .shead h2 { color: #3b5dc9; }
++@media (max-width: 380px) { html.toy.page3 .hicons button::after { font-size: 0.48rem; } }
++html.toy.page3 .toast { bottom: calc(6.2rem + env(safe-area-inset-bottom)); }
++@media (min-width: 1000px) { html.toy.page3 .world { top: 10px; } }
++
++/* 2.3.0: the ticker in the retro look */
++html:not(.toy) .ticker { display: block; border: var(--line); padding: 6px 8px; margin: 6px 0 2px; background: var(--card); font-size: 1.0625rem; }
++html:not(.toy) .ticker::before { content: "\3010" attr(data-name) "\3011 "; font-weight: bold; }
++/* 2.3.1: the profile's three big picture buttons */
++.ptiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0 12px; }
++.ptile { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font: inherit; color: var(--ink); background: var(--card); border: 3px solid var(--ink); border-radius: 14px; padding: 10px 6px; cursor: pointer; min-height: 6.5rem; box-shadow: 3px 3px 0 var(--ink); }
++.ptile .pix { width: 2.2rem; height: 2.2rem; }
++.ptile b { font-family: 'Pixel', ui-monospace, monospace; font-size: 0.7rem; text-transform: uppercase; }
++.ptile .small { font-size: 0.85rem; line-height: 1.2; }
++.ptile.on { background: #ffcd75; color: #1a1c2c; transform: translateY(-2px); }
++html.toy .ptile:nth-child(1) { background: #a7f070; } html.toy .ptile:nth-child(2) { background: #73eff7; } html.toy .ptile:nth-child(3) { background: #ffcd75; }
++html.toy .ptile { color: #1a1c2c; } html.toy .ptile.on { outline: 4px solid #f4f4f4; outline-offset: -7px; }
++/* 2.3.1: the start screens get the toy-box look too */
++html.toy body { background-color: var(--toybg); background-image: radial-gradient(var(--toydot) 20%, transparent 22%), radial-gradient(var(--toydot) 20%, transparent 22%); background-size: 56px 56px; background-position: 0 0, 28px 28px; }
++html.toy .card { border-radius: var(--rad); border-width: 3px; box-shadow: 5px 5px 0 var(--ink); }
++html.toy .card h1, html.toy .card h2 { color: #3b5dc9; }
+
+=================== index.html
+@@ -36,7 +36,7 @@
+ <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+ <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+ <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+-<link rel="stylesheet" href="style.css?v=2.3.0">
++<link rel="stylesheet" href="style.css?v=2.3.1">
+ <title>Aiu Totem</title>
+ </head>
+ <body>
+@@ -61,39 +61,40 @@
+ </script>
+ <div id="app"></div>
+ <noscript><p style="padding:16px">Aiu Totem needs JavaScript turned on.</p></noscript>
+-<script src="config.js?v=2.3.0"></script>
+-<script src="js/util.js?v=2.3.0"></script>
+-<script src="js/store.js?v=2.3.0"></script>
+-<script src="js/core.js?v=2.3.0"></script>
+-<script src="js/art.js?v=2.3.0"></script>
+-<script src="js/rooms.js?v=2.3.0"></script>
+-<script src="js/world.js?v=2.3.0"></script>
+-<script src="js/persona.js?v=2.3.0"></script>
+-<script src="js/iching.js?v=2.3.0"></script>
+-<script src="js/topics.js?v=2.3.0"></script>
+-<script src="js/hilltop.js?v=2.3.0"></script>
+-<script src="js/gaba.js?v=2.3.0"></script>
+-<script src="js/planner.js?v=2.3.0"></script>
+-<script src="js/vault.js?v=2.3.0"></script>
+-<script src="js/pdf.js?v=2.3.0"></script>
+-<script src="js/tiles.js?v=2.3.0"></script>
+-<script src="js/starter.js?v=2.3.0"></script>
+-<script src="js/mind.js?v=2.3.0"></script>
+-<script src="js/ui.js?v=2.3.0"></script>
+-<script src="js/panels.js?v=2.3.0"></script>
+-<script src="js/questboard.js?v=2.3.0"></script>
+-<script src="js/help.js?v=2.3.0"></script>
+-<script src="js/games.js?v=2.3.0"></script>
+-<script src="js/play.js?v=2.3.0"></script>
+-<script src="js/places.js?v=2.3.0"></script>
+-<script src="js/farm.js?v=2.3.0"></script>
+-<script src="js/lab.js?v=2.3.0"></script>
+-<script src="js/toybox.js?v=2.3.0"></script>
+-<script src="js/vitals.js?v=2.3.0"></script>
+-<script src="js/business.js?v=2.3.0"></script>
+-<script src="js/profiles.js?v=2.3.0"></script>
+-<script src="js/library.js?v=2.3.0"></script>
+-<script src="js/accounts.js?v=2.3.0"></script>
+-<script src="js/app.js?v=2.3.0"></script>
++<script src="config.js?v=2.3.1"></script>
++<script src="js/util.js?v=2.3.1"></script>
++<script src="js/store.js?v=2.3.1"></script>
++<script src="js/core.js?v=2.3.1"></script>
++<script src="js/art.js?v=2.3.1"></script>
++<script src="js/rooms.js?v=2.3.1"></script>
++<script src="js/world.js?v=2.3.1"></script>
++<script src="js/persona.js?v=2.3.1"></script>
++<script src="js/iching.js?v=2.3.1"></script>
++<script src="js/topics.js?v=2.3.1"></script>
++<script src="js/hilltop.js?v=2.3.1"></script>
++<script src="js/gaba.js?v=2.3.1"></script>
++<script src="js/planner.js?v=2.3.1"></script>
++<script src="js/vault.js?v=2.3.1"></script>
++<script src="js/pdf.js?v=2.3.1"></script>
++<script src="js/tiles.js?v=2.3.1"></script>
++<script src="js/starter.js?v=2.3.1"></script>
++<script src="js/mind.js?v=2.3.1"></script>
++<script src="js/ui.js?v=2.3.1"></script>
++<script src="js/panels.js?v=2.3.1"></script>
++<script src="js/questboard.js?v=2.3.1"></script>
++<script src="js/help.js?v=2.3.1"></script>
++<script src="js/games.js?v=2.3.1"></script>
++<script src="js/play.js?v=2.3.1"></script>
++<script src="js/places.js?v=2.3.1"></script>
++<script src="js/farm.js?v=2.3.1"></script>
++<script src="js/minis.js?v=2.3.1"></script>
++<script src="js/lab.js?v=2.3.1"></script>
++<script src="js/toybox.js?v=2.3.1"></script>
++<script src="js/vitals.js?v=2.3.1"></script>
++<script src="js/business.js?v=2.3.1"></script>
++<script src="js/profiles.js?v=2.3.1"></script>
++<script src="js/library.js?v=2.3.1"></script>
++<script src="js/accounts.js?v=2.3.1"></script>
++<script src="js/app.js?v=2.3.1"></script>
+ </body>
+ </html>
+
+=================== sw.js
+@@ -1,8 +1,8 @@
+ /* AIU TOTEM service worker: keeps the app working offline.
+    The Totem's data lives in the browser's database, not in this cache. */
+-var CACHE = 'aiu-2.3.0';
+-var FILES = ['./', 'index.html', 'style.css?v=2.3.0', 'config.js?v=2.3.0', 'js/util.js?v=2.3.0', 'js/store.js?v=2.3.0', 'js/core.js?v=2.3.0',
+-  'js/art.js?v=2.3.0', 'js/rooms.js?v=2.3.0', 'js/world.js?v=2.3.0', 'js/persona.js?v=2.3.0', 'js/iching.js?v=2.3.0', 'js/topics.js?v=2.3.0', 'js/hilltop.js?v=2.3.0', 'js/gaba.js?v=2.3.0', 'js/planner.js?v=2.3.0', 'js/vault.js?v=2.3.0', 'js/pdf.js?v=2.3.0', 'js/tiles.js?v=2.3.0', 'js/starter.js?v=2.3.0', 'js/mind.js?v=2.3.0', 'js/ui.js?v=2.3.0', 'js/panels.js?v=2.3.0', 'js/questboard.js?v=2.3.0', 'js/help.js?v=2.3.0', 'js/games.js?v=2.3.0', 'js/play.js?v=2.3.0', 'js/places.js?v=2.3.0', 'js/farm.js?v=2.3.0', 'js/lab.js?v=2.3.0', 'js/toybox.js?v=2.3.0', 'js/vitals.js?v=2.3.0', 'js/business.js?v=2.3.0', 'js/profiles.js?v=2.3.0', 'js/library.js?v=2.3.0', 'js/accounts.js?v=2.3.0', 'js/app.js?v=2.3.0', 'fonts/aiu-block.woff2', 'fonts/aiu-term.woff2',
++var CACHE = 'aiu-2.3.1';
++var FILES = ['./', 'index.html', 'style.css?v=2.3.1', 'config.js?v=2.3.1', 'js/util.js?v=2.3.1', 'js/store.js?v=2.3.1', 'js/core.js?v=2.3.1',
++  'js/art.js?v=2.3.1', 'js/rooms.js?v=2.3.1', 'js/world.js?v=2.3.1', 'js/persona.js?v=2.3.1', 'js/iching.js?v=2.3.1', 'js/topics.js?v=2.3.1', 'js/hilltop.js?v=2.3.1', 'js/gaba.js?v=2.3.1', 'js/planner.js?v=2.3.1', 'js/vault.js?v=2.3.1', 'js/pdf.js?v=2.3.1', 'js/tiles.js?v=2.3.1', 'js/starter.js?v=2.3.1', 'js/mind.js?v=2.3.1', 'js/ui.js?v=2.3.1', 'js/panels.js?v=2.3.1', 'js/questboard.js?v=2.3.1', 'js/help.js?v=2.3.1', 'js/games.js?v=2.3.1', 'js/play.js?v=2.3.1', 'js/places.js?v=2.3.1', 'js/farm.js?v=2.3.1', 'js/minis.js?v=2.3.1', 'js/lab.js?v=2.3.1', 'js/toybox.js?v=2.3.1', 'js/vitals.js?v=2.3.1', 'js/business.js?v=2.3.1', 'js/profiles.js?v=2.3.1', 'js/library.js?v=2.3.1', 'js/accounts.js?v=2.3.1', 'js/app.js?v=2.3.1', 'fonts/aiu-block.woff2', 'fonts/aiu-term.woff2',
+   'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+ 
+ self.addEventListener('install', function (e) {
+
+=================== config.js
+@@ -4,5 +4,5 @@
+         and remembers the one that works. */
+ window.AIU_CONFIG = {
+   api: 'api.php',
+-  version: '2.3.0'
++  version: '2.3.1'
+ };
+

@@ -1,0 +1,76 @@
+AIU TOTEM 2.1.15: code taken out of the app (kept here, never deleted)
+
+--- app.js (removed in 2.1.15)
+      if (!app.dev.v110b) { app.dev.v110b = 1; app.dev.mute = false; if (window.innerWidth < 900) app.dev.zoom = true; if (r[1]) app.meta.set('dev', app.dev); }
+
+--- app.js (removed in 2.1.15)
+      if (!r[1] && window.innerWidth < 600) app.dev.zoom = true; // phones start with the close-up view
+
+
+--- app.js frame(): the close-up camera (removed in 2.1.15: the whole world only)
+    if (app.dev.zoom) { // 2.1.5: close-up camera frames the yard: the house door, the buddy and Aiu (or, inside, the desk and Aiu)
+      if (!zoomCv) { zoomCv = document.createElement('canvas'); zoomCv.width = A.W; zoomCv.height = A.H; }
+      var VW = 142, VH = 80;
+      if (cv.width !== VW) { cv.width = VW; cv.height = VH; ctx = cv.getContext('2d'); }
+      A.render(zoomCv.getContext('2d'), sc); if (PLY) PLY.draw(zoomCv.getContext('2d'), sc);
+      var ap = A.actorPos(sc), sx = sc.indoor ? 8 : 30;
+      if (ap.x + 26 > sx + VW) sx = ap.x + 26 - VW;
+      if (sc.walk && !sc.indoor) sx = Math.min(sx, ap.x - 22); // 2.1.15: follow him to the door
+      sx = Math.max(0, Math.min(A.W - VW, Math.round(sx))); var sy = A.H - VH;
+      ctx.imageSmoothingEnabled = false; ctx.clearRect(0, 0, VW, VH);
+      ctx.drawImage(zoomCv, sx, sy, VW, VH, 0, 0, VW, VH);
+      app.view = { sx: sx, sy: sy, z: A.W / VW, sc: sc };
+
+
+--- ui.js (removed in 2.1.15)
+    if (a.dev.zoom) return { x: 50, y: 26 };
+
+
+--- ui.js (removed in 2.1.15)
+      h('div', { cls: 'row2' }, field('Text size', sel({ normal: 'Normal', large: 'Large', huge: 'Extra large' }, dev.textSize || 'normal', function (v) { devSet('textSize', v); ui.applyTheme(); })),
+        field('World view', sel({ close: 'Close-up (the yard)', whole: 'The whole world' }, dev.zoom ? 'close' : 'whole', function (v) { devSet('zoom', v === 'close'); }))),
+      h('div', { cls: 'row wrap' }, btn('Show the world full screen', function () { s.remove(); ui.worldFull(true); }, 'mini')),
+
+--- ui.js (removed in 2.1.15)
+      h('div', { cls: 'row wrap' }, btn('Hear ' + S.totemName, function () { a.unlock(); a.hush(); a.speak('Hi ' + S.callMe + '! How are you today?'); }, 'mini')),
+
+
+--- ui.js (removed in 2.1.15)
+    acct.push(btn('Add another account', function () { s.remove(); a.meta.set('active', null); ui.onMain = false; ui.welcome(); }, 'ghost'));
+--- app.js pickActivity(): a fresh dice roll every 20 minutes (replaced by a day deck in 2.1.15: it kept landing on the same thing)
+    var r = U.rng(U.hash32(S.egg.id + U.dayStr(now) + ':' + Math.floor(min / 20))), pool = [];
+    Object.keys(A.ACTIVITIES).forEach(function (id) {
+      var a = A.ACTIVITIES[id];
+      if (id === 'sleep' || id === 'eat') return;
+      if (a.pack ? !S.owned[id] : (!a.base && !S.unlocked[id])) return;
+      if (id === 'stargaze' && !((phase === 'dusk' || phase === 'night') && w.kind === 'clear')) return;
+      if (a.need === 'sand' && biome !== 'beach' && biome !== 'desert') return;
+      if (a.need === 'snow' && biome !== 'tundra' && season !== 'winter') return;
+      if (a.where === 'out' && !outOK) return;
+      var since = a.pack ? S.owned[id].t : S.unlocked[id], wt = (!a.base && app.trueNow() - since < 3 * 86400000) ? 3 : (a.pack && S.unlocked[id] ? 2 : 1);
+      for (var i = 0; i < wt; i++) pool.push(id);
+    });
+    if (!pool.length) pool = ['workout'];
+    var id = pool[Math.floor(r() * pool.length)], a = A.ACTIVITIES[id];
+    return { id: id, indoor: a.where === 'in' || (a.where === 'both' && (!outOK || r() < 0.4)) };
+
+--- app.js app.pet(): a trick on every tap (2.1.15: a pat is a heart and a note; he keeps working)
+    var tk = AIU.play ? AIU.play.aiuTrick() : (app.setMode('hop', 900), 'hop'); if (tk !== 'busy') app.beep(tk === 'yawn' ? 'purr' : 'chirp');
+    if (AIU.ui.hearts && tk !== 'yawn') AIU.ui.hearts(3);
+  (AIU.play.aiuTrick() itself is still in play.js, unused, in case tricks come back as a game)
+
+--- app.js app.react(): a happy hop on good news (2.1.15: happy eyes instead, so his activity isn't cut short)
+    if (HAPPY[kind] && !(app.mode && Date.now() < app.modeUntil)) app.setMode('hop', 1100);
+
+--- play.js PL.aiuRub(): a wiggle while you rub him (2.1.15: hearts only)
+    if (!(a.mode && now < a.modeUntil && a.mode !== 'wiggle') && (a.mode !== 'wiggle' || now > a.modeUntil - 200)) a.setMode('wiggle', 600);
+
+--- art.js build / sandcastle / snowman: the stage came from Math.floor((sc.tsec || 0) / 3) % 6 (it started over every 18 seconds)
+
+--- ui.js Settings: "World view" (close-up / whole), "Hear <name>" button (picking a voice already plays a sample),
+    "Add another account" on a device-only Totem (Create / Log in sit just above it)
+
+--- library.js Log > Today: the separate "<name>'s Hilltop View" box (now inside the Daily Hilltop card)
+    p.appendChild(h('section', { cls: 'tsum' }, h('div', { cls: 'tsumhead' }, ui.pix('yin'), h('b', { text: name + '\'s Hilltop View' })), h('p', { cls: 'tsumh', text: sm.head }), h('ul', null, sm.lines.map(function (l) { return h('li', { text: l }); }))));
+
+--- .htaccess: "Options +ExecCGI" / "AddHandler cgi-script .cgi" are commented out (api.php is the server now; some hosts 500 the whole folder on Options)

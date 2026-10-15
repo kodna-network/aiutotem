@@ -1,0 +1,7 @@
+{
+  "name": "Wizard hat",
+  "category": "hat",
+  "price": 60,
+  "desc": "Knows a few tricks.",
+  "file": "item.png"
+}

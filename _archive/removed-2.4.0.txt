@@ -1,0 +1,120 @@
+AIU TOTEM 2.4.0 - what left the app (word for word, so any of it can come back)
+===============================================================================
+Also in _archive/2.4.0-replaced/: games.js (the 2.3.x games: Slice, Wilds, Wilds Cup, Spar, Dash, Fling, Deliver
+with passengers, Drop, the Games hub with Easy/Normal/Hard). The new arcade (arcade.js, arcade-games.js,
+arcade-more.js) replaces it; Dash, Fling, Drop and the separate Cup are not in the dice. To bring one back: copy
+its function from games.js into a new GM.add({...}) in arcade-more.js (see how the others are written).
+
+On standby (still in the app, just not reachable): the building screens in places.js, farm.js, minis.js and lab.js
+(garage parts, barn herd and care, greenhouse pots and systems, lab stations and tracks). toybox.js used to open
+them with AIU.places.open(id); FUN now sends Aiu in for a peek instead. To bring them back, remove barn, greenhouse,
+lab and garage from FUN in toybox.js. The field animals: world.js A.animalsInOld (A.animalsIn returns []).
+The forgot-password and confirm-email screens (ui.forgotScreen, ui.checkEmailScreen, ui.resendScreen) are still in
+ui.js, just not linked. The tap-to-hear listener is still in ui.js (dev.tapRead stays off; its setting is gone).
+
+---- ui.js: Settings > Account & data (2.3.1) ----
+    var acct = [];
+    if (a.prof.local) {
+      acct.push(h('p', { text: 'This Totem lives only on this device. Create an account to sync it to your phone, Pi and other devices.' }));
+      acct.push(btn('Create an account to sync', function () { s.remove(); ui.signupScreen({ link: a.pid }); }, 'primary'));
+      acct.push(btn('Log in to an account that has no Totem yet', function () { s.remove(); ui.linkFrom = a.pid; ui.loginScreen(); }));
+    } else {
+      var dl = h('div', { cls: 'small', text: 'Loading devices...' });
+      acct.push(h('p', null, 'Signed in as ', h('b', { text: '@' + a.prof.u }), a.prof.email ? ' (' + a.prof.email + ')' : ''));
+      acct.push(h('p', { cls: 'small', text: 'Open profile: ' + a.profName() + ' (' + a.profKind() + '). One account holds as many Aiu profiles as you like, each with its own egg.' }));
+      acct.push(h('p', { cls: 'small', text: 'Sync: ' + a.sync.state + (a.sync.last ? ', last ' + U.ago(a.sync.last) : '') + (S.unsent ? ' · ' + S.unsent + ' changes waiting' : '') + (a.sync.err ? ' · ' + a.sync.err : '') }));
+      acct.push(h('div', { cls: 'row wrap' }, // 2.1.5: Sync now is at the top of Settings (one button)
+        btn('Log out', function () { if (S.unsent && !confirm(S.unsent + ' changes have not synced yet. They stay safe on this device and sync next time you log in here. Log out?')) return; s.remove(); a.logout(); })));
+      acct.push(dl);
+      a.api('me', { u: a.prof.u, token: a.prof.token }).then(function (r) {
+        clear(dl).appendChild(document.createTextNode('Devices: ' + r.devices.map(function (d) { return d.dn + ' (' + U.ago(d.last) + ')'; }).join(', ')));
+      }, function (e) { dl.textContent = e.message; });
+      var oldp = inp({ type: 'password', placeholder: 'current' }), newp = inp({ type: 'password', placeholder: 'new, 8+ characters' }), pm = h('p', { cls: 'formmsg' });
+      acct.push(h('details', null, h('summary', { text: 'Change password' }), field('Current password', oldp), field('New password', newp), pm,
+        btn('Change', function () { var np = newp.value; a.api('password', { u: a.prof.u, token: a.prof.token, old: oldp.value, pw: np }).then(function () { msg(pm, 'Changed. Other devices will ask to log in again.'); a.vaultRekey(np).catch(function () {}); }, function (e) { msg(pm, e.message, true); }); }, 'primary')));
+    }
+    var P = a.profiles, mine = a.groupPids(), others = Object.keys(P).filter(function (k) { return mine.indexOf(k) < 0 && (P[k].token || P[k].local) && !P[k].linkedTo && !P[k].gone; });
+    acct.push(h('div', { cls: 'row wrap' }, btn('Profiles (' + mine.length + ')', function () { s.remove(); AIU.profiles.switcher(); }, 'primary'), btn('+ New profile', function () { s.remove(); AIU.profiles.newSheet(); })));
+    if (others.length) acct.push(h('div', { cls: 'row wrap' }, others.map(function (k) { return btn('Switch to ' + (P[k].local ? 'device-only: ' + a.profName(k) : '@' + P[k].u), function () { s.remove(); a.openProfile(k); }); })));
+    if (!a.prof.local) acct.push(btn('Use another account', function () { s.remove(); a.meta.set('active', null); ui.onMain = false; ui.welcome(); }, 'ghost')); // 2.1.15: a device-only Totem already has Create / Log in just above
+
+
+---- ui.js: the Listen button and tap-to-hear (2.3.0) ----
+  // 2.3.0: a little speaker button: Aiu reads it to you (tap again to stop). getText runs when you tap it.
+  ui.speakBtn = function (getText, mini) {
+    var b = h('button', { type: 'button', cls: 'btn speak' + (mini ? ' mini' : ''), 'aria-label': 'Read it aloud', title: 'Read it aloud' });
+    function label(on) { ui.k.clear(b); b.appendChild(ui.pix('speaker')); b.appendChild(h('span', { text: on ? ' Stop' : ' Listen' })); }
+    label(false);
+    b.addEventListener('click', function (e) { e.stopPropagation(); var on = app().readAloud(String(getText() || '')); label(on); if (on) { var iv = setInterval(function () { if (!window.speechSynthesis || !speechSynthesis.speaking) { clearInterval(iv); label(false); } }, 500); } });
+    return b;
+  };
+  // 2.3.0: Settings > Look & sound > "Tap text to hear it": tap a line of text and Aiu reads it aloud
+  document.addEventListener('click', function (e) {
+    var a = app(); if (!a || !a.dev || !a.dev.tapRead) return;
+    var t = e.target; if (!t || !t.closest || t.closest('button, a, input, textarea, select, label, canvas, .gov, .bov')) return;
+    var el = t.closest('p, li, h1, h2, h3, h4, dd, dt, .ititle, .qrtitle, .qrsnip, .ttext, .jval, .booktext');
+    if (!el) return; var txt = (el.textContent || '').trim(); if (txt.length < 2) return;
+    el.classList.add('reading'); setTimeout(function () { el.classList.remove('reading'); }, 1500);
+    a.readAloud(txt.slice(0, 1200));
+  }, true);
+
+---- ui.js: the ride picker (Settings > Aiu & pet) ----
+      field(S.totemName + '\'s ride (one at a time)', sel({ none: 'None yet', car: 'Car', bike: 'Bicycle', moto: 'Motorcycle', carriage: 'Horse carriage', ship: 'Spaceship' }, G0.kind || 'none', function (v) { // 2.3.0: change it any time; it starts fresh
+        if (!AIU.places) return; AIU.places.set('garage', { vehicle: v === 'none' ? null : v, start: U.today() }).then(function () { nmsg.textContent = v === 'none' ? 'No ride for now.' : 'New ride! It\'s in the garage.'; });
+      }), 'Its upkeep happens in the garage. Changing it starts the new one fresh.'),
+
+---- world.js: the 2.3.0 dollhouse (four cropped corners) ----
+  /* ---------- 2.3.0: inside, the house is one dollhouse: a cutaway with all its corners showing at once.
+     Upstairs: the bathroom (left) and the bedroom (right). Downstairs: the kitchen (left) and the living room (right),
+     with the front door on the right wall. The drone parks in the attic. Aiu is in whichever corner he's busy in. ---------- */
+  var AREAS = {
+    bath: { src: 'bath', sx: 8, sy: 46, w: 96, h: 60, px: 0, py: 18 },
+    bedroom: { src: 'living', sx: 96, sy: 46, w: 96, h: 60, px: 96, py: 18 },
+    kitchen: { src: 'kitchen', sx: 58, sy: 45, w: 92, h: 63, px: 0, py: 81 },
+    living: { src: 'living', sx: 30, sy: 45, w: 100, h: 63, px: 92, py: 81 }
+  };
+  A.HOUSE_AREAS = AREAS;
+  A.FRONT_DOOR = { x: 177, y: 99, w: 13, h: 38 }; A.BOARD_IN_P = { x: 124, y: 85, w: 20, h: 15 }; var DESK = { x: 84, y: -28 }, DRONE_IN = { x: 4, y: -37 }; // 2.4.0: inside, the drone hovers in the sky above the roof too
+  A.aiuArea = function (sc) {
+    if (sc.place === 'kitchen' || sc.roomPlace === 'kitchen') return AREAS.kitchen;
+    if (sc.place === 'bath' || sc.roomPlace === 'bath') return AREAS.bath;
+    if (sc.act === 'sleep' || sc.mode === 'sleepy') return AREAS.bedroom;
+    return AREAS.living;
+  };
+  var hcache = { key: null, pics: null };
+  function housePics(sc) {
+    var key = [sc.house, sc.accent, !!(sc.unlocked && (sc.unlocked.tv || sc.unlocked.games))].join('|');
+    if (hcache.key === key) return hcache.pics;
+    var pics = {}, mkp = function (fn) { var cv = mk(W, 108), c = cv.getContext('2d'); fn(c, Object.assign({}, sc, { place: 'home', indoor: true, shop: {} })); return cv; };
+    pics.living = mkp(IN.drawRoom); pics.kitchen = mkp(A.ROOMS.kitchen); pics.bath = mkp(A.ROOMS.bath);
+    hcache = { key: key, pics: pics }; return pics;
+  }
+  function inArea(ctx, ar, fn) { ctx.save(); ctx.beginPath(); ctx.rect(ar.px, ar.py, ar.w, ar.h); ctx.clip(); ctx.translate(ar.px - ar.sx, ar.py - ar.sy); fn(); ctx.restore(); }
+  function renderHouse(ctx, sc) {
+    var pics = housePics(sc), f = sc.f, roofCol = { cabin: P.red, cave: P.slate, mansion: P.navy, castle: P.silver, lilypad: P.red }[sc.house] || P.red, wallCol = { cabin: P.wood, cave: P.slate, mansion: P.white, castle: P.silver, lilypad: P.sand }[sc.house] || P.wood;
+    ctx.clearRect(0, 0, W, H);
+    IN.drawSky(ctx, 0, 0, W, 24, IN.skyBands(sc.phase, sc.weather)); IN.skyThings(ctx, sc, [0, 0, W, 18]);
+    // the roof and the attic
+    for (var y = 9; y < 18; y++) { var hw = Math.round(44 + (y - 9) * 6.5); R(ctx, 96 - hw, y, hw * 2, 1, y < 10 ? P.ink : roofCol); } // 2.4.0: a lower roof, so the drone has open sky above it
+    R(ctx, 0, 15, W, 3, P.bark); disc(ctx, 96, 13, 2, P.ink); px(ctx, 96, 13, P.sky); // the eaves and a little round attic window
+    // the four corners
+    ['bath', 'bedroom', 'kitchen', 'living'].forEach(function (id) { var ar = AREAS[id]; ctx.drawImage(pics[ar.src], ar.sx, ar.sy, ar.w, ar.h, ar.px, ar.py, ar.w, ar.h); });
+    // the desk with the game computer (upstairs, by the bed)
+    ctx.save(); ctx.beginPath(); ctx.rect(96, 18, 96, 60); ctx.clip(); ctx.translate(DESK.x, DESK.y); IN.computer(ctx, f); ctx.restore();
+    // walls between, the floor between the floors, the outer walls
+    R(ctx, 0, 78, W, 3, P.bark); R(ctx, 0, 78, W, 1, P.ink); R(ctx, 95, 18, 2, 60, P.bark); R(ctx, 91, 81, 2, 63, P.bark); R(ctx, 0, 18, 1, 126, P.ink); R(ctx, W - 1, 18, 1, 126, P.ink);
+    for (var st = 0; st < 6; st++) R(ctx, 84 - st * 1, 80 + st * 10, 6, 1, P.wood); // a little ladder down from upstairs
+    // the front door (right wall), the corkboard and the regulator clock (lowered onto the living room wall)
+    var D = A.FRONT_DOOR, open = sc.doorOpen; R(ctx, D.x - 1, D.y - 1, D.w + 2, D.h + 1, P.bark); R(ctx, D.x, D.y, D.w, D.h, open ? P.ink : wallCol === P.white ? P.red : P.wood);
+    if (open) R(ctx, D.x + 1, D.y + D.h - 8, D.w - 2, 6, P.green); else { R(ctx, D.x + 2, D.y + 4, D.w - 4, 12, P.bark); R(ctx, D.x + 2, D.y + 20, D.w - 4, 12, P.bark); px(ctx, D.x + 2, D.y + 19, P.yellow); }
+    R(ctx, D.x - 1, D.y - 10, D.w + 2, 8, P.ink); R(ctx, D.x, D.y - 9, D.w, 6, P.green); spr(ctx, D.x + 3, D.y - 8, ['...w..', '...ww.', 'wwwwww', '...ww.', '...w..']); // a green sign: the way out to the yard
+    var B = A.BOARD_IN_P; R(ctx, B.x - 1, B.y - 1, B.w + 2, B.h + 2, P.bark); R(ctx, B.x, B.y, B.w, B.h, P.wood); dith(ctx, B.x, B.y, B.w, B.h, P.orange, 1);
+    var n = (sc.board && sc.board.n) || 0; R(ctx, B.x + 3, B.y + 3, 9, 9, n ? P.white : P.sand); if (n) spr(ctx, B.x + 6, B.y + 5, IN.DIG[Math.min(9, n)]); if (sc.board && sc.board.ring && f % 6 < 3) R(ctx, B.x + 16, B.y + 2, 2, 5, P.red);
+    regulatorSmall(ctx, 99, 84, sc);
+    // Aiu (and what he's doing) in his corner
+    if (!(A.toyHide && A.toyHide('aiu'))) { var ar = A.aiuArea(sc); inArea(ctx, ar, function () { IN.drawActor(ctx, sc); }); }
+    var dim = sc.phase === 'night' ? 0.55 : sc.phase === 'dusk' || sc.phase === 'dawn' ? 0.25 : 0;
+    if (dim) { ctx.globalAlpha = dim * 0.45; R(ctx, 0, 18, W, 126, P.ink); ctx.globalAlpha = 1; inArea(ctx, AREAS.bedroom, function () { IN.lampShade(ctx, sc.phase !== 'day'); }); } // the bedside lamp glows at night
+    if (sc.stage) { ctx.save(); ctx.translate(DRONE_IN.x, DRONE_IN.y); IN.drone(ctx, sc); ctx.restore(); }
+    if (A.toyDraw) A.toyDraw(ctx, sc);
+  }

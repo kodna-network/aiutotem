@@ -1,0 +1,15 @@
+AIU TOTEM - THE BUTLER'S DICTIONARY
+===================================
+The butler uses these files to understand what people say. They are not shown to users.
+
+  pocket.txt     offline pocket dictionary (loaded by the app, works with no internet)
+  full/*.json    online full dictionary (fetched a piece at a time when the pocket one
+                 doesn't know a word)
+  places.txt     cities with their location and time zone (city search, weather, and so
+                 the butler knows these are places)
+
+Where it comes from (no license involved):
+  - Our own word lists, meaning groups, irregular forms and place list, made by KODNA
+    for Aiu Totem.
+  - Webster's Revised Unabridged Dictionary (1913), which is in the public domain:
+    parts of speech and the definitions in full/.

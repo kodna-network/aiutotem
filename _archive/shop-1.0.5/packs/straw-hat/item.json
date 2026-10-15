@@ -1,0 +1,7 @@
+{
+  "name": "Straw hat",
+  "category": "hat",
+  "price": 40,
+  "desc": "For sunny days and fishing.",
+  "file": "item.png"
+}

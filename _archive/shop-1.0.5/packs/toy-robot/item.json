@@ -1,0 +1,7 @@
+{
+  "name": "Toy robot",
+  "category": "toy",
+  "price": 60,
+  "desc": "Beep boop.",
+  "file": "item.png"
+}

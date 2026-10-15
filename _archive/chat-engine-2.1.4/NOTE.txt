@@ -1,0 +1,8 @@
+Retired in 2.1.5 (archived, not deleted):
+  dict.js + pocket.txt + full/ (11 MB): the butler's dictionary. Only the old Talk chat used it.
+  butler.js: the chat's tiny decision model.
+  app.say, app.loadDict and the chat screens (ui.js talkPanel, chat lines, voice draft) went to
+  _archive/dead-code-2.1.5/<file>.removed.js along with every other function nothing called anymore.
+mind.js still holds parts of the old chat engine that live code shares helpers with; it loads but the
+chat entry point is gone. dict/places.txt (city names for the weather) stays in the app.
+To bring the chat back: restore these files, the <script> tags, app.say/loadDict and ui.js talkPanel.

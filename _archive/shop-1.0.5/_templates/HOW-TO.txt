@@ -1,0 +1,91 @@
+AIU TOTEM - MAKING SHOP ITEMS
+=============================
+
+The shop is just folders on your server. There is no admin login: you add, change or
+retire items with DirectAdmin's File Manager, and every Totem sees the change the next
+time someone opens the shop.
+
+  public_html/aiu/shop/packs/<item-id>/item.json   what it is, what it costs
+  public_html/aiu/shop/packs/<item-id>/item.png    the picture
+
+This _templates folder has one working example for each kind of item, each with a
+guide.png that shows exactly where it is drawn in the 192 x 108 scene:
+
+  hat/              worn on the head (pinned to the crown, fits every creature)
+  toy/              sits on the ground beside the Totem
+  backdrop/         a "view" on the horizon behind everything
+  house/            replaces the house outside
+  decor/            hangs on the wall inside
+  activity-above/   something the Totem does, drawn over its head (juggling)
+  activity-side/    ... drawn on the ground to its right (campfire)
+  activity-front/   ... drawn over its body (hula hoop)
+
+Folders whose names start with "_" (like this one) are never shown in the shop.
+
+
+ADD AN ITEM (about 5 minutes)
+  1. Copy the template folder closest to what you want, e.g. _templates/hat
+  2. Rename the copy to your item id: lowercase letters, numbers and dashes only,
+     e.g. pirate-hat. The id must never change after people buy it.
+  3. Draw your picture over item.png (keep the name item.png). PNG with a transparent
+     background. Aseprite, Piskel (free, in the browser) or Photoshop all work.
+     Use the sizes on guide.png. Nothing larger than 192 x 108 is accepted
+     (activity strips: up to 768 wide in total).
+  4. Edit item.json (File Manager's editor or Notepad):
+       {
+         "name": "Pirate hat",          shown in the shop (up to 40 letters)
+         "category": "hat",             hat, toy, backdrop, house, decor or activity
+         "price": 40,                   coins, 0-9999
+         "desc": "Arr.",                one short line (optional)
+         "file": "item.png"
+       }
+     Activities also have:
+         "frames": 6,                   how many frames are in the strip (1-12)
+         "fps": 6,                      animation speed (1-12)
+         "anchor": "above",             side, front or above
+         "where": "both",               in, out or both (out = not at night or in rain)
+         "label": "juggling",           "My Totem is juggling"
+         "keys": ["juggle", "circus"]   words that make it a favorite when you mention them
+  5. Test it first: open https://kodna.net/aiu/shop/preview.html, pick your PNG and
+     item.json, and look at it on a real Totem. Anything red needs fixing.
+  6. Upload the folder into public_html/aiu/shop/packs/ (the folder and both files).
+     Permissions: folder 755, files 644.
+  7. Check: open preview.html > "Check the shop folder". Your item should be listed.
+     Folders with a problem are listed in red with the reason (bad JSON, missing
+     picture, too big...). You can also open  https://kodna.net/aiu/api.cgi?a=shop
+
+
+ACTIVITY STRIPS
+  Put every frame side by side in one PNG, all the same width, left to right:
+     [frame 1][frame 2][frame 3][frame 4]      e.g. 4 frames of 16 x 16 = 64 x 16
+  The strip loops forever while the Totem is doing it. Owners also get a
+  "Do it now" button in the shop.
+    anchor "side":  the frame's bottom-left stands on the ground to the right of the Totem
+    anchor "front": the frame is centered on the Totem, its bottom row at the feet
+                    (draw only the parts that should be in front, like the near half
+                    of a hula hoop)
+    anchor "above": the frame is centered over the Totem's head
+
+
+CHANGE OR RETIRE AN ITEM
+  Change the price, name or picture: edit the files. Owners keep what they bought.
+  Retire: add  "retired": true  to item.json. It leaves the shop, but anyone who owns it
+  keeps it and can still wear it.
+  Don't delete a folder people own: their devices keep a copy of the picture, but a
+  device that has never downloaded it won't be able to show it.
+
+
+UPDATING THE APP
+  App updates include shop/packs with the 26 starter items. Your own folders are left
+  alone as long as you use new ids (extracting the zip only overwrites files with the
+  same name).
+
+
+ART RULES OF THUMB
+  - Use the Totem's palette (Sweetie 16): #1a1c2c #5d275d #b13e53 #ef7d57 #ffcd75
+    #a7f070 #38b764 #257179 #29366f #3b5dc9 #41a6f6 #73eff7 #f4f4f4 #94b0c2 #566c86
+    #333c57, plus earth tones #a0673e #6b3f2a #f2d59a #f5a3b5
+  - Hard pixels only: no soft brushes, no anti-aliasing, no half-transparent edges.
+  - A 1-pixel dark outline (#1a1c2c) helps small items read on any background.
+  - Night darkens everything outside, so check it at 22:00 in preview.html too.
+  - Only upload art you are allowed to share: your own, or CC0 packs (e.g. Kenney.nl).

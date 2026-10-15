@@ -1,0 +1,7 @@
+{
+  "name": "Rocket house",
+  "category": "house",
+  "price": 250,
+  "desc": "Small, precise, and ready for liftoff.",
+  "file": "item.png"
+}

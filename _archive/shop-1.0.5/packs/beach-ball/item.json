@@ -1,0 +1,7 @@
+{
+  "name": "Beach ball",
+  "category": "toy",
+  "price": 15,
+  "desc": "Bounces everywhere.",
+  "file": "item.png"
+}

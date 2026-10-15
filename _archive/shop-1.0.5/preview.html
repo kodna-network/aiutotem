@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Aiu Shop Preview</title>
+<style>
+@font-face { font-family: 'Term'; src: url('../fonts/aiu-term.woff2') format('woff2'); }
+:root { --paper: #f4f1ea; --card: #fff; --ink: #1a1c2c; --muted: #566c86; --line: #d8d2c4; --ok: #257179; --bad: #b13e53; --warn: #a0673e; --accent: #3b5dc9; }
+@media (prefers-color-scheme: dark) { :root { --paper: #15161f; --card: #1f2130; --ink: #f4f4f4; --muted: #94b0c2; --line: #333c57; --ok: #73eff7; --bad: #f5a3b5; --warn: #ffcd75; --accent: #41a6f6; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, Segoe UI, sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 16px; }
+h1 { font-family: 'Term', monospace; font-size: 40px; margin: 4px 0; letter-spacing: 1px; }
+h2 { font-size: 18px; margin: 0 0 10px; }
+p { margin: 6px 0; }
+.lead { color: var(--muted); }
+.card { background: var(--card); border: 2px solid var(--line); border-radius: 10px; padding: 14px; margin: 14px 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+label { display: block; font-size: 13px; color: var(--muted); }
+input, select, textarea, button { font: inherit; color: var(--ink); }
+input[type=text], input[type=number], select, textarea { width: 100%; padding: 7px 8px; border: 2px solid var(--line); border-radius: 6px; background: var(--paper); }
+textarea { font-family: ui-monospace, Consolas, monospace; font-size: 13px; min-height: 150px; }
+button { padding: 8px 12px; border: 2px solid var(--ink); border-radius: 6px; background: var(--card); cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+canvas.scene { width: 100%; max-width: 768px; image-rendering: pixelated; border: 2px solid var(--ink); border-radius: 4px; display: block; background: #000; }
+ul.checks { list-style: none; padding: 0; margin: 6px 0; }
+ul.checks li { padding: 2px 0; }
+.ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+.small { font-size: 13px; color: var(--muted); }
+.srv { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.srv div { border: 2px solid var(--line); border-radius: 8px; padding: 8px; font-size: 14px; }
+.srv .pic { height: 56px; display: grid; place-items: center; background: #94b0c2; border-radius: 4px; margin-bottom: 6px; overflow: hidden; }
+.srv img { image-rendering: pixelated; max-width: 100%; max-height: 52px; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 14px; }
+.actonly { display: none; }
+body.isact .actonly { display: block; }
+</style>
+</head>
+<body>
+<main>
+  <h1>AIU SHOP PREVIEW</h1>
+  <p class="lead">Test a shop item before you upload it. Pick your PNG (and its item.json if you have one), see it on a real Totem, fix anything marked in red, then upload the folder to <code>aiu/shop/packs/&lt;folder-name&gt;/</code>. Nothing here is saved or sent anywhere.</p>
+
+  <div class="card">
+    <h2>1. Your item</h2>
+    <div class="grid">
+      <div><label>Picture (PNG)</label><input type="file" id="png" accept="image/png"></div>
+      <div><label>item.json (optional)</label><input type="file" id="json" accept=".json,application/json"></div>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <div><label>Name</label><input type="text" id="name" value="My item" maxlength="40"></div>
+      <div><label>Category</label><select id="category">
+        <option value="hat">hat - worn on the head</option>
+        <option value="toy">toy - sits beside the Totem</option>
+        <option value="backdrop">backdrop - the view on the horizon</option>
+        <option value="house">house - replaces the house outside</option>
+        <option value="decor">decor - hangs on the wall inside</option>
+        <option value="activity">activity - something the Totem does</option>
+      </select></div>
+      <div><label>Price (coins, 0-9999)</label><input type="number" id="price" value="30" min="0" max="9999"></div>
+      <div><label>Description (shows in the shop)</label><input type="text" id="desc" maxlength="120"></div>
+    </div>
+    <div class="actonly">
+      <div class="grid" style="margin-top:10px">
+        <div><label>Frames in the strip (1-12)</label><input type="number" id="frames" value="4" min="1" max="12"></div>
+        <div><label>Speed (frames per second, 1-12)</label><input type="number" id="fps" value="4" min="1" max="12"></div>
+        <div><label>Anchor (where it is drawn)</label><select id="anchor">
+          <option value="side">side - on the ground to the right</option>
+          <option value="front">front - over the Totem's body</option>
+          <option value="above">above - over the Totem's head</option>
+        </select></div>
+        <div><label>Where</label><select id="where">
+          <option value="both">both - inside or outside</option>
+          <option value="out">out - only outside (not at night or in bad weather)</option>
+          <option value="in">in - only inside</option>
+        </select></div>
+        <div><label>Label ("The Totem is ...")</label><input type="text" id="label" value="juggling" maxlength="40"></div>
+        <div><label>Keywords, comma separated (optional)</label><input type="text" id="keys" placeholder="juggle, circus"></div>
+      </div>
+    </div>
+    <h2 style="margin-top:14px">Checks</h2>
+    <ul class="checks" id="checks"><li class="small">Pick a PNG to start.</li></ul>
+  </div>
+
+  <div class="card">
+    <h2>2. On a real Totem</h2>
+    <canvas class="scene" id="scene" width="192" height="108"></canvas>
+    <div class="row">
+      <button id="newcr">New creature</button>
+      <label style="display:inline">Stage <select id="stage" style="width:auto"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select></label>
+      <label style="display:inline">Place <select id="place" style="width:auto"><option value="auto">auto</option><option value="out">outside</option><option value="in">inside</option></select></label>
+      <label style="display:inline">Biome <select id="biome" style="width:auto"></select></label>
+      <label style="display:inline">Weather <select id="weather" style="width:auto"><option>clear</option><option>cloudy</option><option>rain</option><option>snow</option><option>fog</option><option>storm</option></select></label>
+      <label style="display:inline"><input type="checkbox" id="guides" checked> Guide boxes</label>
+    </div>
+    <div class="row"><label style="display:inline;min-width:120px">Time <b id="hrlabel">12:00</b></label><input type="range" id="hour" min="0" max="23.5" step="0.5" value="12" style="flex:1"></div>
+    <p class="small">Yellow box = the size limit for this category. Red dot = where the item is pinned to the scene. The scene is 192 x 108 pixels, shown 4x bigger.</p>
+  </div>
+
+  <div class="card">
+    <h2>3. item.json for this item</h2>
+    <p class="small">Save this as <code>item.json</code> next to your PNG (name the PNG <code>item.png</code>). The folder name becomes the item id: lowercase letters, numbers and dashes, e.g. <code id="slug">my-item</code>.</p>
+    <textarea id="out" readonly></textarea>
+    <div class="row"><button id="dljson" class="primary">Download item.json</button><button id="dlguide">Download a size guide for this category</button></div>
+  </div>
+
+  <div class="card">
+    <h2>4. What's on the server now</h2>
+    <p class="small">Lists every folder in <code>aiu/shop/packs/</code> the way the app sees it, and any folder that has a problem.</p>
+    <div class="row"><button id="scan">Check the shop folder</button><span class="small" id="scanmsg"></span></div>
+    <div id="problems"></div>
+    <div class="srv" id="srv"></div>
+  </div>
+  <p class="small">Templates with a working example for every kind of item are in <code>aiu/shop/_templates/</code> (see HOW-TO.txt there).</p>
+</main>
+
+<script src="../js/util.js"></script>
+<script src="../js/art.js"></script>
+<script>
+(function () {
+  'use strict';
+  var A = AIU.art, U = AIU.util, $ = function (id) { return document.getElementById(id); };
+  var LIMITS = { // server limit (hard) and suggested size (soft)
+    hat: { max: [192, 108], tip: [16, 12], text: 'Hats: about 9-14 wide and 8-12 tall. The bottom row sits on the crown of the head.' },
+    toy: { max: [192, 108], tip: [14, 16], text: 'Toys: about 10 x 12. It stands on the ground to the left of the Totem.' },
+    backdrop: { max: [192, 108], tip: [192, 84], text: 'Views: 192 wide and up to 84 tall. The bottom row sits on the horizon behind everything.' },
+    house: { max: [192, 108], tip: [70, 70], text: 'Houses: up to 70 x 70. Centered 38 pixels from the left, standing on the ground.' },
+    decor: { max: [192, 108], tip: [30, 28], text: 'Room decor: up to 30 x 28. Hangs on the wall inside, centered 125 pixels from the left.' },
+    activity: { max: [768, 108], tip: [48, 48], text: 'Activities: a strip of 1-12 frames side by side, all the same size (about 16-32 each). Up to 768 wide in total.' }
+  };
+  var S = { img: null, imgName: '', seed: U.hash32('preview' + Date.now()), soul: 7, n: 0, id: 'pv0', f: 0 };
+
+  // biomes
+  Object.keys(A.BIOMES).forEach(function (b) { var o = document.createElement('option'); o.value = b; o.textContent = A.BIOMES[b]; $('biome').appendChild(o); });
+
+  function meta() {
+    var cat = $('category').value, m = { name: $('name').value.trim() || 'My item', category: cat, price: Math.max(0, Math.min(9999, parseInt($('price').value, 10) || 0)), desc: $('desc').value.trim(), file: 'item.png' };
+    if (cat === 'activity') {
+      m.label = $('label').value.trim() || m.name.toLowerCase();
+      m.frames = Math.max(1, Math.min(12, parseInt($('frames').value, 10) || 1));
+      m.fps = Math.max(1, Math.min(12, parseInt($('fps').value, 10) || 4));
+      m.anchor = $('anchor').value; m.where = $('where').value;
+      m.keys = $('keys').value.split(',').map(function (k) { return k.trim().toLowerCase(); }).filter(Boolean).slice(0, 12);
+    }
+    return m;
+  }
+  function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'my-item'; }
+
+  function hasTransparency(img) {
+    var c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    var x = c.getContext('2d'); x.drawImage(img, 0, 0);
+    var d = x.getImageData(0, 0, c.width, c.height).data, see = 0;
+    for (var i = 3; i < d.length; i += 4) if (d[i] < 255) { see++; if (see > 2) return true; }
+    return false;
+  }
+
+  function check() {
+    var m = meta(), L = LIMITS[m.category], out = [];
+    function add(cls, t) { out.push('<li class="' + cls + '">' + (cls === 'ok' ? '✓ ' : cls === 'bad' ? '✗ ' : '! ') + t + '</li>'); }
+    document.body.classList.toggle('isact', m.category === 'activity');
+    if (!S.img) { add('warn', 'No picture yet. Pick a PNG above.'); }
+    else {
+      var w = S.img.naturalWidth, h = S.img.naturalHeight;
+      add('ok', 'PNG loaded: ' + S.imgName + ' (' + w + ' x ' + h + ')');
+      if (w > L.max[0] || h > L.max[1]) add('bad', 'Too big. The server skips pictures larger than ' + L.max[0] + ' x ' + L.max[1] + ' for this category.');
+      else add('ok', 'Fits the server limit (' + L.max[0] + ' x ' + L.max[1] + ').');
+      var fw = m.category === 'activity' ? Math.floor(w / m.frames) : w;
+      if (m.category === 'activity') {
+        if (w % m.frames) add('bad', 'The strip is ' + w + ' wide, which does not split evenly into ' + m.frames + ' frames. Each frame should be ' + Math.floor(w / m.frames) + ' or ' + Math.ceil(w / m.frames) + ' wide.');
+        else add('ok', m.frames + ' frames, each ' + fw + ' x ' + h + '.');
+      }
+      if (fw > L.tip[0] || h > L.tip[1]) add('warn', 'Bigger than the suggested ' + L.tip[0] + ' x ' + L.tip[1] + '. It works, but check it looks right in the scene below.');
+      if (m.category !== 'backdrop' && !hasTransparency(S.img)) add('warn', 'No see-through pixels found. Most items need a transparent background.');
+      if (m.category === 'backdrop' && w < 192) add('warn', 'Views look best exactly 192 wide (this one is ' + w + ').');
+    }
+    add('ok', 'Folder name: <code>' + slug(m.name) + '</code> (or any name with a-z, 0-9 and dashes).');
+    add('ok', L.text);
+    $('checks').innerHTML = out.join('');
+    $('slug').textContent = slug(m.name);
+    $('out').value = JSON.stringify(m, null, 2) + '\n';
+    register();
+  }
+
+  function register() {
+    if (!S.img) return;
+    S.n++; S.id = 'pv' + S.n;
+    var m = meta();
+    if (m.category === 'activity') A.addPackActivity(S.id, m, S.img);
+  }
+
+  function loadImg(src, name) {
+    var img = new Image();
+    img.onload = function () { S.img = img; S.imgName = name; check(); };
+    img.onerror = function () { $('checks').innerHTML = '<li class="bad">✗ That file is not a picture this browser can open. Save it as PNG.</li>'; };
+    img.src = src;
+  }
+  $('png').addEventListener('change', function () {
+    var f = this.files[0]; if (!f) return;
+    if (!/\.png$/i.test(f.name) && f.type !== 'image/png') { $('checks').innerHTML = '<li class="bad">✗ The picture must be a .png file.</li>'; return; }
+    var r = new FileReader(); r.onload = function () { loadImg(r.result, f.name); }; r.readAsDataURL(f);
+  });
+  function applyMeta(j) {
+    if (j.name) $('name').value = j.name;
+    if (j.category && LIMITS[j.category]) $('category').value = j.category;
+    if (j.price !== undefined) $('price').value = j.price;
+    $('desc').value = j.desc || '';
+    if (j.frames) $('frames').value = j.frames; if (j.fps) $('fps').value = j.fps;
+    if (j.anchor) $('anchor').value = j.anchor; if (j.where) $('where').value = j.where;
+    if (j.label) $('label').value = j.label;
+    $('keys').value = (j.keys || []).join(', ');
+  }
+  $('json').addEventListener('change', function () {
+    var f = this.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try { applyMeta(JSON.parse(r.result)); check(); }
+      catch (e) { $('checks').innerHTML = '<li class="bad">✗ item.json is not valid JSON: ' + String(e.message).replace(/</g, '&lt;') + '. Check for a missing comma or quote.</li>'; }
+    };
+    r.readAsText(f);
+  });
+  ['name', 'category', 'price', 'desc', 'frames', 'fps', 'anchor', 'where', 'label', 'keys'].forEach(function (id) { $(id).addEventListener('input', check); $(id).addEventListener('change', check); });
+  $('newcr').onclick = function () { S.seed = U.hash32('pv' + Math.random()); S.soul = Math.floor(Math.random() * 8); };
+  $('hour').oninput = function () { var v = +this.value; $('hrlabel').textContent = Math.floor(v) + ':' + (v % 1 ? '30' : '00'); };
+
+  /* ---------- the scene (the same drawing code the app uses) ---------- */
+  function sceneFor(cat, m, opt) {
+    opt = opt || {};
+    var hr = opt.hour !== undefined ? opt.hour : +$('hour').value, stage = opt.stage || +$('stage').value;
+    var place = opt.place || $('place').value, indoor = place === 'in' || (place === 'auto' && cat === 'decor');
+    if (cat === 'activity' && place === 'auto') indoor = m.where === 'in';
+    var cr = A.creature(S.seed, stage, S.soul);
+    var sc = {
+      stage: stage, hour: hr, phase: A.phase(hr), season: A.season(new Date(), 'north'), weather: opt.weather || $('weather').value, biome: opt.biome || $('biome').value,
+      house: 'cabin', indoor: indoor, soul: S.soul, accent: cr.accent, form: { seed: S.seed, stage: stage }, skin: null,
+      eggSeed: 1, eggProgress: 0, hatching: false, act: null, mode: null, modeT: 0, f: S.f, tsec: Date.now() / 1000,
+      unlocked: {}, justHatched: false, evolve: null, flash: 0, actLabel: '', weatherInfo: { kind: 'clear', label: '' }, shop: {}
+    };
+    if (S.img && opt.item !== false) {
+      var asset = { id: S.id, img: S.img, info: m };
+      if (cat === 'activity') { if (A.ACTIVITIES[S.id]) sc.act = S.id; }
+      else sc.shop[cat] = asset;
+    }
+    return { sc: sc, cr: cr };
+  }
+  // Guide boxes, worked out the same way the app places each kind of item.
+  function guideBoxes(cat, m, sc, cr) {
+    var x = sc.indoor ? 100 : 122, fy = sc.indoor ? 100 : 97, dx = Math.round(x - cr.w / 2), dy = Math.round(fy - cr.bottom - 1);
+    var bw = cr.bw, ch = cr.bottom - cr.top + 1, L = LIMITS[cat].tip, fw = S.img ? (cat === 'activity' ? Math.floor(S.img.naturalWidth / (m.frames || 1)) : S.img.naturalWidth) : L[0], fh = S.img ? S.img.naturalHeight : L[1];
+    if (cat === 'hat') { var cx = dx + cr.crownX, by = dy + cr.crownY + 2; return { box: [cx - L[0] / 2, by - L[1], L[0], L[1]], pin: [cx, by] }; }
+    if (cat === 'toy') { var rx = Math.round(x - bw / 2 - 4); return { box: [rx - L[0], fy + 1 - L[1], L[0], L[1]], pin: [rx, fy + 1] }; }
+    if (cat === 'backdrop') return { box: [0, 85 - 84, 192, 84], pin: [0, 85] };
+    if (cat === 'house') return { box: [38 - 35, 93 - 70, 70, 70], pin: [38, 93] };
+    if (cat === 'decor') return { box: [125 - 15, 32 - 28, 30, 28], pin: [125, 32] };
+    var an = (m.anchor || 'side');
+    if (an === 'front') return { box: [x - Math.floor(fw / 2), fy - fh, fw, fh], pin: [x, fy] };
+    if (an === 'above') return { box: [x - Math.floor(fw / 2), fy - ch - fh - 2, fw, fh], pin: [x, fy - ch - 2] };
+    var sx = x + Math.round(bw / 2) + 3; return { box: [sx, fy - fh + 1, fw, fh], pin: [sx, fy + 1] };
+  }
+  function drawGuides(ctx, g, scale) {
+    ctx.save();
+    ctx.strokeStyle = '#ffcd75'; ctx.lineWidth = Math.max(1, scale / 2); ctx.setLineDash([scale * 1.5, scale]);
+    ctx.strokeRect(g.box[0] * scale + 0.5, g.box[1] * scale + 0.5, g.box[2] * scale, g.box[3] * scale);
+    ctx.setLineDash([]); ctx.fillStyle = '#b13e53';
+    ctx.fillRect(g.pin[0] * scale - scale, g.pin[1] * scale - scale, scale * 2, scale * 2);
+    ctx.restore();
+  }
+
+  var big = document.createElement('canvas'); big.width = 768; big.height = 432;
+  var small = document.createElement('canvas'); small.width = 192; small.height = 108;
+  var view = $('scene'); view.width = 768; view.height = 432;
+  var last = 0;
+  function loop(ts) {
+    requestAnimationFrame(loop);
+    if (ts - last < 125) return; last = ts; S.f++;
+    var m = meta(), r = sceneFor(m.category, m), c = small.getContext('2d');
+    A.render(c, r.sc);
+    var v = view.getContext('2d'); v.imageSmoothingEnabled = false; v.drawImage(small, 0, 0, 768, 432);
+    if ($('guides').checked) drawGuides(v, guideBoxes(m.category, m, r.sc, r.cr), 4);
+  }
+  requestAnimationFrame(loop);
+
+  /* ---------- guide pictures (also used to make the ones in _templates) ---------- */
+  var NOTES = {
+    hat: ['HAT  (category "hat")', 'Suggested size: about 9-14 wide and 8-12 tall, transparent background. The bottom-middle of the picture sits on the crown of the head (red dot). Every creature has a crown point, so one hat fits every shape and stage.'],
+    toy: ['TOY  (category "toy")', 'Suggested size: about 10 x 12, transparent background. It stands on the ground to the LEFT of the Totem, its bottom-right corner 4 pixels from the Totem\'s side (red dot).'],
+    backdrop: ['VIEW  (category "backdrop")', 'Size: 192 wide, up to 84 tall. The bottom row sits on the horizon (y = 84). Drawn behind the ground and the house, in front of the sky. Leave the sky part transparent so day, night and weather still show through.'],
+    house: ['HOUSE  (category "house")', 'Suggested size: up to 70 x 70, transparent background. Centered 38 pixels from the left with its bottom row on the ground at y = 93. Replaces the house outside while it is worn.'],
+    decor: ['ROOM DECOR  (category "decor")', 'Suggested size: up to 30 x 28, transparent background. Hangs on the back wall inside, centered at x = 125 with its bottom row at y = 32.'],
+    activity: ['ACTIVITY  (category "activity")', 'A strip of 1-12 frames side by side, every frame the same size (about 16-32 each), transparent background. anchor "side" = on the ground to the right of the Totem, "front" = over its body with the bottom at its feet, "above" = over its head. Once owned, the Totem does it on its own.']
+  };
+  function wrapText(c, text, maxW) {
+    var words = text.split(' '), lines = [], cur = '';
+    words.forEach(function (w) { var t = cur ? cur + ' ' + w : w; if (c.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; });
+    if (cur) lines.push(cur);
+    return lines;
+  }
+  function guideCanvas(cat, anchor) {
+    var m = meta(); m.category = cat; if (anchor) m.anchor = anchor;
+    var W2 = 768, H2 = 432, cv = document.createElement('canvas'), c = cv.getContext('2d');
+    var head = NOTES[cat][0]; if (cat === 'activity' && anchor) head = 'ACTIVITY  (category "activity", anchor "' + anchor + '")';
+    c.font = '20px Term, monospace';
+    var body = wrapText(c, NOTES[cat][1], W2 - 28);
+    cv.width = W2; cv.height = H2 + 60 + body.length * 26 + 30;
+    c = cv.getContext('2d');
+    var r = sceneFor(cat, m, { hour: 12, weather: 'clear', biome: 'meadow', stage: 2, place: cat === 'decor' ? 'in' : 'out', item: !!S.img });
+    var sm = document.createElement('canvas'); sm.width = 192; sm.height = 108;
+    A.render(sm.getContext('2d'), r.sc);
+    c.imageSmoothingEnabled = false; c.drawImage(sm, 0, 0, W2, H2);
+    c.strokeStyle = 'rgba(255,255,255,0.12)'; c.lineWidth = 1; // pixel grid every 8 pixels
+    for (var gx = 0; gx <= 192; gx += 8) { c.beginPath(); c.moveTo(gx * 4 + 0.5, 0); c.lineTo(gx * 4 + 0.5, H2); c.stroke(); }
+    for (var gy = 0; gy <= 108; gy += 8) { c.beginPath(); c.moveTo(0, gy * 4 + 0.5); c.lineTo(W2, gy * 4 + 0.5); c.stroke(); }
+    drawGuides(c, guideBoxes(cat, m, r.sc, r.cr), 4);
+    c.fillStyle = '#1a1c2c'; c.fillRect(0, H2, W2, cv.height - H2);
+    c.fillStyle = '#ffcd75'; c.font = '30px Term, monospace'; c.fillText(head, 14, H2 + 34);
+    c.fillStyle = '#c9d6e0'; c.font = '20px Term, monospace';
+    body.forEach(function (t, i) { c.fillText(t, 14, H2 + 64 + i * 26); });
+    c.fillStyle = '#94b0c2'; c.font = '20px Term, monospace';
+    c.fillText('Scene 192 x 108 shown 4x. Grid = 8 px. Yellow box = size, red dot = pin point.', 14, cv.height - 12);
+    return cv;
+  }
+  function download(name, url) { var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+  $('dljson').onclick = function () { download('item.json', 'data:application/json;charset=utf-8,' + encodeURIComponent($('out').value)); };
+  $('dlguide').onclick = function () { var m = meta(); download('guide-' + m.category + '.png', guideCanvas(m.category, m.category === 'activity' ? m.anchor : null).toDataURL('image/png')); };
+
+  /* ---------- what's on the server ---------- */
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); }
+  $('scan').onclick = function () {
+    $('scanmsg').textContent = 'Checking...';
+    fetch('../api.cgi?a=shop&t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+      var items = j.items || [], probs = j.problems || [];
+      $('scanmsg').textContent = items.length + ' item' + (items.length === 1 ? '' : 's') + ' in the shop' + (probs.length ? ', ' + probs.length + ' folder' + (probs.length === 1 ? '' : 's') + ' skipped' : '') + '.';
+      $('problems').innerHTML = probs.length ? '<ul class="checks">' + probs.map(function (p) { return '<li class="bad">✗ ' + esc(p) + '</li>'; }).join('') + '</ul>' : '';
+      $('srv').innerHTML = items.map(function (it, i) {
+        return '<div><div class="pic"><img src="' + esc(it.file) + '?v=' + it.v + '" alt=""></div><b>' + esc(it.name) + '</b><br><span class="small">' + esc(it.id) + ' · ' + esc(it.category) + ' · ' + it.price + ' coins' + (it.retired ? ' · retired' : '') + '</span><br><button data-i="' + i + '">Preview</button></div>';
+      }).join('');
+      Array.prototype.forEach.call($('srv').querySelectorAll('button'), function (b) {
+        b.onclick = function () { var it = items[+b.getAttribute('data-i')]; applyMeta(it); loadImg(it.file + '?v=' + it.v, it.id + '/' + it.file.split('/').pop()); window.scrollTo(0, 0); };
+      });
+    }, function () { $('scanmsg').textContent = 'Could not reach api.cgi. Open this page from your server (kodna.net/aiu/shop/preview.html) to check the shop folder.'; });
+  };
+
+  window.PV = { guideCanvas: guideCanvas, loadImg: loadImg, applyMeta: applyMeta, check: check, state: S };
+  check();
+})();
+</script>
+</body>
+</html>

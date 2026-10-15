@@ -1,0 +1,19 @@
+{
+  "name": "Hula hoop",
+  "category": "activity",
+  "price": 50,
+  "desc": "Round and round and round.",
+  "label": "hula hooping",
+  "where": "both",
+  "anchor": "front",
+  "fps": 6,
+  "keys": [
+    "hula",
+    "hoop",
+    "hula hoop",
+    "dance",
+    "dancing"
+  ],
+  "frames": 4,
+  "file": "item.png"
+}

@@ -1,0 +1,5 @@
+The long Hilltop View day page (2.1.1 and earlier): "In short", the whole reading, Continuity, The whole terrain
+(life areas), Leave no one behind, Today's practical plan and the Daily log fields, on screen and in the journal PDF.
+Replaced in 2.1.2 by the Daily Hilltop standup and a short day page. These are the complete library.js and
+hilltop.js from 2.1.1. hilltop.js is still in the app (H.page builds the day's data); only the long layout left.
+To bring the old page back: copy dayPage() and pageBlocks() from this library.js over the 2.1.2 ones.

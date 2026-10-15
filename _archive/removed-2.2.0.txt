@@ -1,0 +1,1736 @@
+AIU TOTEM 2.2.0: code taken out of the app (kept here, never deleted)
+
+Whole 2.1.15 files kept in _archive/2.2.0-replaced/: library.js (the old Log: Today / Journal / Profiles views),
+vitals.js (LOG and INFO tabs, Make a tile), business.js (People, Outreach, the Me/home view), help.js (old chapters).
+Below: every line removed or changed from the other files, as a diff (lines starting with - are the 2.1.15 code;
+lines starting with + are what replaced them). Version-number-only changes are included for completeness.
+
+=================== js/app.js
+@@ -55,9 +55,16 @@
+   app.saveProfiles = function () { return app.meta.set('profiles', app.profiles); };
+ 
+   /* ---------- opening a Totem: checkpoint + whatever arrived after it ---------- */
++  app.onOpen = AIU.hooks.open; // 2.2.0: screens that keep their own caches clear them when another profile opens
+   app.openProfile = function (pid) {
++    if (app.pid && app.pid !== pid && app.store) { try { app.saveCheckpoint(true); } catch (e) {} }
+     app.pid = pid; app.prof = app.profiles[pid];
+     app.S = null; app.popup = null; app.lines = []; app.lastInput = 0; app.assets = {};
++    // 2.2.0: each profile is its own Aiu: nothing from the last one carries over
++    app.casting = null; app.forceAct = null; app.trip = null; app.placeReq = null; app.mode = null; app.modeUntil = 0; app.evolve = null; app.hatching = null; app.flash = 0; app.care = null; app.patAt = 0; app.boardInfo = null;
++    app.sync = { state: 'idle', last: 0, err: '' }; app.weather = null; app.unsent = [];
++    app.prof.lastOpen = Date.now(); app.saveProfiles();
++    app.onOpen.forEach(function (fn) { try { fn(pid); } catch (e) {} });
+     var st;
+     return app.meta.set('active', pid).then(function () { return AIU.store.open(pid); }).then(function (s) {
+       st = app.store = s;
+@@ -112,7 +119,7 @@
+     var away = !local && (navigator.onLine === false || /offline|login|error/.test(app.sync.state)); // made away from the "Poke Center"
+     drafts.forEach(function (d, i) {
+       var t = t0 + i, dt = new Date(t);
+-      var e = { id: d.id || U.id(), t: t, d: U.dayStr(dt), h: U.hmStr(dt), dev: app.deviceId, dn: app.dev.deviceName, type: d.type, data: d.data || {}, ls: app.lsNext++, seq: 0 };
++      var e = { id: d.id || U.id(), t: t, d: d.day && /^\d{4}-\d\d-\d\d$/.test(d.day) ? d.day : U.dayStr(dt), h: U.hmStr(dt), dev: app.deviceId, dn: app.dev.deviceName, type: d.type, data: d.data || {}, ls: app.lsNext++, seq: 0 };
+       if (local) { e.seq = app.seqNext++; e.rt = t; } else if (away) e.off = 1;
+       list.push(e);
+     });
+@@ -150,7 +157,7 @@
+   app.starterQuests = function () {
+     if (!app.S || !app.S.hatched || !AIU.starter) return;
+     var ev = AIU.starter.createEvents(app.S);
+-    if (AIU.starter.retitle && app.local.starterV2 !== 8) { ev = ev.concat(AIU.starter.retitle(app.S)); app.local.starterV2 = 8; app.saveLocal(); } // 2.0.0: menus moved again
++    if (AIU.starter.retitle && app.local.starterV2 !== 9) { ev = ev.concat(AIU.starter.retitle(app.S)); app.local.starterV2 = 9; app.saveLocal(); } // 2.2.0: menus moved again (Profiles in Accounts, the new Log) // 2.0.0: menus moved again
+     if (AIU.tiles && app.local.v2up !== 1) {
+       // 2.0: the Inventory tile and to-dos as tiles. A synced Totem waits for a good sync first, so two devices don't both make them
+       if (app.prof && !app.prof.local && !app.sync.last) { clearTimeout(app.upTimer); app.upTimer = setTimeout(app.starterQuests, 20000); }
+@@ -327,9 +334,11 @@
+     if (reply) drafts.push({ type: 'totem', data: { text: reply } });
+     return app.addEvents(drafts).then(function () { if (reply) { AIU.ui.bubble('happy', reply); app.speak(reply); } });
+   };
+-  app.journal = function (text) {
++  app.journal = function (text, day) {
+     text = String(text || '').trim();
+     if (!text) return Promise.resolve();
++    var tday = U.dayStr(new Date(app.trueNow()));
++    if (day && day < tday) return app.addEvents([{ type: 'journal', day: day, data: { text: text.slice(0, 20000) } }], true).then(function () { app.react('journal'); return { gained: 0 }; }); // 2.2.0: an earlier day's page
+     var before = app.S.growth.confirmed + app.S.growth.pending;
+     var G = AIU.gaba, dj = U.dayStr(new Date(app.trueNow())), extra = [], hit = null;
+     if (G && C.setting(app.S, 'gabaCoach', true) !== false) { // what you wrote can check in a calm thing (2.1.6: calm only; stressors aren't logged)
+@@ -367,6 +376,27 @@
+     }
+   };
+   app.setMode = function (mode, ms) { app.mode = mode; app.modeStart = Date.now(); app.modeUntil = Date.now() + ms; };
++  /* ---------- 2.2.0: Aiu passes your calm thing on to the buddy ----------
++     You check in a calm thing in Vitals; Aiu gives the buddy the same kind of care, for a few seconds (bigger refills take a
++     little longer): gut = a snack, a drink = water, heart = a hug, arms & legs = a brushing, brain = a story, rest = a blanket. */
++  var CARE = { gut: 'feed', heart: 'hug', move: 'brush', brain: 'read', rest: 'tuck' };
++  app.careBuddy = function (sys, item, pts) {
++    var S = app.S; if (!S || !S.hatched || app.hatching) return;
++    var kind = /water|drink|tea|hydrat|juice|milk/i.test(item || '') ? 'water' : (CARE[sys] || 'hug'), dur = Math.round(3500 + Math.min(20, Math.abs(pts || 6)) * 300);
++    if ((app.care && Date.now() < app.care.until) || app.casting) { app.careQ = (app.careQ || []).concat([{ kind: kind, dur: dur }]).slice(-3); return; }
++    careRun(kind, dur);
++  };
++  function careRun(kind, dur) {
++    var now = Date.now();
++    app.care = { kind: kind, start: now, until: now + dur }; app.forceAct = { id: 'care_' + kind, until: now + dur }; app.trip = null;
++    if (AIU.play && AIU.play.careAct) AIU.play.careAct(kind, dur);
++    if (AIU.ui.refresh) AIU.ui.refresh();
++    setTimeout(function () {
++      if (!app.care || app.care.start !== now) return;
++      app.care = null; app.forceAct = null;
++      var nx = (app.careQ || []).shift(); if (nx) setTimeout(function () { careRun(nx.kind, nx.dur); }, 400);
++    }, dur);
++  }
+   app.startHatch = function () {
+     app.seenStage = 0; app.store.set('seenStage', 0);
+     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); } // watch it hatch
+@@ -440,8 +470,15 @@
+     var biome = C.setting(S, 'biome', 'meadow'), season = A.season(U.wall(now), C.setting(S, 'hemisphere', 'north'));
+     var wn = U.wall(now), hr = wn.getHours() + wn.getMinutes() / 60, per = A.period(wn.getHours()), phase = A.phase(hr), min = wn.getHours() * 60 + wn.getMinutes();
+     if (per === 'bedtime') return { id: 'sleep', indoor: true };
+-    if ((min >= 450 && min < 495) || (min >= 735 && min < 780) || (min >= 1080 && min < 1125)) return { id: 'eat', indoor: true };
+     var outOK = !BAD[w.kind] && phase !== 'night';
++    // 2.2.0: his routine: teeth morning and night, cooking before meals, meals at the table, dishes after dinner.
++    // When the weather is nice, dinner is cooked hibachi-style at the firepit instead of in the kitchen.
++    var RT = A.ROUTINE || [];
++    for (var ri = 0; ri < RT.length; ri++) if (min >= RT[ri][0] && min < RT[ri][1] && A.ACTIVITIES[RT[ri][2]]) {
++      var rid = RT[ri][2];
++      if (rid === 'cookpan' && min >= 1000 && outOK) return { id: 'hibachi', indoor: false };
++      return { id: rid, indoor: true };
++    }
+     var slot = Math.floor(min / 20), r = U.rng(U.hash32(S.egg.id + U.dayStr(now) + ':' + slot));
+     // 2.1.15: a deck for the day instead of a fresh dice roll every 20 minutes, so he works through everything he likes
+     // before anything comes round again (a brand-new hobby is in the deck twice for its first 3 days, not three times as likely every slot)
+@@ -450,6 +487,7 @@
+       if (id === 'stargaze' && !((phase === 'dusk' || phase === 'night') && w.kind === 'clear')) return false;
+       if (a.need === 'sand' && biome !== 'beach' && biome !== 'desert') return false; // 2.0.0: sandcastles on sand,
+       if (a.need === 'snow' && biome !== 'tundra' && season !== 'winter') return false; // snowmen in the snow
++      if (a.need === 'grass' && (biome === 'desert' || biome === 'beach' || biome === 'tundra' || season === 'winter')) return false; // 2.2.0: weed whacking needs grass
+       if (a.where === 'out' && !outOK) return false;
+       return true;
+     };
+@@ -479,9 +517,9 @@
+   var madeCache = { key: '', v: {} };
+   app.madeToday = function (now, w) {
+     var S = app.S; if (!S || !S.hatched) return {};
+-    var wn = U.wall(now), min = wn.getHours() * 60 + wn.getMinutes(), slot = Math.floor(min / 20), key = U.dayStr(now) + ':' + slot + ':' + w.kind + ':' + C.setting(S, 'biome', 'meadow');
++    var wn = U.wall(now), min = wn.getHours() * 60 + wn.getMinutes(), slot = Math.floor(min / 20), key = S.egg.id + U.dayStr(now) + ':' + slot + ':' + w.kind + ':' + C.setting(S, 'biome', 'meadow');
+     if (madeCache.key === key) return madeCache.v;
+-    var out = {}, base = now.getTime() - (min % 20) * 60000;
++    var out = {}, base = now.getTime() - (min % 20) * 60000; void base;
+     for (var s0 = Math.floor(360 / 20); s0 < slot; s0++) {
+       var t = new Date(base - (slot - s0) * 20 * 60000), x = pickActivity(S, t, w);
+       if (x && A.MADE && A.MADE.indexOf(x.id) >= 0) out[x.id] = U.hash32(x.id + U.dayStr(now) + s0);
+@@ -573,6 +611,25 @@
+       return { name: placeLabel(c), lat: c.lat, lon: c.lon, tz: c.tz };
+     });
+   };
++  // 2.2.0: not in the list? A street address (with city and state) is looked up with the US Census Bureau's free public
++  // geocoder (public domain; only the address you type is sent). It answers through a script tag (JSONP), so it works on iPhone too.
++  app.censusLookup = function (address) {
++    return new Promise(function (res, rej) {
++      if (navigator.onLine === false || location.protocol === 'file:') return rej(new Error('This needs the internet (and Aiu opened from its web address).'));
++      var cb = 'aiuGeo' + Date.now(), sc = document.createElement('script'), done = false;
++      var timer = setTimeout(function () { finish(new Error('The Census lookup didn\'t answer. Try again, or type your coordinates.')); }, 15000);
++      function finish(err, v) { if (done) return; done = true; clearTimeout(timer); try { delete window[cb]; } catch (e) { window[cb] = undefined; } sc.remove(); if (err) rej(err); else res(v); }
++      window[cb] = function (j) {
++        var m = j && j.result && j.result.addressMatches && j.result.addressMatches[0];
++        if (!m || !m.coordinates) return finish(new Error('No match for that address. Use the street, city and state (like 123 Main St, Murphy, NC), or type your coordinates.'));
++        var lat = +(+m.coordinates.y).toFixed(4), lon = +(+m.coordinates.x).toFixed(4), comp = m.addressComponents || {}, nm = [comp.city, comp.state].filter(Boolean).join(', ');
++        loadPlaces().then(function (list) { finish(null, { name: nm ? 'Near ' + nm.replace(/\b\w+/g, function (w) { return w.length > 2 ? w.charAt(0) + w.slice(1).toLowerCase() : w; }) : 'Near ' + nearest(list, lat, lon), lat: lat, lon: lon, tz: deviceZone() }); }, function () { finish(null, { name: nm || 'My address', lat: lat, lon: lon, tz: deviceZone() }); });
++      };
++      sc.onerror = function () { finish(new Error('Could not reach the Census lookup.')); };
++      sc.src = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?benchmark=Public_AR_Current&format=jsonp&callback=' + cb + '&address=' + encodeURIComponent(String(address || '').slice(0, 200));
++      document.head.appendChild(sc);
++    });
++  };
+   app.myLocation = function () {
+     return new Promise(function (res, rej) {
+       if (!navigator.geolocation) return rej(new Error('This browser can\'t share its location.'));
+@@ -665,8 +722,9 @@
+       since = ls || 0;
+       var toSend = app.unsent.slice().sort(C.cmpT);
+       function round() {
+-        var batch = toSend.splice(0, 500).map(function (e) { var o = { id: e.id, t: e.t, d: e.d, h: e.h, dev: e.dev, dn: e.dn, type: e.type, data: e.data }; if (e.off) o.off = 1; return o; });
+-        var body = { u: prof.u, token: prof.token, since: since, events: batch, dn: app.dev.deviceName };
++        var batch = toSend.splice(0, 500).map(function (e) { var o = { id: e.id, t: e.t, d: e.d, h: e.h, dev: e.dev, dn: e.dn, type: e.type, data: e.data }; if (e.off) o.off = 1; if (e.imp) o.imp = 1; return o; });
++        var body = { u: prof.u, token: prof.token, since: since, events: batch, dn: app.dev.deviceName, tid: prof.tid || '' };
++        if (prof.pname) body.pname = prof.pname; if (prof.pkind) body.pkind = prof.pkind; // 2.2.0: which profile, and its name
+         if (!toSend.length && app.S && app.S.egg) body.snapshot = C.snapshot(app.S);
+         return app.api('sync', body).then(function (res) {
+           app.clockOffset = res.now - Date.now();
+@@ -697,7 +755,7 @@
+     }).then(function (uns) {
+       app.unsent = uns;
+       st.set('clockOffset', app.clockOffset);
+-      prof.lastSync = Date.now();
++      prof.lastSync = Date.now(); prof.synced = 1;
+       app.saveProfiles();
+       setSync('ok');
+       app.rebuild();
+@@ -709,7 +767,8 @@
+       syncing = null;
+     }, function (err) {
+       syncing = null;
+-      if (err.code === 'login') setSync('login', err.message);
++      if (err.code === 'login') { setSync('login', err.message); app.groupPids().forEach(function (k) { app.profiles[k].token = null; }); prof.token = null; app.saveProfiles(); }
++      else if (err.code === 'profile_deleted') { prof.gone = Date.now(); app.saveProfiles(); setSync('error', 'This profile was deleted on another device. Its copy stays on this device until you remove it.'); }
+       else setSync(err.code === 'offline' ? 'offline' : 'error', err.message);
+       throw err;
+     });
+@@ -791,7 +850,7 @@
+ 
+   /* ---------- the bounty board: about once an hour Aiu checks it, calls out, and the board under him starts over ---------- */
+   app.checkBoard = function (why) {
+-    if (!app.S || !app.S.hatched || app.casting || app.evolve || app.hatching) return;
++    if (!app.S || !app.S.hatched || app.casting || app.evolve || app.hatching || app.care) return;
+     app.forceAct = { id: 'board', until: Date.now() + 9000 };
+     app.local.boardAt = app.trueNow(); app.saveLocal();
+     if (AIU.ui.refresh) AIU.ui.refresh();
+@@ -804,19 +863,27 @@
+     if (!app.S || !app.S.hatched || !AIU.ui.onMain || document.hidden || app.popup) return;
+     var h0 = U.wall(new Date(app.trueNow())).getHours();
+     if (h0 < 7 || h0 >= 22) return; // not at night
++    if (!app.readingShown(U.dayStr(new Date(app.trueNow())))) return; // 2.2.0: today's I Ching toss comes first
+     if (app.trueNow() - (app.local.boardAt || 0) > 60 * 60000) app.checkBoard('hourly');
+   }
+-  /* ---------- the daily I Ching reading + hilltop review ---------- */
+-  // At the time you set (Settings, default 8:00 AM), Aiu tosses three coins six times in its scene, then gives the review
+-  // as a pop-up and in the chat. The coins are seeded by the Totem and the day, so every device gets the same reading.
++  /* ---------- the daily I Ching reading + hilltop review ----------
++     2.2.0: Aiu casts by himself every night at midnight (or the next time you're here and he's free), and the very first
++     reading comes a few moments after the egg hatches. The toss always plays first; the reading is saved (and shown) only
++     when the coins land. A reading cast on another device plays its toss here too before it shows. The coins are seeded by
++     the Totem and the day, so every device gets the same reading. */
++  var HATCH_CAST_MS = 25000; // the first reading: a few moments after hatching
++  app.readingShown = function (day) {
++    var S = app.S, rv = S && (S.reviews || {})[day]; if (!rv) return false;
++    if (app.casting && app.casting.day === day) return false;
++    if (day !== U.dayStr(new Date(app.trueNow()))) return true; // earlier days: always
++    return app.local.castSeen === day || app.local.castDay === day;
++  };
+   function tickReading() {
+     var S = app.S;
+     if (!S || !S.hatched || !AIU.ui.onMain || app.casting || app.hatching || app.evolve || document.hidden || app.popup || (window.AIU_TEST && window.AIU_TEST.noReading)) return;
+-    var ctx = app.ctx(), done = (S.reviews || {})[ctx.today];
+-    if (done && app.local.reviewSeen !== ctx.today) { app.local.reviewSeen = ctx.today; app.saveLocal(); if (AIU.ui.showReview) AIU.ui.showReview(done); return; } // cast on another device
+-    // 2.1.11: today's reading is ready from midnight (seeded by the day). Aiu tosses the coins in the yard the next time you're
+-    // here and nothing else is going on: no hatching, evolving, trick, play, sheet, or his first newborn minutes.
+-    if (app.local.castDay === ctx.today || !castReady()) return;
++    var today = U.dayStr(new Date(app.trueNow() + (app.dev.hourPreview || 0) * 3600e3)), rv = (S.reviews || {})[today];
++    if (rv) { if (!app.readingShown(today) && castReady()) app.replayCast(rv); return; } // cast on another device: watch the toss here first
++    if (app.local.castDay === today || !castReady()) return;
+     app.autoCast(false);
+   }
+   function castReady() {
+@@ -824,34 +891,47 @@
+     if (app.mode && now < app.modeUntil) return false;
+     if (app.trip) return false; // 2.1.15: walking in or out (the toss waits its turn)
+     if (app.forceAct && now < app.forceAct.until) return false;
++    if (app.care) return false; // 2.2.0: passing care on to the buddy
+     if (AIU.play && AIU.play.active()) return false;
+-    if (document.querySelector('.sheet')) return false;
+-    if (born && now - born < 10 * 60000) return false;
++    if (document.querySelector('.sheet, .gov')) return false;
++    if (born && now - born < HATCH_CAST_MS) return false;
+     if (now - (app.lastInput || 0) < 4000) return false; // let you finish what you're tapping
+     return true;
+   }
+   app.castReady = castReady;
+   app.castReading = function () { app.autoCast(true); };
+-  app.autoCast = function (manual) { // Aiu tosses the day's coins in the yard (the reading itself was set at midnight: same on every device)
+-    var S = app.S; if (!S || !S.hatched || app.casting) return;
+-    var day = U.dayStr(new Date(app.trueNow() + (app.dev.hourPreview || 0) * 3600e3));
+-    if ((S.reviews || {})[day]) { var rv0 = S.reviews[day]; AIU.ui.showReview && AIU.ui.showReview(rv0); return; }
+-    var r = AIU.iching.castFor(S.egg.id, day), dur = app.dev.fastCast ? 3000 : 15000;
++  function castRun(r, day, done) {
++    var dur = app.dev.fastCast ? 3000 : 15000;
+     app.casting = { r: r, day: day, start: Date.now(), dur: dur };
+     app.forceAct = { id: 'iching', until: Date.now() + dur + 1500 };
+-    app.react('cast'); if (!manual) app.beep('chirp');
+-    if (AIU.ui.refresh) AIU.ui.refresh();
+-    setTimeout(function () {
++    app.react('cast'); app.beep('chirp');
++    if (AIU.ui.refresh) AIU.ui.refresh(true);
++    setTimeout(done, dur);
++  }
++  app.autoCast = function () { // Aiu tosses the day's coins in the yard; the reading is saved when they land
++    var S = app.S; if (!S || !S.hatched || app.casting) return;
++    var day = U.dayStr(new Date(app.trueNow() + (app.dev.hourPreview || 0) * 3600e3));
++    if ((S.reviews || {})[day]) { if (!app.readingShown(day)) app.replayCast(S.reviews[day]); return; }
++    var r = AIU.iching.castFor(S.egg.id, day);
++    castRun(r, day, function () {
+       var ctx = app.ctx(), city = C.setting(app.S, 'city', null);
+       var rv = M.hilltop(ctx, r, { place: city ? city.name : '', zone: AIU.hilltop.zoneName(city && city.tz) });
+-      app.casting = null;
+-      app.local.castDay = day; app.local.checkin = day; app.local.reviewSeen = day; app.saveLocal(); // the review is today's stand-up
++      app.local.castDay = day; app.local.castSeen = day; app.local.checkin = day; app.local.reviewSeen = day; app.saveLocal();
+       app.addEvents([{ type: 'review', data: { day: day, hex: r.hex, rel: r.rel, vals: r.vals, moving: r.moving, text: rv.text, wx: rv.rv.wx, hm: rv.rv.hm, place: rv.rv.place, zone: rv.rv.zone } }], true).then(function () {
++        app.casting = null;
+         var saved = (app.S.reviews || {})[day] || Object.assign({ text: rv.text }, rv.rv);
+         if (AIU.ui.showReview) AIU.ui.showReview(saved, true);
+         app.setMode('greet', 2500);
+-      });
+-    }, dur);
++      }, function () { app.casting = null; });
++    });
++  };
++  app.replayCast = function (rv) { // the same toss, for a reading another device saved
++    if (app.casting || !rv) return;
++    castRun({ hex: rv.hex, rel: rv.rel, vals: rv.vals, moving: rv.moving }, rv.day, function () {
++      app.casting = null; app.local.castSeen = rv.day; app.local.reviewSeen = rv.day; app.saveLocal();
++      if (AIU.ui.showReview) AIU.ui.showReview(rv, true);
++      app.setMode('greet', 2500);
++    });
+   };
+ 
+   /* (1.1.0: the optional plug-in AI was removed. Aiu is guardrailed: it guides you toward its paths and never sends your data anywhere.) */
+@@ -1187,7 +1267,7 @@
+   // the buddy's alignment (2.1.6: from your Vitals, stressors aren't counted): a week of calm check-ins = Light (a halo), worn out with hardly any = Shadow (horns), else Balanced
+   var alignMemo = { k: '' };
+   app.alignment = function () {
+-    var S = app.S, GB = S && S.gaba ? S.gaba : {}, d = U.dayStr(new Date(app.trueNow())), dis = !!(AIU.vitals && AIU.vitals.distressed(S)), k = d + '|' + Object.keys(GB).length + '|' + dis;
++    var S = app.S, GB = S && S.gaba ? S.gaba : {}, d = U.dayStr(new Date(app.trueNow())), dis = !!(AIU.vitals && AIU.vitals.distressed(S)), k = app.pid + d + '|' + Object.keys(GB).length + '|' + dis;
+     if (alignMemo.k === k) return alignMemo.v;
+     var from = U.addDays(d, -6), br = 0, go = 0;
+     Object.keys(GB).forEach(function (x) { var g = GB[x]; if (!g || g.removed || g.d < from || g.d > d || g.kind !== 'calm') return; br += Math.max(1, +g.pts || 0); });
+@@ -1207,13 +1287,15 @@
+     if (mode === 'greet' && act && act.id === 'sleep') mode = 'sleepy';
+     var indoor = place !== 'home' ? true : act ? act.indoor : !!BAD[w.kind];
+     if (mode === 'sleepy') indoor = true;
++    var roomDef = act && A.ACTIVITIES[act.id]; // 2.2.0: the kitchen or the bathroom while he's busy in it
+     // 2.1.5: the door: you asked Aiu to go in or out (for 30 minutes). Bedtime still wins: Aiu sleeps inside.
+     var pr = app.placeReq && Date.now() < app.placeReq.until ? app.placeReq : null;
+-    if (pr && place === 'home' && !(act && act.id === 'sleep') && mode !== 'sleepy') {
++    if (pr && place === 'home' && !(act && act.id === 'sleep') && mode !== 'sleepy' && !(forced && act && /^(care_|iching)/.test(act.id))) {
+       indoor = pr.indoor;
+       var ad = act && A.ACTIVITIES[act.id];
+       if (ad && ((indoor && ad.where === 'out') || (!indoor && ad.where === 'in'))) act = { id: indoor ? 'bubbles' : (Math.floor(Date.now() / 600000) % 2 ? 'butterfly' : 'workout'), indoor: indoor }; // 2.1.7 fix: pick one for 10 minutes (it used to flip every frame, so Aiu twitched between two activities)
+     }
++    if (place === 'home' && indoor && roomDef && roomDef.room && A.ROOMS && A.ROOMS[roomDef.room] && !app.tripWalk(true) && mode !== 'sleepy') { place = roomDef.room; pa = { id: act.id, label: roomDef.label, spotX: (A.ROOMSPOT || {})[act.id] || 0, room: true }; }
+     A.kindPref = C.setting(S, 'ckind', 'auto'); // 1.1.0 creature type (Settings > Totem)
+     var form = S.form, skin = app.evolve ? null : S.skinForm;
+     var hatchP = app.hatching ? Math.min(1, (Date.now() - app.hatching.start) / app.hatching.dur) : null;
+@@ -1228,8 +1310,8 @@
+       f: app.f, tsec: Date.now() / 1000, unlocked: S.unlocked, justHatched: S.hatched && now.getTime() - S.hatchAt < 3600000,
+       evolve: app.evolve ? { from: app.evolve.from, p: Math.min(1, (Date.now() - app.evolve.start) / app.evolve.dur) } : null,
+       cast: app.casting ? { vals: app.casting.r.vals, t: Math.min(20, (Date.now() - app.casting.start) / 1000 * (20000 / app.casting.dur)) } : null,
+-      flash: app.flash, actLabel: pa ? pa.label + ' in the library' : act ? A.ACTIVITIES[act.id].label : '', weatherInfo: w,
+-      place: place, spotX: pa ? pa.spotX : 0, made: S.hatched && place === 'home' ? app.madeToday(now, w) : {},
++      flash: app.flash, actLabel: pa ? pa.label + (pa.room ? '' : ' in the library') : act ? A.ACTIVITIES[act.id].label : '', weatherInfo: w,
++      place: place, spotX: pa ? pa.spotX : 0, made: {}, // 2.2.0: the yard is tidied after each thing he does
+       board: app.boardInfo || null,
+       vit: S.hatched && AIU.vitals ? AIU.vitals.state(S) : null, // 2.1.13: the drone's light // 2.1.11: the Today counter, pinned on the bounty board
+       walk: app.tripWalk(indoor), doorOpen: !!(indoor && app.tripWalk(indoor) && app.tripWalk(indoor).door), pat: Date.now() - (app.patAt || 0) < 900, // 2.1.15: walking in or out; happy eyes after a pat
+@@ -1274,12 +1356,78 @@
+   app.login = function (u, pw) {
+     return app.api('login', { u: u, pw: pw, dn: app.dev.deviceName }).then(function (r) {
+       var pid = 'u:' + r.u, old = app.profiles[pid] || {};
+-      app.profiles[pid] = Object.assign(old, { u: r.u, email: r.email, token: r.token, created: old.created || Date.now(), local: false });
++      app.profiles[pid] = Object.assign(old, { u: r.u, email: r.email, token: r.token, created: old.created || Date.now(), local: false, tid: '' });
++      Object.keys(app.profiles).forEach(function (k) { var p = app.profiles[k]; if (!p.local && p.u === r.u) { p.token = r.token; p.email = r.email; } }); // 2.2.0: one log in for every profile in the account
+       loginPw = pw; // used once after the first sync to open your account cards (never saved)
+       delete app.profiles[pid].admin;
+-      return app.saveProfiles().then(function () { return pid; });
++      return app.saveProfiles().then(function () { return app.fetchProfiles(r.u).catch(function () {}); }).then(function () {
++        var best = app.groupPids(pid).sort(function (a, b) { return (app.profiles[b].lastOpen || 0) - (app.profiles[a].lastOpen || 0); })[0];
++        return best || pid; // the profile you had open last on this device
++      });
++    });
++  };
++  /* ---------- 2.2.0: profiles. One account (or one device) can hold several Aius, each a fresh start with its own egg,
++     journal, tiles, plan, profile and account cards. The first one is the account itself (pid 'u:name'); the others are
++     'u:name#tid' (tid = t + letters). Device-only profiles share a group id (grp). One is open at a time. ---------- */
++  function rid(n) { return U.id().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, n || 10); }
++  app.groupOf = function (pid) { var p = app.profiles[pid]; if (!p) return ''; return p.local ? 'L:' + (p.grp || pid) : 'U:' + p.u; };
++  app.groupPids = function (pid) {
++    var g = app.groupOf(pid || app.pid);
++    return Object.keys(app.profiles).filter(function (k) { var p = app.profiles[k]; return g && app.groupOf(k) === g && !p.linkedTo && !p.gone && (p.token || p.local || k === (pid || app.pid)); })
++      .sort(function (a, b) { var A0 = app.profiles[a], B0 = app.profiles[b]; return (A0.tid ? 1 : 0) - (B0.tid ? 1 : 0) || (A0.created || 0) - (B0.created || 0); });
++  };
++  app.newTid = function () { return 't' + rid(11); };
++  app.profName = function (pid) { var p = app.profiles[pid || app.pid] || {}; return p.pname || (p.u && !p.tid ? Wd.cap(p.u) : p.local && !p.grp ? 'My Aiu' : 'Profile'); };
++  app.profKind = function (pid) { var p = app.profiles[pid || app.pid] || {}; return p.pkind === 'business' ? 'business' : 'personal'; };
++  // the account's profiles from the server (other devices may have made some)
++  app.fetchProfiles = function (u) {
++    var any = Object.keys(app.profiles).map(function (k) { return app.profiles[k]; }).filter(function (p) { return !p.local && p.u === u && p.token; })[0];
++    if (!any) return Promise.resolve([]);
++    return app.api('profiles', { u: u, token: any.token }).then(function (r) {
++      var seen = {};
++      (r.profiles || []).forEach(function (x) {
++        var pid = 'u:' + u + (x.tid ? '#' + x.tid : ''), p = app.profiles[pid] || (app.profiles[pid] = { u: u, email: any.email, created: x.created || Date.now(), local: false, tid: x.tid });
++        p.token = any.token; p.tid = x.tid || ''; p.synced = 1; seen[pid] = 1; delete p.gone;
++        if (x.name && !p.pnameLocal) p.pname = x.name; if (x.kind) p.pkind = x.kind;
++        if (x.totem) p.label = x.totem + (x.stage ? ' (' + x.stage + ')' : '');
++      });
++      Object.keys(app.profiles).forEach(function (k) { var p = app.profiles[k]; if (!p.local && p.u === u && p.tid && !seen[k] && p.synced) p.gone = Date.now(); }); // deleted on another device
++      return app.saveProfiles().then(function () { return r.profiles || []; });
+     });
+   };
++  // a brand-new profile: a fresh egg, nothing carried over. kind: 'personal' or 'business'
++  app.newProfile = function (name, kind) {
++    var cur = app.prof || {}, pid, p, now = Date.now();
++    name = String(name || '').trim().slice(0, 40) || 'New profile'; kind = kind === 'business' ? 'business' : 'personal';
++    if (!cur.u) { // device-only: a new device-only profile in the same group
++      if (!cur.grp && app.pid) cur.grp = app.pid;
++      pid = 'local:' + rid(10); p = { u: null, local: true, created: now, grp: cur.grp || null, pname: name, pkind: kind, pnameLocal: 1 };
++    } else {
++      var tid = 't' + rid(11); pid = 'u:' + cur.u + '#' + tid;
++      p = { u: cur.u, email: cur.email, token: cur.token, created: now, local: false, tid: tid, pname: name, pkind: kind };
++    }
++    app.profiles[pid] = p;
++    return app.saveProfiles().then(function () {
++      if (p.token) app.api('profile_set', { u: p.u, token: p.token, tid: p.tid, pname: name, pkind: kind }).then(function () { p.synced = 1; app.saveProfiles(); }, function () {});
++      return app.openProfile(pid);
++    }).then(function () { return pid; });
++  };
++  app.renameProfile = function (pid, name, kind) {
++    var p = app.profiles[pid]; if (!p) return Promise.resolve();
++    if (name) p.pname = String(name).trim().slice(0, 40); if (kind) p.pkind = kind === 'business' ? 'business' : 'personal';
++    if (p.local) p.pnameLocal = 1;
++    return app.saveProfiles().then(function () { if (p.token) return app.api('profile_set', { u: p.u, token: p.token, tid: p.tid || '', pname: p.pname, pkind: p.pkind }).catch(function () {}); });
++  };
++  // deleting a profile: from the server (password + phrase) and from this device. The first profile is the account itself.
++  app.deleteProfile = function (pid, pw, phrase) {
++    var p = app.profiles[pid]; if (!p) return Promise.resolve();
++    var go = p.local ? Promise.resolve() : app.api('profile_delete', { u: p.u, token: p.token, tid: p.tid, pw: pw, phrase: phrase });
++    return go.then(function () { return AIU.store.open(pid); }).then(function (st) { return st.wipe(); }).then(function () {
++      delete app.profiles[pid]; return app.saveProfiles();
++    });
++  };
++  // the other profiles in this account, read straight from this device (for the capsule with every profile)
++  app.profileEvents = function (pid) { if (pid === app.pid && app.store) return app.store.all(); return AIU.store.open(pid).then(function (st) { return st.all(); }); };
+   app.startLocal = function () {
+     var pid = 'local:' + U.id().replace(/[^A-Za-z0-9]/g, '').slice(0, 10);
+     app.profiles[pid] = { u: null, local: true, created: Date.now() };
+@@ -1292,7 +1440,7 @@
+       return AIU.store.open(newPid).then(function (d) { dst = d; return d.count(); }).then(function (n) {
+         if (n) throw new Error('That account already has a Totem.');
+         var carry = {}; evs.forEach(function (e) { if (e.type === 'acct' && e.data && e.data.key) { if (!carry[e.data.key] || carry[e.data.key].t < e.t) carry[e.data.key] = { t: e.t, card: e.data.removed ? null : e.data.card }; } });
+-        var copy = evs.filter(function (e) { return e.type !== 'acct'; }).sort(function (a, b) { return (a.ls || 0) - (b.ls || 0); }).map(function (e) { var c = Object.assign({}, e); c.seq = 0; delete c.rt; return c; });
++        var copy = evs.filter(function (e) { return e.type !== 'acct'; }).sort(function (a, b) { return (a.ls || 0) - (b.ls || 0); }).map(function (e) { var c = Object.assign({}, e); c.seq = 0; delete c.rt; c.imp = 1; return c; });
+         return dst.put(copy).then(function () { return Promise.all([src.get('seenStage'), src.get('weather'), src.get('local')]); })
+           .then(function (r) {
+             var loc = r[2] || {}; // account cards wait on the device until they can be scrambled with your password
+@@ -1309,12 +1457,19 @@
+     var prof = app.prof;
+     app.saveCheckpoint(true);
+     var p = prof && prof.token ? app.api('logout', { u: prof.u, token: prof.token }).catch(function () {}) : Promise.resolve();
++    var group = prof ? app.groupPids(app.pid) : [];
+     return p.then(function () {
+       if (prof) prof.token = null;
++      group.forEach(function (k) { if (app.profiles[k] && !app.profiles[k].local) app.profiles[k].token = null; }); // 2.2.0: logs out every profile in the account
+       app.pid = null; app.prof = null; app.S = null; app.popup = null;
+       return Promise.all([app.saveProfiles(), app.meta.set('active', null)]);
+     }).then(function () { AIU.ui.welcome(); });
+   };
++  app.forgetGroup = function () { // 2.2.0: after "Delete my account": every profile of that account leaves this device
++    var pids = app.groupPids(); app.pid = null; app.prof = null; app.S = null;
++    return Promise.all(pids.map(function (pid) { delete app.profiles[pid]; return AIU.store.open(pid).then(function (st) { return st.wipe(); }).catch(function () {}); }))
++      .then(function () { return Promise.all([app.saveProfiles(), app.meta.set('active', null)]); }).then(function () { AIU.ui.welcome(); });
++  };
+   app.forgetDevice = function () {
+     var pid = app.pid, st = app.store;
+     delete app.profiles[pid];
+@@ -1415,67 +1570,121 @@
+     app.vaultUsePassword(pw).catch(function () {}); // makes the lock the first time, or opens it on this device
+   };
+ 
+-  /* ---------- capsules (zip of the data folder) ---------- */
++  /* ---------- capsules (zip of the data folder) ----------
++     2.2.0: a capsule can hold one profile (aiu_totem/...) or every profile in the account (aiu_totem/profiles/01-name/...).
++     Each profile folder has the same files, plus profile.json (its name and kind). */
++  function viewFromEvents(evs) { // a profile that isn't open: rebuild its state from its events (for its capsule files)
++    var E = C.newState(), un = [];
++    evs.slice().sort(function (a, b) { return (a.ls || 0) - (b.ls || 0) || a.t - b.t; }).forEach(function (e) { C.apply(E, e); if (!e.seq) un.push(e); });
++    evs.filter(function (e) { return e.seq; }).sort(function (a, b) { return a.seq - b.seq; }).forEach(function (e) { C.confirm(E, e); });
++    return C.view(E, un, { now: app.trueNow() });
++  }
++  function capsuleFiles(root, S, evs, cards, pinfo) {
++    var files = [], jr = {}, edits = S.jedit || {};
++    evs = evs.slice().sort(C.cmpT);
++    var readme = 'AIU TOTEM CAPSULE\n=================\nThis folder is ' + S.totemName + ' (profile: ' + pinfo.name + ', ' + pinfo.kind + '). Keep it safe (a USB drive is perfect).\n\n' +
++      'events/events.jsonl  - the source of truth: every event, one JSON object per line, never edited\n' +
++      'profile.json         - the profile\'s name and kind (personal or business)\n' +
++      'totems/totem.json    - a readable summary of the Totem right now\n' +
++      'library/YYYY-MM.md   - one chapter per month: your journal entries\n' +
++      'memory/*.json        - tasks, lists, tiles, items & notes, facts, planner, documents, Vitals and the word glossary\n\n' +
++      'To bring it back: Aiu Totem > Settings > Your data > Import capsule (or Import as a new profile), or "Import a capsule" on the start screen.\n';
++    function add(name, data) { files.push({ name: root + name, data: data }); }
++    add('README.txt', readme);
++    add('profile.json', JSON.stringify({ name: pinfo.name, kind: pinfo.kind, tid: pinfo.tid || '', format: 'aiu-totem/3' }, null, 2));
++    add('config/account.json', JSON.stringify({ username: pinfo.u || null, email: pinfo.email || null, exported: new Date().toISOString(), device: app.dev.deviceName, format: 'aiu-totem/3' }, null, 2));
++    add('totems/totem.json', JSON.stringify(C.snapshot(S), null, 2));
++    add('events/events.jsonl', evs.map(function (e) { var c = Object.assign({}, e); delete c.ls; return JSON.stringify(c); }).join('\n') + '\n');
++    evs.forEach(function (e) {
++      if (e.type !== 'journal' || (S.jhide[e.id] && S.jhide[e.id].v)) return;
++      var m = (e.d || '').slice(0, 7), txt = edits[e.id] ? edits[e.id].text : e.data.text;
++      jr[m] = (jr[m] || '# Chapter ' + m + '\n\n') + '## ' + e.d + ' ' + (e.h || '') + ' (' + (e.dn || 'device') + ')' + (edits[e.id] ? ' (edited)' : '') + '\n\n' + txt + '\n\n';
++    });
++    Object.keys(jr).forEach(function (m) { add('library/' + m + '.md', jr[m]); });
++    var T = AIU.tiles, d0 = U.dayStr(new Date(app.trueNow()));
++    try {
++      add('memory/tasks.json', JSON.stringify(S.tasks, null, 2));
++      add('memory/lists.json', JSON.stringify(S.lists, null, 2));
++      add('memory/quests.json', JSON.stringify(C.questList(S).map(function (q) { return { title: q.title, state: q.state, status: T ? T.status(S, q, d0) : '', when: T ? T.whenText(q, false) : '', tile: q.tile || {}, finishes: Object.keys(S.tdone || {}).filter(function (k) { return k.indexOf(q.key + '|') === 0 && S.tdone[k].done; }).map(function (k) { return k.slice(q.key.length + 1); }), steps: C.questSteps(S, q) }; }), null, 2));
++      add('memory/items.json', JSON.stringify({ items: S.entities, notes: S.notes }, null, 2));
++      add('memory/facts.json', JSON.stringify(S.facts, null, 2));
++      add('memory/glossary.json', JSON.stringify(M.glossary(S, 500), null, 2));
++      add('memory/planner.json', JSON.stringify({ items: S.plans, paid: S.planPaid }, null, 2));
++      add('memory/business.json', JSON.stringify(AIU.planner ? AIU.planner.docs(S).map(function (d) { return { folder: d.folder, title: d.title, kind: d.kind, sections: AIU.planner.sections(S, d).map(function (x) { return { heading: x.h, text: x.text }; }) }; }) : [], null, 2));
++      add('memory/gaba.json', JSON.stringify(AIU.gaba ? AIU.gaba.entries(S) : [], null, 2));
++      add('memory/list-labels.json', JSON.stringify(S.listMeta, null, 2));
++      if (AIU.places && AIU.places.capsule) add('memory/buildings.json', JSON.stringify(AIU.places.capsule(S), null, 2));
++    } catch (e) { add('memory/ERROR.txt', 'Some summary files could not be written: ' + (e && e.message || e) + '\nevents/events.jsonl has everything.'); }
++    if (cards) add('memory/accounts.json', JSON.stringify(cards.filter(function (c) { return !c.locked; }), null, 2)); // your own backup, readable: keep the capsule safe
++    return files;
++  }
++  function pinfoOf(pid) { var p = app.profiles[pid] || {}; return { name: app.profName(pid), kind: app.profKind(pid), tid: p.tid || '', u: p.u, email: p.email }; }
++  function stamp() { var d = U.wall(); return d.getFullYear() + U.p2(d.getMonth() + 1) + U.p2(d.getDate()) + '-' + U.p2(d.getHours()) + U.p2(d.getMinutes()); }
++  function safeName(s) { return String(s || 'totem').replace(/[^A-Za-z0-9_-]+/g, '') || 'totem'; }
+   app.exportCapsule = function () {
+-    var S = app.S, opts = {};
+-    return app.vaultCards().catch(function () { return []; }).then(function (cards) { opts.cards = cards; return app.store.all(); }).then(function (all) {
+-      var evs = all.sort(C.cmpT), files = [], jr = {}, edits = S.jedit || {};
+-      var readme = 'AIU TOTEM CAPSULE\n=================\nThis folder is ' + S.totemName + '. Keep it safe (a USB drive is perfect).\n\n' +
+-        'events/events.jsonl  - the source of truth: every event, one JSON object per line, never edited\n' +
+-        'totems/totem.json    - a readable summary of the Totem right now\n' +
+-        'library/YYYY-MM.md   - one chapter per month: journal pages, done tasks, what you talked about\n' +
+-        'memory/*.json        - tasks, lists, quests, items & notes, facts and the word glossary\n\n' +
+-        'To bring it back: open Aiu Totem > Settings > Your data > Import capsule.\n';
+-      files.push({ name: 'aiu_totem/README.txt', data: readme });
+-      files.push({ name: 'aiu_totem/config/account.json', data: JSON.stringify({ username: app.prof.u, email: app.prof.email || null, exported: new Date().toISOString(), device: app.dev.deviceName, format: 'aiu-totem/2' }, null, 2) });
+-      files.push({ name: 'aiu_totem/totems/totem.json', data: JSON.stringify(C.snapshot(S), null, 2) });
+-      files.push({ name: 'aiu_totem/events/events.jsonl', data: evs.map(function (e) { var c = Object.assign({}, e); delete c.ls; return JSON.stringify(c); }).join('\n') + '\n' });
+-      evs.forEach(function (e) {
+-        if (e.type !== 'journal' || (S.jhide[e.id] && S.jhide[e.id].v)) return;
+-        var m = (e.d || '').slice(0, 7), txt = edits[e.id] ? edits[e.id].text : e.data.text;
+-        jr[m] = (jr[m] || '# Chapter ' + m + '\n\n') + '## ' + e.d + ' ' + (e.h || '') + ' (' + (e.dn || 'device') + ')' + (edits[e.id] ? ' (edited)' : '') + '\n\n' + txt + '\n\n';
+-      });
+-      Object.keys(jr).forEach(function (m) { files.push({ name: 'aiu_totem/library/' + m + '.md', data: jr[m] }); });
+-      files.push({ name: 'aiu_totem/memory/tasks.json', data: JSON.stringify(S.tasks, null, 2) });
+-      files.push({ name: 'aiu_totem/memory/lists.json', data: JSON.stringify(S.lists, null, 2) });
+-      files.push({ name: 'aiu_totem/memory/quests.json', data: JSON.stringify(C.questList(S).map(function (q) { var T = AIU.tiles, d = U.dayStr(new Date(app.trueNow())); return { title: q.title, state: q.state, status: T ? T.status(S, q, d) : '', when: T ? T.whenText(q, false) : '', tile: q.tile || {}, finishes: Object.keys(S.tdone || {}).filter(function (k) { return k.indexOf(q.key + '|') === 0 && S.tdone[k].done; }).map(function (k) { return k.slice(q.key.length + 1); }), steps: C.questSteps(S, q) }; }), null, 2) });
+-      files.push({ name: 'aiu_totem/memory/items.json', data: JSON.stringify({ items: S.entities, notes: S.notes }, null, 2) });
+-      files.push({ name: 'aiu_totem/memory/facts.json', data: JSON.stringify(S.facts, null, 2) });
+-      files.push({ name: 'aiu_totem/memory/glossary.json', data: JSON.stringify(M.glossary(S, 500), null, 2) });
+-      // 1.1.0: planner, business folders, accounts and the GABA log as readable files
+-      files.push({ name: 'aiu_totem/memory/planner.json', data: JSON.stringify({ items: S.plans, paid: S.planPaid }, null, 2) });
+-      files.push({ name: 'aiu_totem/memory/business.json', data: JSON.stringify(AIU.planner ? AIU.planner.docs(S).map(function (d) { return { folder: d.folder, title: d.title, sections: AIU.planner.sections(S, d).map(function (x) { return { heading: x.h, text: x.text }; }) }; }) : [], null, 2) });
+-      files.push({ name: 'aiu_totem/memory/gaba.json', data: JSON.stringify(AIU.gaba ? AIU.gaba.entries(S) : [], null, 2) });
+-      if (opts && opts.cards) files.push({ name: 'aiu_totem/memory/accounts.json', data: JSON.stringify(opts.cards.filter(function (c) { return !c.locked; }), null, 2) }); // your own backup, readable: keep the capsule safe
+-      files.push({ name: 'aiu_totem/memory/list-labels.json', data: JSON.stringify(S.listMeta, null, 2) });
+-      var d = U.wall(), stamp = d.getFullYear() + U.p2(d.getMonth() + 1) + U.p2(d.getDate()) + '-' + U.p2(d.getHours()) + U.p2(d.getMinutes());
+-      var name = 'aiu-capsule-' + (S.totemName || 'totem').replace(/[^A-Za-z0-9_-]+/g, '') + '-' + stamp + '.zip';
++    var S = app.S, cards = [];
++    return app.vaultCards().catch(function () { return []; }).then(function (c) { cards = c; return app.store.all(); }).then(function (all) {
++      var files = capsuleFiles('aiu_totem/', S, all, cards, pinfoOf(app.pid));
++      var name = 'aiu-capsule-' + safeName(app.profName()) + '-' + safeName(S.totemName) + '-' + stamp() + '.zip';
+       U.download(U.makeZip(files), name);
+       app.local.lastCapsule = Date.now(); app.saveLocal();
+       return name;
+     });
+   };
+-  app.importCapsule = function (file) {
++  // 2.2.0: every profile in this account (or on this device) in one capsule. Account cards are readable only for the
++  // profile that's open (the others stay scrambled in their events until you open them and export them on their own).
++  app.exportAllCapsule = function () {
++    var pids = app.groupPids(), files = [], n = 0, index = [];
++    files.push({ name: 'aiu_totem/README.txt', data: 'AIU TOTEM CAPSULE: EVERY PROFILE\n================================\n' + pids.length + ' profiles, one folder each in profiles/. Each folder is a whole capsule of its own.\n' +
++      'Account cards are readable (memory/accounts.json) only for the profile that was open when this was made.\n\nTo bring them back: Settings > Your data > Import as new profiles, or "Import a capsule" on the start screen.\n' });
++    return app.vaultCards().catch(function () { return []; }).then(function (cards) {
++      return pids.reduce(function (pr, pid) {
++        return pr.then(function () { return app.profileEvents(pid); }).then(function (evs) {
++          n++; var info = pinfoOf(pid), S0 = pid === app.pid ? app.S : viewFromEvents(evs), root = 'aiu_totem/profiles/' + U.p2(n) + '-' + safeName(info.name) + '/';
++          index.push({ folder: root.slice(9), name: info.name, kind: info.kind, totem: S0.totemName, events: evs.length });
++          files = files.concat(capsuleFiles(root, S0, evs, pid === app.pid ? cards : null, info));
++        });
++      }, Promise.resolve());
++    }).then(function () {
++      files.push({ name: 'aiu_totem/profiles.json', data: JSON.stringify(index, null, 2) });
++      var name = 'aiu-capsule-all-profiles-' + stamp() + '.zip';
++      U.download(U.makeZip(files), name);
++      app.local.lastCapsule = Date.now(); app.saveLocal();
++      return { name: name, n: pids.length };
++    });
++  };
++  // A capsule file -> [{root, events, profile: {name, kind}, cards: [...]}], one per profile inside it
++  function parseEvents(text) {
++    var out = [];
++    text.split(/\r?\n/).forEach(function (line) { line = line.trim(); if (!line) return; try { var e = JSON.parse(line); if (e && typeof e.id === 'string' && typeof e.type === 'string' && typeof e.t === 'number') out.push(e); } catch (x) {} });
++    return out;
++  }
++  app.readCapsule = function (file) {
+     return file.arrayBuffer().then(function (buf) {
+       var u8 = new Uint8Array(buf);
+-      if (u8[0] === 0x50 && u8[1] === 0x4b) return U.readZip(buf).then(function (files) {
+-        var key = Object.keys(files).filter(function (n) { return /events\.jsonl$/.test(n); })[0];
+-        if (!key) throw new Error('No events.jsonl in that zip.');
+-        return U.fromUtf8(files[key]);
+-      });
+-      return U.fromUtf8(u8);
+-    }).then(function (text) {
+-      var incoming = [];
+-      text.split(/\r?\n/).forEach(function (line) {
+-        line = line.trim(); if (!line) return;
+-        try { var e = JSON.parse(line); if (e && typeof e.id === 'string' && typeof e.type === 'string' && typeof e.t === 'number') incoming.push(e); } catch (x) {}
++      if (!(u8[0] === 0x50 && u8[1] === 0x4b)) { var evs = parseEvents(U.fromUtf8(u8)); return evs.length ? [{ root: '', events: evs, profile: {}, cards: null }] : []; }
++      return U.readZip(buf).then(function (files) {
++        return Object.keys(files).filter(function (n) { return /(^|\/)events\/events\.jsonl$|(^|\/)events\.jsonl$/.test(n); }).sort().map(function (k) {
++          var root = k.replace(/events\/events\.jsonl$|events\.jsonl$/, ''), pj = null, cards = null;
++          try { if (files[root + 'profile.json']) pj = JSON.parse(U.fromUtf8(files[root + 'profile.json'])); } catch (e) {}
++          try { if (files[root + 'memory/accounts.json']) cards = JSON.parse(U.fromUtf8(files[root + 'memory/accounts.json'])); } catch (e) {}
++          return { root: root, events: parseEvents(U.fromUtf8(files[k])), profile: pj || {}, cards: Array.isArray(cards) ? cards : null };
++        }).filter(function (x) { return x.events.length; });
+       });
+-      if (!incoming.length) throw new Error('That file has no Totem events.');
+-      var myEgg = app.S.egg, theirEgg = incoming.filter(function (e) { return e.type === 'egg'; }).sort(C.cmpT)[0];
+-      if (myEgg && theirEgg && myEgg.id !== theirEgg.id) throw new Error('That capsule is a different Totem (' + ((theirEgg.data && theirEgg.data.name) || '?') + '). Import it into a fresh profile instead.');
++    });
++  };
++  // Import into the profile that's open: only adds what's missing, and only the same Totem (same egg)
++  app.importCapsule = function (file) {
++    return app.readCapsule(file).then(function (parts) {
++      if (!parts.length) throw new Error('That file has no Totem events.');
++      var myEgg = app.S.egg, eggOf = function (p) { return p.events.filter(function (e) { return e.type === 'egg'; }).sort(C.cmpT)[0]; };
++      var part = parts.length === 1 ? parts[0] : parts.filter(function (p) { var e = eggOf(p); return myEgg && e && e.id === myEgg.id; })[0];
++      if (!part) throw new Error('That capsule has ' + parts.length + ' profiles. Use "Import as new profiles" instead.');
++      var incoming = part.events, theirEgg = eggOf(part);
++      if (myEgg && theirEgg && myEgg.id !== theirEgg.id) throw new Error('That capsule is a different Totem (' + ((theirEgg.data && theirEgg.data.name) || '?') + '). Use "Import as a new profile" instead.');
+       return app.store.getMany(incoming.map(function (e) { return e.id; })).then(function (have) {
+         var fresh = incoming.filter(function (e) { return !have[e.id]; }).sort(C.cmpT), local = !!app.prof.local;
+-        fresh.forEach(function (e) { e.ls = app.lsNext++; e.d = e.d || U.dayStr(new Date(e.t)); if (local) { e.seq = app.seqNext++; e.rt = e.t; } else { e.seq = 0; delete e.rt; } });
++        fresh.forEach(function (e) { e.ls = app.lsNext++; e.d = e.d || U.dayStr(new Date(e.t)); if (local) { e.seq = app.seqNext++; e.rt = e.t; } else { e.seq = 0; delete e.rt; e.imp = 1; } });
+         return app.store.put(fresh).then(function () {
+           fresh.forEach(function (e) { C.apply(app.E, e); if (local) C.confirm(app.E, e); else app.unsent.push(e); });
+           app.rebuild(); app.scheduleSync(); app.saveCheckpoint(true);
+@@ -1484,6 +1693,35 @@
+       });
+     });
+   };
++  // 2.2.0: a capsule becomes new profiles: on the start screen (device-only), or inside the account you're in.
++  // Scrambled account cards can't be carried (they need the old password), so the readable copy in the capsule
++  // (memory/accounts.json) comes back instead, and gets scrambled again with this account's password.
++  app.importNewProfiles = function (file, opts) {
++    opts = opts || {};
++    var into = opts.account && app.prof && !app.prof.local ? app.prof : null, made = [], grp = null;
++    return app.readCapsule(file).then(function (parts) {
++      if (!parts.length) throw new Error('That file has no Totem events.');
++      return parts.reduce(function (pr, part, i) {
++        return pr.then(function () {
++          var name = String(part.profile.name || '').slice(0, 40), kind = part.profile.kind === 'business' ? 'business' : 'personal', pid, p, now = Date.now() + i;
++          if (!name) { var eg = part.events.filter(function (e) { return e.type === 'egg'; })[0]; name = eg && eg.data && eg.data.name ? eg.data.name : 'Imported'; }
++          if (into) { var tid = 't' + rid(11); pid = 'u:' + into.u + '#' + tid; p = { u: into.u, email: into.email, token: into.token, created: now, local: false, tid: tid, pname: name, pkind: kind }; }
++          else { pid = 'local:' + rid(10); if (!grp) grp = pid; p = { u: null, local: true, created: now, grp: grp, pname: name, pkind: kind, pnameLocal: 1 }; }
++          app.profiles[pid] = p; made.push(pid);
++          var evs = part.events.filter(function (e) { return e.type !== 'vault' && !(e.type === 'set' && e.data && e.data.k === 'vaultLock'); }).sort(C.cmpT);
++          (part.cards || []).forEach(function (c, k) { var card = Object.assign({}, c); var key = card.key || ('v-' + rid(14)); ['key', 't', 'dn', 'plain', 'locked'].forEach(function (x) { delete card[x]; }); evs.push({ id: U.id(), t: Date.now() + k, d: U.dayStr(), h: U.hmStr(), dev: app.deviceId, dn: app.dev.deviceName, type: 'acct', data: { key: key, card: card } }); });
++          evs.forEach(function (e, j) { e.ls = j + 1; e.d = e.d || U.dayStr(new Date(e.t)); if (p.local) { e.seq = j + 1; e.rt = e.rt || e.t; } else { e.seq = 0; delete e.rt; e.imp = 1; } });
++          return AIU.store.open(pid).then(function (st) {
++            var V0 = viewFromEvents(p.local ? evs : evs.map(function (e, j) { return Object.assign({}, e, { seq: j + 1 }); }));
++            return st.put(evs).then(function () { return Promise.all([st.set('seenStage', V0.stage), st.set('local', { importedAt: Date.now(), v2up: 1 })]); });
++          });
++        });
++      }, Promise.resolve());
++    }).then(function () { return app.saveProfiles(); }).then(function () {
++      if (into && into.token) made.forEach(function (pid) { var p = app.profiles[pid]; app.api('profile_set', { u: p.u, token: p.token, tid: p.tid, pname: p.pname, pkind: p.pkind }).then(function () { p.synced = 1; app.saveProfiles(); }, function () {}); });
++      return made;
++    });
++  };
+ 
+   // Load one month (chapter) of the library from the device.
+   // 1.1.0: with your fixes applied and deleted lines left out, so old pages match what you see in Talk.
+
+=================== js/ui.js
+@@ -54,22 +54,41 @@
+   function logo() { var eg = eggCanvas(U.hash32('aiu' + Date.now() % 17), 5); eg.classList.add('rainbow'); return h('div', { cls: 'logo' }, eg, h('h1', { text: 'AIU TOTEM' })); } // 1.1.0: the login egg fades through colors
+ 
+   /* ---------- welcome & accounts ---------- */
++  // 2.2.0: a capsule (.zip) can come in from the start, log in and sign up screens: it becomes device-only profile(s) on this device
++  // (link them to an account later in Settings). The egg screen imports into the brand-new profile itself.
++  function importCapsuleRow(onDone, label) {
++    var file = h('input', { type: 'file', accept: '.zip,.jsonl,application/zip', cls: 'hidden', 'aria-hidden': 'true' }), m = h('p', { cls: 'formmsg' });
++    file.addEventListener('change', function () {
++      var f = file.files[0]; if (!f) return; file.value = '';
++      msg(m, 'Reading the capsule...');
++      (onDone ? onDone(f) : app().importNewProfiles(f, { account: false }).then(function (made) { msg(m, made.length > 1 ? 'Imported ' + made.length + ' profiles.' : 'Imported.'); return app().openProfile(made[0]); }))
++        .catch(function (e) { msg(m, e.message || String(e), true); });
++    });
++    return h('div', { cls: 'stack' }, file, btn(label || 'Import a capsule (.zip)', function () { file.click(); }, 'ghost'), m);
++  }
++  ui.importCapsuleRow = importCapsuleRow;
+   ui.welcome = function () {
+-    var P = app().profiles, others = Object.keys(P).filter(function (k) { return (P[k].token || P[k].local) && !P[k].linkedTo; });
++    var a = app(), P = a.profiles, groups = {}, order = [];
++    Object.keys(P).forEach(function (pid) {
++      var p = P[pid]; if (p.linkedTo || p.gone || !(p.token || p.local)) return;
++      var g = a.groupOf(pid); if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(pid);
++    });
++    var rows = order.map(function (g) {
++      var pids = groups[g].sort(function (x, y) { return (P[y].lastOpen || 0) - (P[x].lastOpen || 0); }), p0 = P[pids[0]], names = pids.map(function (k) { return a.profName(k); });
++      var title = p0.local ? 'Open my device-only Aiu' : 'Continue as ' + p0.u;
++      return h('button', { type: 'button', cls: 'btn primary wbtn2', onclick: function () { a.openProfile(pids[0]); } }, h('span', { text: title }),
++        h('span', { cls: 'small', text: (pids.length > 1 ? pids.length + ' profiles: ' + names.join(', ') : names[0] + (p0.label ? ' · ' + p0.label : '')) + (p0.local ? ' (this device only)' : '') }));
++    });
++    var hasLocal = order.some(function (g) { return g.indexOf('L:') === 0; });
+     screen([
+       logo(),
+       h('p', { cls: 'lead', text: 'Raise a little pixel companion. It hatches from an egg and grows from your journal, quests and plans, keeps you on track, and remembers.' }),
+       (window.AIU_CONFIG || {}).demo ? h('p', { cls: 'note', text: 'Demo: there is no server here, so Log in and Sign up won\'t connect. Tap "Try it on this device only" below. Everything stays in this browser.' }) : null,
+-      others.length ? h('div', { cls: 'stack' }, others.map(function (pid) {
+-        var who = P[pid].label ? P[pid].label : P[pid].local ? 'my device-only Totem' : null; // e.g. "Pip (Sprout)"
+-        return btn(P[pid].local ? 'Open ' + who + ' (this device only)' : 'Continue as ' + P[pid].u + (P[pid].label ? ' · ' + P[pid].label : ''), function () { app().openProfile(pid); }, 'primary');
+-      })) : null,
+-      h('div', { cls: 'stack' }, btn('Log in', function () { ui.loginScreen(); }, others.length ? '' : 'primary'), btn('Sign up', function () { ui.signupScreen(); })),
+-      // one device-only Totem per device, so you never open a different creature by accident
+-      others.some(function (pid) { return P[pid].local; }) ?
+-        h('p', { cls: 'small' }, h('a', { href: '#', onclick: function (e) { e.preventDefault(); if (window.confirm('Start a second, brand-new device-only Totem? Your current one stays here too.')) app().startLocal(); }, text: 'Start another device-only Totem' })) :
+-        h('p', { cls: 'small' }, h('a', { href: '#', onclick: function (e) { e.preventDefault(); app().startLocal(); }, text: 'Try it on this device only (no account, no sync)' })),
+-      h('p', { cls: 'small dim', text: 'Free for personal, private use. Nothing to buy, no ads.' })
++      rows.length ? h('div', { cls: 'stack' }, rows) : null,
++      h('div', { cls: 'stack' }, btn('Log in', function () { ui.loginScreen(); }, rows.length ? '' : 'primary'), btn('Sign up', function () { ui.signupScreen(); })),
++      importCapsuleRow(),
++      hasLocal ? null : h('p', { cls: 'small' }, h('a', { href: '#', onclick: function (e) { e.preventDefault(); a.startLocal(); }, text: 'Try it on this device only (no account, no sync)' })),
++      h('p', { cls: 'small dim', text: 'One account can hold several Aiu profiles (say, you and your business), each with its own egg. Free for personal, private use. Nothing to buy, no ads.' })
+     ]);
+   };
+ 
+@@ -88,15 +107,21 @@
+     pw.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+     screen([logo(), h('h2', { text: 'Log in' }), note ? h('p', { cls: 'note', text: note }) : null, field('Username', u), field('Password', pw), m, go, extra,
+       h('p', { cls: 'small' }, h('a', { href: '#', onclick: function (e) { e.preventDefault(); ui.forgotScreen(u.value); }, text: 'Forgot password?' })),
++      importCapsuleRow(null, 'Or import a capsule (.zip) to this device'),
+       btn('Back', ui.welcome, 'ghost')]);
+   };
+   function finishLogin(pid) {
+     var a = app(), link = ui.linkFrom;
+     ui.linkFrom = null;
+     if (!link) return a.openProfile(pid);
+-    return a.api('sync', { u: a.profiles[pid].u, token: a.profiles[pid].token, since: 0, events: [] }).then(function (r) {
+-      if (r.events.length) { a.openProfile(pid); setTimeout(function () { a.addLine('That account already has a Totem, so your device-only one stays here. Switch in Settings.', false); }, 800); return; }
+-      return a.linkLocalTo(link, pid).then(function () { return a.openProfile(pid); }).then(function () { a.addLine('Your Totem now lives in your account and will sync everywhere!', true); });
++    var pr = a.profiles[pid], main = 'u:' + pr.u;
++    return a.api('sync', { u: pr.u, token: pr.token, since: 0, events: [], tid: '' }).then(function (r) {
++      var target = main;
++      if (r.events.length) { // 2.2.0: the account already has a Totem, so this one joins it as another profile
++        var lp = a.profiles[link] || {}, tid = a.newTid(); target = 'u:' + pr.u + '#' + tid;
++        a.profiles[target] = { u: pr.u, email: pr.email, token: pr.token, created: Date.now(), local: false, tid: tid, pname: lp.pname || (lp.label ? lp.label.replace(/ \(.*\)$/, '') : 'My Aiu'), pkind: lp.pkind || 'personal' };
++      }
++      return a.saveProfiles().then(function () { return a.linkLocalTo(link, target); }).then(function () { return a.openProfile(target); }).then(function () { if (target !== main) a.api('profile_set', { u: pr.u, token: pr.token, tid: a.profiles[target].tid, pname: a.profiles[target].pname, pkind: a.profiles[target].pkind }).catch(function () {}); ui.snack && ui.snack(target === main ? 'Your Totem now lives in your account and syncs everywhere.' : 'Your account already had a Totem, so this one is now its own profile in the account.'); });
+     });
+   }
+ 
+@@ -119,9 +144,9 @@
+       }, function (err) { busy(go, false, 'Create account'); msg(m, err.message, true); });
+     }
+     screen([logo(), h('h2', { text: opts.link ? 'Create an account to sync' : 'Sign up' }),
+-      h('p', { cls: 'small', text: 'One Totem per account. Your data is private to you.' }),
++      h('p', { cls: 'small', text: 'One account can hold several Aiu profiles, each with its own egg. Your data is private to you.' }),
+       field('Username', u, 'You\'ll need it to log in or reset your password.'), field('Email', em, 'Only used to confirm your account and reset your password.'),
+-      field('Password', pw), field('Password again', pw2), m, go, btn('Back', opts.link ? ui.main : ui.welcome, 'ghost')]);
++      field('Password', pw), field('Password again', pw2), m, go, opts.link ? null : importCapsuleRow(null, 'Or import a capsule (.zip) to this device'), btn('Back', opts.link ? ui.main : ui.welcome, 'ghost')]);
+   };
+ 
+   ui.checkEmailScreen = function (un, email, pw, sent) {
+@@ -175,9 +200,14 @@
+       if (me.value.trim()) drafts.push({ type: 'set', data: { k: 'callMe', v: me.value.trim().slice(0, 30) } });
+       a.addEvents(drafts).then(function () { a.startHatch(); ui.main(); a.syncNow('egg').catch(function () {}); });
+     }, 'primary');
++    var others = a.groupPids().filter(function (k) { return k !== a.pid; });
+     screen([h('div', { cls: 'logo' }, eggCanvas(U.hash32(eggId), 6)), h('h2', { text: 'You found an egg!' }),
+       h('p', { text: 'Give it a name and tap Begin to crack it open. Write in your journal, check off your quests, and it will grow up knowing you.' }),
+-      field('Name your egg', n), field('What should it call you?', me), m, go]);
++      others.length || a.prof.tid || a.prof.pname ? h('p', { cls: 'small', text: 'Profile: ' + a.profName() + ' (' + (a.profKind() === 'business' ? 'business' : 'personal') + '). A fresh start: its own egg, journal, tiles, plan and account cards.' }) : null,
++      field('Name your egg', n), field('What should it call you?', me), m, go,
++      h('p', { cls: 'small', text: 'Have a capsule from before? Bring it in here instead of a new egg.' }),
++      importCapsuleRow(function (f) { return a.importCapsule(f).then(function (r) { if (!a.S.egg) throw new Error('That capsule has no egg in it.'); ui.snack('Imported ' + r.added + ' events.'); ui.main(); }); }, 'Import a capsule into this profile'),
++      others.length ? btn('Back to ' + a.profName(others[0]), function () { a.openProfile(others[0]); }, 'ghost') : null]);
+   };
+   ui.loading = function (text) { ui.bar(text, null, true); }; // a small note at the top, not a screen
+   ui.cantReach = function () {
+@@ -315,6 +345,7 @@
+     els.toast = h('div', { cls: 'toast', role: 'alert' });
+     els.wbar = h('div', { cls: 'wbar' }, h('div', { cls: 'smeters' }, mGrow, mGaba), h('div', { cls: 'wbtns' }, els.full)); // 2.1.5: the buttons sit above the world, not on it
+     els.world = h('section', { cls: 'world', 'aria-label': a.S.totemName }, els.wbar, h('div', { cls: 'stage' }, els.canvas, els.fx, els.bubble, h('button', { type: 'button', cls: 'sr', text: 'Mini games', onclick: function () { AIU.games.hub(); } }), els.boardSr = h('button', { type: 'button', cls: 'sr', text: 'Bounty board: today\'s list', onclick: function () { ui.todaySheet(); } })),
++      AIU.places && a.S.hatched ? AIU.places.iconRow() : null, // 2.2.0: the garage, barn, greenhouse and lab (pictures only)
+       els.care, els.status, els.nudge, els.banner);
+     els.panel2 = h('section', { cls: 'panel2' }, h('div', { cls: 'phead' }, els.ptitle, els.pacts), els.pextra, els.psub, els.panel, els.pfoot);
+     var firstMain = !document.querySelector('.app2');
+@@ -351,7 +382,8 @@
+   ui.sub = {};
+   ui.go = function (tab, sub) {
+     if (tab === 'library' || tab === 'talk') tab = 'journal';
+-    if (tab === 'finance') { tab = 'journal'; sub = 'profiles'; if (AIU.panels) { AIU.panels.state.folder = AIU.planner.ME; AIU.panels.state.bsub = 'finance'; AIU.panels.state.jday = null; } } // 2.0: Finance lives in Log > Profiles
++    if (tab === 'finance') { tab = 'accounts'; sub = null; if (AIU.panels) { AIU.panels.state.aview = 'profile'; AIU.panels.state.psub = 'finance'; AIU.panels.state.folder = null; AIU.panels.state.doc = null; AIU.panels.state.person = null; } } // 2.2.0: Finance lives in Accounts > your profile
++    if (tab === 'journal' && (sub === 'profiles' || sub === 'me')) { tab = 'accounts'; sub = null; if (AIU.panels) { AIU.panels.state.aview = 'profile'; AIU.panels.state.psub = sub === 'me' ? 'you' : null; } }
+     if (tab === 'quests' && sub && sub !== 'big') { tab = 'inventory'; sub = null; } // 1.x lists: the shopping list is the Inventory tile now
+     if (tab === 'inventory') { tab = 'quests'; sub = null; var sq = AIU.tiles && AIU.tiles.list(app().S).filter(function (x) { return AIU.tiles.isShop(x); })[0]; if (sq) { ui.questOpen = sq.key; ui.keepQuest = true; } } // 2.1.1: your first shopping list tile, if you have one
+     if (tab === 'journal' && ui.tab === 'journal' && !sub && AIU.panels) { AIU.panels.state.jday = null; AIU.panels.state.jview = null; }
+@@ -429,7 +461,7 @@
+     els.banner.style.display = b ? '' : 'none';
+     if (force || lastVersion !== a.version) { lastVersion = a.version; renderPanel(false); }
+   };
+-  var _refresh = ui.refresh; ui.refresh = function (force) { var r = _refresh.apply(this, arguments); if (AIU.vitals) AIU.vitals.maybeReward(); return r; }; // 2.1.5: Vitals 100% pays once a day
++  var _refresh = ui.refresh; ui.refresh = function (force) { var r = _refresh.apply(this, arguments); if (AIU.vitals) AIU.vitals.maybeReward(); if (AIU.places && (force || Date.now() - (ui._pdots || 0) > 5000)) { ui._pdots = Date.now(); try { AIU.places.refreshDots(); } catch (e) {} } return r; }; // 2.1.5: Vitals 100% pays once a day
+   ui.refreshSync = function () { updatePill(); ui.refresh(); };
+   /* ---------- 2.1.1: the Today badge (it replaces the Aiu's pick line) ----------
+      A small counter in Aiu's world. It counts only what matters today: a reminder ringing, bills due, today's plan,
+@@ -444,7 +476,7 @@
+     if (a.popup) out.push({ k: 'ring:' + a.popup.key + a.popup.day, ring: true, icon: 'clock', text: a.popup.o.title + ' · ' + U.fmtHm(a.popup.o.time, c24), go: ['Done', function () { a.reminderDone(); }] });
+     if (PL) PL.billsDue(S, d, 1).filter(function (bd) { return bd.day <= d; }).forEach(function (bd) {
+       out.push({ k: 'bill:' + bd.p.key + bd.day, icon: 'coin', text: bd.p.title + (bd.p.amount ? ' ' + PL.money(bd.p.amount) : '') + (bd.late ? ' is past due.' : ' is due today.'),
+-        go: ['Finance', function () { PN.state.folder = bd.p.folder || PL.ME; PN.state.bsub = 'finance'; PN.state.jday = null; ui.go('journal', 'profiles'); ui.toPanel(); }] });
++        go: ['Finance', function () { ui.go('finance'); if (bd.p.folder && bd.p.folder !== PL.ME) { PN.state.folder = bd.p.folder; PN.state.bsub = 'finance'; ui.renderPanel(true); } ui.toPanel(); }] });
+     });
+     if (PL) PL.dayItems(S, d).forEach(function (it) {
+       if (it.done || it.kind === 'income' || it.kind === 'expense' || it.kind === 'bill') return;
+@@ -511,7 +543,7 @@
+   ui.careBar = function (open) {
+     var a = app(), S = a.S, c = els.care, k = ui.k; if (!c || !S) return;
+     if (!open) { c.hidden = true; return; }
+-    var b = A.buddyOf(S.accentSeed, C.setting(S, 'buddy', 'auto')), nm = A.BUDDIES[b].replace(/ \(.*\)$/, '');
++    var b = A.buddyOf(S.accentSeed, C.setting(S, 'buddy', 'auto')), nm = C.setting(S, 'buddyName', '') || A.BUDDIES[b].replace(/ \(.*\)$/, ''); // 2.2.0: the buddy's own name
+     function meter(lbl, v) { return h('span', { cls: 'cmeter', role: 'img', 'aria-label': lbl + ' ' + (v >= 100 ? 'full' : v + '%') }, h('span', { text: lbl }), h('i', null, h('b', { style: 'width:' + v + '%' })), h('span', { cls: 'cfull', text: v >= 100 ? 'Full' : '' })); }
+     function draw() {
+       var lv = AIU.play.levels(); clear(c);
+@@ -654,7 +686,7 @@
+ 
+   /* ---------- the panel ---------- */
+   // Each menu fills: the title, its buttons (export...), sub-tabs, the scrolling body and (Talk only) the bottom bar.
+-  var SUBICON = { big: 'flag', lists: 'list', today: 'sun', pages: 'book', journal: 'book', iching: 'yin', me: 'person', profiles: 'person' };
++  var SUBICON = { big: 'flag', lists: 'list', today: 'sun', pages: 'book', journal: 'book', iching: 'yin', me: 'person', profiles: 'person', write: 'pen', book: 'book', words: 'list', story: 'star' };
+   ui.panelHead = function (title, actions, subs, cur, onSub) {
+     els.ptitle.textContent = title;
+     clear(els.pacts);
+@@ -730,9 +762,11 @@
+   }
+   ui.dictated = function () {}; // (the old always-on listener is retired)
+   ui.journalSheet = function (entry, opts) {
++    opts = opts || {};
++    var day = opts.day && opts.day < U.today() ? opts.day : null; // 2.2.0: an entry on an earlier day
+     var a = app(), s, ta = h('textarea', { cls: 'jtext', rows: 9, placeholder: 'What happened today? How did it go? What are you working on? How do you feel?', value: entry ? entry.data.text : ui.jdraft || '' });
+     var count = h('span', { cls: 'hint' }), note = h('p', { cls: 'small' });
+-    function upd() { if (!entry) ui.jdraft = ta.value; var n = ta.value.trim().length; count.textContent = n + ' letters' + (entry ? '' : n >= 80 ? ' · grows ' + a.S.totemName : ' · 80+ grows ' + a.S.totemName); }
++    function upd() { if (!entry) ui.jdraft = ta.value; var n = ta.value.trim().length; count.textContent = n + ' letters' + (entry || day ? '' : n >= 80 ? ' · grows ' + a.S.totemName : ' · 80+ grows ' + a.S.totemName); }
+     ta.addEventListener('input', upd); upd();
+     var mic = h('button', { type: 'button', cls: 'btn mic', 'aria-label': 'Talk your entry (the microphone writes it down)', title: 'Talk your entry', 'aria-pressed': 'false', onclick: function () { if (dict) { stopDictation(); note.textContent = ''; } else startDictation(ta, mic, note); } });
+     mic.innerHTML = MIC;
+@@ -740,10 +774,10 @@
+       var v = ta.value.trim(); if (!v) return;
+       stopDictation(); s.remove();
+       if (entry) { if (v !== entry.data.text) a.addEvents([{ type: 'journal_edit', data: { ref: entry.id, text: v } }], true).then(function () { a.react('save'); }); }
+-      else { ui.jdraft = ''; a.journal(v).then(function (r) { if (r && r.mixed && AIU.panels.mixedAsk) setTimeout(function () { AIU.panels.mixedAsk(r.mixed); }, 900); }); }
++      else { ui.jdraft = ''; a.journal(v, day).then(function (r) { if (day) ui.snack('Added to ' + U.fmtDay(day) + '.'); if (r && r.mixed && AIU.panels.mixedAsk) setTimeout(function () { AIU.panels.mixedAsk(r.mixed); }, 900); }); }
+     }, 'primary');
+-    s = sheet(entry ? 'Edit your entry from ' + U.fmtDay(entry.d) : 'New journal entry', [
+-      entry ? h('p', { cls: 'small', text: 'Editing keeps the old version in the Totem\'s history.' }) : h('p', { cls: 'small', text: 'Type it, or tap the microphone and just talk. It goes on today\'s page. Writing is how ' + a.S.totemName + ' grows the most: +10 for 80+ letters.' }),
++    s = sheet(entry ? 'Edit your entry from ' + U.fmtDay(entry.d) : day ? 'Entry for ' + U.fmtDay(day) : 'New journal entry', [
++      entry ? h('p', { cls: 'small', text: 'Editing keeps the old version in the Totem\'s history.' }) : day ? h('p', { cls: 'small', text: 'This goes on the page for ' + AIU.panels.nice(day) + '. The book and your story update by themselves. (Only today\'s writing grows ' + a.S.totemName + '.)' }) : h('p', { cls: 'small', text: 'Type it, or tap the microphone and just talk. It goes on today\'s page. Writing is how ' + a.S.totemName + ' grows the most: +10 for 80+ letters.' }),
+       opts && opts.prompt && !entry ? h('p', { cls: 'jprompt', text: opts.prompt }) : null,
+       ta, h('div', { cls: 'row spread' }, h('span', { cls: 'row' }, mic, count), save), note,
+       entry ? btn('Hide this entry', function () { stopDictation(); s.remove(); a.addEvents([{ type: 'journal_hide', data: { ref: entry.id, hidden: true } }], true); }, 'ghost') : null
+@@ -985,7 +1019,7 @@
+     } else {
+       var dl = h('div', { cls: 'small', text: 'Loading devices...' });
+       acct.push(h('p', null, 'Signed in as ', h('b', { text: '@' + a.prof.u }), a.prof.email ? ' (' + a.prof.email + ')' : ''));
+-      acct.push(h('p', { cls: 'small', text: 'One Totem per account. Want another Totem? Make another account (the same email is fine).' }));
++      acct.push(h('p', { cls: 'small', text: 'Open profile: ' + a.profName() + ' (' + a.profKind() + '). One account holds as many Aiu profiles as you like, each with its own egg.' }));
+       acct.push(h('p', { cls: 'small', text: 'Sync: ' + a.sync.state + (a.sync.last ? ', last ' + U.ago(a.sync.last) : '') + (S.unsent ? ' · ' + S.unsent + ' changes waiting' : '') + (a.sync.err ? ' · ' + a.sync.err : '') }));
+       acct.push(h('div', { cls: 'row wrap' }, // 2.1.5: Sync now is at the top of Settings (one button)
+         btn('Log out', function () { if (S.unsent && !confirm(S.unsent + ' changes have not synced yet. They stay safe on this device and sync next time you log in here. Log out?')) return; s.remove(); a.logout(); })));
+@@ -997,8 +1031,9 @@
+       acct.push(h('details', null, h('summary', { text: 'Change password' }), field('Current password', oldp), field('New password', newp), pm,
+         btn('Change', function () { var np = newp.value; a.api('password', { u: a.prof.u, token: a.prof.token, old: oldp.value, pw: np }).then(function () { msg(pm, 'Changed. Other devices will ask to log in again.'); a.vaultRekey(np).catch(function () {}); }, function (e) { msg(pm, e.message, true); }); }, 'primary')));
+     }
+-    var P = a.profiles, others = Object.keys(P).filter(function (k) { return k !== a.pid && (P[k].token || P[k].local) && !P[k].linkedTo; });
+-    if (others.length) acct.push(h('div', { cls: 'row wrap' }, others.map(function (k) { return btn('Switch to ' + (P[k].local ? 'device-only Totem' : P[k].u), function () { s.remove(); a.openProfile(k); }); })));
++    var P = a.profiles, mine = a.groupPids(), others = Object.keys(P).filter(function (k) { return mine.indexOf(k) < 0 && (P[k].token || P[k].local) && !P[k].linkedTo && !P[k].gone; });
++    acct.push(h('div', { cls: 'row wrap' }, btn('Profiles (' + mine.length + ')', function () { s.remove(); AIU.profiles.switcher(); }, 'primary'), btn('+ New profile', function () { s.remove(); AIU.profiles.newSheet(); })));
++    if (others.length) acct.push(h('div', { cls: 'row wrap' }, others.map(function (k) { return btn('Switch to ' + (P[k].local ? 'device-only: ' + a.profName(k) : '@' + P[k].u), function () { s.remove(); a.openProfile(k); }); })));
+     if (!a.prof.local) acct.push(btn('Use another account', function () { s.remove(); a.meta.set('active', null); ui.onMain = false; ui.welcome(); }, 'ghost')); // 2.1.15: a device-only Totem already has Create / Log in just above
+ 
+     // totem
+@@ -1027,6 +1062,13 @@
+       field('Creature type', sel(Object.assign({ auto: 'Random, picked by its egg (' + A.kindName(S.accentSeed, 'auto') + ')' }, A.KINDS, { classic: 'Classic (the 1.0.5 look)' }), C.setting(S, 'ckind', 'auto'), function (v) { a.setSetting('ckind', v).then(function () { }); }), 'Every egg hatches into a random type, and it evolves within that type. Change it here any time. How it grows stays a surprise: every evolution rolls its own colors and markings.'),
+       field('Travel buddy', sel(Object.assign({ auto: 'Random, picked by its egg (' + A.BUDDIES[A.buddyOf(S.accentSeed, 'auto')].replace(/ \(.*\)$/, '') + ')' }, A.BUDDIES), C.setting(S, 'buddy', 'auto'), function (v) { a.setSetting('buddy', v).then(gearShow); }), 'It waits in the yard. Tap it to feed it, give it water, or play the mini games.'),
+       gearF,
++      (function () { // 2.2.0: the buddy's name (saves when you tap Done or leave the box)
++        var bn = inp({ value: C.setting(S, 'buddyName', ''), maxLength: 24, placeholder: 'e.g. Mochi', enterkeyhint: 'done', autocapitalize: 'words' });
++        function saveBn() { var v = bn.value.trim().slice(0, 24); if (v !== C.setting(a.S, 'buddyName', '')) a.setSetting('buddyName', v).then(function () { nmsg.textContent = 'Saved.'; }); }
++        bn.addEventListener('change', saveBn); bn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); bn.blur(); } });
++        return field('Buddy\'s name', bn, 'Leave it empty to just call it by its kind.');
++      })(),
++      field('In your journal, you are', sel({ they: 'they / their', he: 'he / his', she: 'she / her' }, C.setting(S, 'pronoun', 'they'), function (v) { a.setSetting('pronoun', v); }), 'Tiles are written into your journal as sentences, like "' + (S.callMe || 'You') + ' finished their shopping list."'),
+       field('Vitals from my journal', sel({ on: 'Check in calm things I write about ("I went for a walk")', off: 'Off (I check in myself)' }, C.setting(S, 'gabaCoach', true) === false ? 'off' : 'on', function (v) { a.setSetting('gabaCoach', v === 'on'); }))
+     ];
+     // 2.1.7: Aiu's voice: creature babble (default), a real voice from this device, or silent
+@@ -1049,10 +1091,10 @@
+     voiceShow();
+     var remMsg = h('span', { cls: 'small', 'aria-live': 'polite' });
+     var look = [
++      h('div', { cls: 'row wrap' }, btn(dev.mute ? 'Sound: off (tap to turn on)' : 'Sound: on (tap to turn off)', function (e) { a.setMute(!a.dev.mute); if (!a.dev.mute) { a.unlock(); a.beep('chirp'); } e.target.textContent = a.dev.mute ? 'Sound: off (tap to turn on)' : 'Sound: on (tap to turn off)'; }, 'primary soundbtn')), // 2.2.0: the sound switch lives here now
+       h('div', { cls: 'row2' }, field('Theme', sel({ auto: 'Match my device', light: 'Light', dark: 'Dark' }, dev.theme, function (v) { devSet('theme', v); })),
+         field('Color', sel({ classic: 'Classic', green: 'Green', blue: 'Blue', red: 'Red' }, dev.color || 'classic', function (v) { devSet('color', v); }))),
+       field('Text size', sel({ normal: 'Normal', large: 'Large', huge: 'Extra large' }, dev.textSize || 'normal', function (v) { devSet('textSize', v); ui.applyTheme(); })),
+-      h('div', { cls: 'row wrap' }, btn('Show the world full screen', function () { s.remove(); ui.worldFull(true); }, 'mini')),
+       field(S.totemName + '\'s voice', sel({ babble: 'Creature babble', voice: 'A real voice (from this device)', off: 'Silent' }, dev.voiceMode || 'babble', function (v) { devSet('voiceMode', v); voiceShow(); a.hush(); a.speak('Hi ' + S.callMe + '!'); })),
+       voiceF,
+       field('Reaction pictures over ' + S.totemName, sel({ short: 'On', off: 'Off' }, dev.bubble === 'off' ? 'off' : 'short', function (v) { devSet('bubble', v); })),
+@@ -1076,20 +1118,39 @@
+       return 'Time: ' + U.fmtHm(U.hmStr(), C.setting(a.S, 'clock24', false)) + (z ? ' (' + z.replace(/_/g, ' ') + ')' : '') + ', from this device\'s clock. Aiu follows your device wherever you are' + (Math.abs(a.clockOffset || 0) > 120000 ? ', corrected by the server because this device\'s clock is off by ' + Math.round(Math.abs(a.clockOffset) / 60000) + ' min' : '') + '.';
+     }
+     tzNow.textContent = tzText();
+-    var city = inp({ value: (C.setting(S, 'city', null) || {}).name || '', placeholder: 'e.g. Grand Rapids, MI  or  43.41, -86.07' }), cm2 = h('p', { cls: 'formmsg' });
++    // 2.2.0: the location saves the moment it's found (Find, the keyboard's Go, or leaving the box), and shows what's saved
++    var cur0 = C.setting(S, 'city', null), city = inp({ value: (cur0 || {}).name || '', placeholder: 'e.g. Murphy, NC  or  35.09, -84.03', enterkeyhint: 'search', 'aria-label': 'Your city or coordinates' }), cm2 = h('p', { cls: 'formmsg' });
++    var saved = h('p', { cls: 'small savedloc', 'aria-live': 'polite' });
++    function showSaved(c) { saved.textContent = c && typeof c.lat === 'number' ? 'Saved: ' + c.name + ' (' + c.lat.toFixed(3) + ', ' + c.lon.toFixed(3) + '). All your devices use it.' : 'No location saved yet.'; }
++    showSaved(cur0);
+     function setPlace(c) {
+-      a.setSetting('city', c).then(function () { a.updateWeather(true); a.rebuild(true); tzNow.textContent = tzText(); });
+-      msg(cm2, 'Weather for ' + c.name + '.'); city.value = c.name;
++      msg(cm2, 'Saving...');
++      a.setSetting('city', c).then(function () {
++        var back = C.setting(a.S, 'city', null);
++        if (!back || back.lat !== c.lat) return msg(cm2, 'That didn\'t save. Try again.', true);
++        showSaved(back); msg(cm2, 'Saved. Weather for ' + c.name + '.'); city.value = c.name;
++        a.weather = null; a.updateWeather(true).then(function () { a.rebuild(true); tzNow.textContent = tzText(); var w0 = a.weather; if (w0 && w0.src === 'none') msg(cm2, 'Saved. Live weather only covers the US; outside it Aiu guesses from the season.'); });
++      }, function (e) { msg(cm2, 'That didn\'t save: ' + (e && e.message || e), true); });
+     }
++    var lastTry = '';
++    function find() {
++      var v = city.value.trim(), cur = C.setting(a.S, 'city', null); if (!v || v === lastTry || (cur && v === cur.name)) return; lastTry = v;
++      msg(cm2, 'Looking...');
++      a.findCity(v).then(setPlace, function (e) { lastTry = ''; msg(cm2, e.message === 'City not found' ? 'Not in my list. Type your street address below (the US Census looks it up), your coordinates (like 35.09, -84.03), the nearest bigger town, or tap Use my location.' : 'Could not look that up.', true); });
++    }
++    city.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); city.blur(); find(); } });
++    city.addEventListener('change', find);
++    var addr = inp({ placeholder: 'e.g. 123 Main St, Murphy, NC', autocapitalize: 'words', enterkeyhint: 'search', 'aria-label': 'Street address' });
++    function findAddr() { var v = addr.value.trim(); if (!v) return; msg(cm2, 'Asking the US Census geocoder...'); a.censusLookup(v).then(function (c) { addr.value = ''; setPlace(c); }, function (e) { msg(cm2, e.message, true); }); }
++    addr.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); addr.blur(); findAddr(); } });
+     var world = [
+-      h('div', { cls: 'row' }, city, btn('Find', function () {
+-        msg(cm2, 'Looking...');
+-        a.findCity(city.value.trim()).then(setPlace, function (e) { msg(cm2, e.message === 'City not found' ? 'Not in my list. Small town? Pick the nearest bigger city (it\'s only used for the weather), type your coordinates (like 35.09, -84.03), or tap Use my location.' : 'Could not look that up.', true); });
+-      }, 'mini')),
++      saved,
++      h('div', { cls: 'row' }, city, btn('Find', function () { lastTry = ''; find(); }, 'mini')),
+       h('div', { cls: 'row' }, btn('Use my location', function () {
+         msg(cm2, 'Asking this device for its location...');
+-        a.myLocation().then(setPlace, function (e) { msg(cm2, e.message, true); });
++        a.myLocation().then(setPlace, function (e) { msg(cm2, e.message + (/iPhone|iPad/.test(navigator.userAgent) ? ' On iPhone: Settings > Privacy & Security > Location Services > Safari Websites > While Using.' : ''), true); });
+       }, 'mini')), cm2,
++      h('details', null, h('summary', { text: 'Small town? Look up a street address' }), h('p', { cls: 'small', text: 'The US Census Bureau\'s free, public geocoder finds the spot (only the address you type is sent, once). Aiu keeps the place, not the address.' }), h('div', { cls: 'row' }, addr, btn('Look up', findAddr, 'mini'))),
+       h('div', { cls: 'row2' }, field('Units', sel({ F: '°F', C: '°C' }, C.setting(S, 'units', 'F'), function (v) { a.setSetting('units', v).then(function () { a.updateWeather(true); }); })),
+         field('Seasons', sel({ north: 'Northern half', south: 'Southern half' }, C.setting(S, 'hemisphere', 'north'), function (v) { a.setSetting('hemisphere', v); }))),
+       field('Clock', sel({ '0': '12-hour (6pm)', '1': '24-hour (18:00)' }, C.setting(S, 'clock24', false) ? '1' : '0', function (v) { a.setSetting('clock24', v === '1'); })),
+@@ -1101,7 +1162,12 @@
+     dn.addEventListener('change', function () { devSet('deviceName', dn.value.trim() || 'Device'); });
+     var device = [field('This device\'s name', dn, 'Shown when this device changes something, like "Your iPhone moved your wake-up to 10am".')];
+     // data
+-    var file = h('input', { type: 'file', accept: '.zip,.jsonl,application/zip', cls: 'hidden' }), dm = h('p', { cls: 'formmsg' });
++    var file = h('input', { type: 'file', accept: '.zip,.jsonl,application/zip', cls: 'hidden' }), file2 = h('input', { type: 'file', accept: '.zip,.jsonl,application/zip', cls: 'hidden' }), dm = h('p', { cls: 'formmsg' });
++    file2.addEventListener('change', function () { // 2.2.0: a capsule (one profile or all of them) becomes new profiles here
++      if (!file2.files[0]) return; msg(dm, 'Reading...');
++      a.importNewProfiles(file2.files[0], { account: true }).then(function (made) { msg(dm, 'Imported ' + made.length + ' new profile' + (made.length === 1 ? '' : 's') + '. Open them in Profiles.'); }, function (e) { msg(dm, e.message, true); });
++      file2.value = '';
++    });
+     file.addEventListener('change', function () {
+       if (!file.files[0]) return;
+       msg(dm, 'Reading...');
+@@ -1110,9 +1176,10 @@
+     });
+     var data = [
+       h('p', { cls: 'small', text: S.total + ' events' + (S.unsent && !a.prof.local ? ' (' + S.unsent + ' waiting to sync)' : '') + ' · saved in this browser (' + AIU.store.kind + ')' }),
+-      h('div', { cls: 'row wrap' }, btn('Download capsule (.zip)', function () { a.exportCapsule().then(function (n) { msg(dm, 'Saved ' + n + '. Keep it on your USB drive.'); }); }, 'primary'),
+-        btn('Import capsule', function () { file.click(); })), file, dm,
+-      h('p', { cls: 'small', text: 'A capsule is the whole Totem as a folder of plain files (your own copy, e.g. for a USB drive). The server keeps one live copy only. Importing only adds what is missing; nothing is overwritten.' }),
++      h('div', { cls: 'row wrap' }, btn('Download this profile (.zip)', function () { a.exportCapsule().then(function (n) { msg(dm, 'Saved ' + n + '. Keep it on your USB drive.'); }); }, 'primary'),
++        btn('Download every profile (one .zip)', function () { a.exportAllCapsule().then(function (r) { msg(dm, 'Saved ' + r.name + ' (' + r.n + ' profiles).'); }, function (e) { msg(dm, e.message, true); }); }),
++        btn('Import into this profile', function () { file.click(); }), btn('Import as new profile(s)', function () { file2.click(); })), file, file2, dm,
++      h('p', { cls: 'small', text: 'A capsule is a whole profile as a folder of plain files (your own copy, e.g. for a USB drive); the every-profile capsule has one folder per profile. The server keeps one live copy only. Importing into this profile only adds what is missing (same Totem only); importing as new profiles makes fresh profiles from it. Nothing is overwritten.' }),
+       h('p', { cls: 'small caution', text: a.prof.local ?
+         'Caution: this Totem lives only in this browser. Clearing browser data, a private window, or losing the device deletes it. Download a capsule now and then.' :
+         'Off-grid caution: anything you do without internet is saved only in this browser until it syncs. Clearing browser data, a private window, uninstalling the app, or losing the device before a sync loses those changes. On iPhone, use the Home Screen app (Safari can clear websites that are not used for 7 days). Heading off-grid for a while? Sync first and save a capsule.' })
+@@ -1140,23 +1207,23 @@
+     if (!a.prof.local) {
+       var dpw = inp({ type: 'password', placeholder: 'password' }), dph = inp({ placeholder: 'DELETE ' + a.prof.u.toUpperCase() }), dm3 = h('p', { cls: 'formmsg' });
+       danger.push(h('details', null, h('summary', { text: 'Delete my account' }),
+-        h('p', { cls: 'small', text: 'Permanently deletes your account and ' + S.totemName + ' from the server (there are no server backups). Download a capsule first if you want to keep a copy. Type DELETE ' + a.prof.u.toUpperCase() + ' to confirm.' }),
++        h('p', { cls: 'small', text: 'Permanently deletes your account and every profile in it (' + a.groupPids().map(function (k) { return a.profName(k); }).join(', ') + ') from the server (there are no server backups). Download a capsule first if you want to keep a copy. Type DELETE ' + a.prof.u.toUpperCase() + ' to confirm.' }),
+         dpw, dph, dm3, btn('Delete my account', function () {
+-          a.api('delete_account', { u: a.prof.u, token: a.prof.token, pw: dpw.value, phrase: dph.value.trim() }).then(function () { s.remove(); a.forgetDevice(); }, function (e) { msg(dm3, e.message, true); });
++          a.api('delete_account', { u: a.prof.u, token: a.prof.token, pw: dpw.value, phrase: dph.value.trim() }).then(function () { s.remove(); a.forgetGroup(); }, function (e) { msg(dm3, e.message, true); });
+         }, 'danger')));
+     }
+     // 2.0: what used to sit in the header: name, stage and type, sync status, and the sound switch
+     var top0 = [
+       h('p', null, h('b', { cls: 'setname', text: S.totemName }), ' · ' + (els.stage ? els.stage.textContent : '')),
+       h('p', { cls: 'small', text: 'Sync: ' + (ui.syncText || (a.prof.local ? 'This device only' : a.sync.state)) }),
+-      h('div', { cls: 'row wrap' }, btn(dev.mute ? 'Sound: off (tap to turn on)' : 'Sound: on (tap to turn off)', function (e) { a.setMute(!a.dev.mute); if (!a.dev.mute) { a.unlock(); a.beep('chirp'); } e.target.textContent = a.dev.mute ? 'Sound: off (tap to turn on)' : 'Sound: on (tap to turn off)'; }, 'primary soundbtn'),
+-        !a.prof.local ? btn('Sync now', function () { a.syncNow('manual').then(function () { s.remove(); ui.settings(); }, function () { s.remove(); ui.settings(); }); }) : null)
++      !a.prof.local ? h('div', { cls: 'row wrap' }, btn('Sync now', function () { a.syncNow('manual').then(function () { s.remove(); ui.settings(); }, function () { s.remove(); ui.settings(); }); })) : null
+     ];
+     // 2.0: the instructions book, and ONE PDF maker (check off what goes in; it remembers your picks on this device)
+     var help = [h('p', { cls: 'small', text: 'How everything works, one chapter per part of the app.' }), btn('Open the instructions', function () { AIU.help.sheet(); }, 'primary')];
+-    var PN = AIU.panels, PL = AIU.planner, today0 = U.dayStr(new Date(a.trueNow())), mo0 = today0.slice(0, 7), biz = PL.folders(S).map(function (f) { return f.name; });
+-    var OPTS = [['help', 'Instructions book'], ['tiles', 'Quest tiles (every tile, with its steps)'], ['plan', 'Plan: this month\'s calendar'], ['journal', 'Journal pages'], ['iching', 'I Ching readings'], ['gaba', 'Vitals log (this month)'], ['fin:', 'Finance: You (this month)']];
+-    biz.forEach(function (f) { OPTS.push(['fin:' + f, 'Finance: ' + f + ' (this month)']); OPTS.push(['biz:' + f, f + ': profile and papers']); OPTS.push(['ppl:' + f, f + ': people (résumés)']); });
++    var PN = AIU.panels, PL = AIU.planner, today0 = U.dayStr(new Date(a.trueNow())), mo0 = today0.slice(0, 7), biz = AIU.business.folders(S).map(function (f) { return f.name; });
++    var OPTS = [['help', 'Instructions book'], ['tiles', 'Quest tiles (every tile, with its steps)'], ['plan', 'Plan: this month\'s calendar'], ['journal', 'Journal pages'], ['iching', 'I Ching readings'], ['gaba', 'Vitals log (this month)'], ['fin:', 'Finance: ' + a.profName() + ' (this month)']];
++    OPTS.push(['biz:' + PL.ME, a.profName() + ': ID and documents'], ['ppl:' + PL.ME, a.profName() + ': résumés']); // 2.2.0: this profile
++    biz.forEach(function (f) { OPTS.push(['fin:' + f, 'Finance: ' + f + ' (this month)']); OPTS.push(['biz:' + f, f + ' (older folder): profile and documents']); OPTS.push(['ppl:' + f, f + ' (older folder): résumés']); });
+     OPTS.push(['cards', 'Account cards (shows your passwords)']);
+     var pick = Object.assign({ tiles: true, journal: true }, a.local.pdfPick || {}), boxes = {};
+     var range = sel({ today: 'Today', week: 'The last 7 days', month: 'This month', year: 'This year', all: 'Every page', custom: 'Pick dates...' }, a.local.pdfRange || 'month', function (v) { a.local.pdfRange = v; a.saveLocal(); showDates(); });
+@@ -1210,7 +1277,8 @@
+       grp('aiu', S.totemName + ' & buddy', totem),
+       grp('look', 'Look & sound', look),
+       grp('time', 'Reminders, weather & time', rem.concat([h('h4', { text: 'Weather & time' })], world)),
+-      grp('acct', 'Account & data', acct.concat([h('h4', { text: 'Save as PDF' })], pdfSec, [h('h4', { text: 'Your data' })], device, data, [h('h4', { text: 'Danger zone' })], danger)),
++      grp('acct', 'Account & data', acct.concat([h('h4', { text: 'Your data' })], device, data, [h('h4', { text: 'Danger zone' })], danger)),
++      grp('pdf', 'Save as PDF', pdfSec), // 2.2.0: its own folded section
+       grp('help', 'Help & about', help.concat([ver,
+         h('p', { cls: 'small', text: 'Everything in Aiu is made by KODNA or is public domain: our own pixel fonts, creatures, buddies, world, sounds and word lists; live weather is from the US National Weather Service (public domain). Colors: the Sweetie 16 palette.' }),
+         h('p', { cls: 'small', text: 'Aiu is a little companion, not a counselor or a doctor. If you are ever in crisis, contact your local crisis hotline or emergency number (in the US, call or text 988). Please be safe.' })])),
+
+=================== js/art.js
+@@ -40,7 +40,7 @@
+   }
+   function mk(w, h) { var cv = document.createElement('canvas'); cv.width = w; cv.height = h; return cv; }
+   A.kit = { R: R, px: px, disc: disc, ell: ell, line: line, mk: mk, spr: spr }; // 2.1.5: the pixel tools, shared with the games
+-  A.prim = { R: R, px: px, spr: spr, disc: disc, ell: ell, tri: tri, line: line };
++  A.prim = { R: R, px: px, spr: spr, disc: disc, ell: ell, tri: tri, line: line, dith: dith };
+ 
+   /* ---------- time of day, seasons ---------- */
+   A.phase = function (h) { return h < 5 || h >= 21 ? 'night' : h < 7 ? 'dawn' : h < 18 ? 'day' : 'dusk'; };
+@@ -81,9 +81,12 @@
+     butterfly: { label: 'chasing a butterfly', where: 'out', base: true },
+     newborn: { label: 'just hatched, looking around', where: 'both' }, // 2.1.10: the first 10 minutes after hatching (never picked at random)
+     // 2.1.5: Aiu looks after the travel buddy
+-    petbuddy: { label: 'petting the buddy', where: 'out', base: true },
+-    feedbuddy: { label: 'giving the buddy a snack', where: 'out', base: true },
+-    waterbuddy: { label: 'giving the buddy water', where: 'out', base: true },
++    petbuddy: { label: 'petting the buddy', where: 'out' }, // 2.2.0: not a 20-minute hobby any more: Aiu looks after the buddy in short bursts when you check in a calm thing (care_*)
++    feedbuddy: { label: 'giving the buddy a snack', where: 'out' },
++    waterbuddy: { label: 'giving the buddy water', where: 'out' },
++    care_feed: { label: 'feeding the buddy', where: 'out', ritual: true }, care_water: { label: 'giving the buddy water', where: 'out', ritual: true },
++    care_hug: { label: 'hugging the buddy', where: 'out', ritual: true }, care_brush: { label: 'brushing the buddy', where: 'out', ritual: true },
++    care_read: { label: 'reading to the buddy', where: 'out', ritual: true }, care_tuck: { label: 'tucking the buddy in for a rest', where: 'out', ritual: true },
+     sandcastle: { label: 'building a sandcastle', where: 'out', base: true, need: 'sand' },
+     snowman: { label: 'building a snowman', where: 'out', base: true, need: 'snow' },
+     journal: { label: 'writing in his journal', where: 'both', base: true }, // 2.1.15: more to do from day one
+@@ -822,8 +825,11 @@
+     spots.forEach(function (x2, j) { tree(c, kinds[b], x2, GY + 2 + (j % 2), s); });
+     // path from the door
+     if (sc.house !== 'lilypad') for (var p = 0; p < 16; p++) dith(c, 30 + p * 2, 92 + Math.floor(p / 3), 3, 1, b === 'desert' || b === 'beach' ? P.wood : P.sand, p);
+-    if (shop.house) { c.drawImage(shop.house.img, Math.max(0, 38 - Math.round(shop.house.img.width / 2)), 93 - shop.house.img.height); return null; }
+-    return HOUSE[sc.house] ? HOUSE[sc.house](c, s, false) : HOUSE.cabin(c, s, false);
++    if (A.behindHouse) A.behindHouse(c, sc); // 2.2.0: the outhouse (behind the house)
++    if (shop.house) { c.drawImage(shop.house.img, Math.max(0, 38 - Math.round(shop.house.img.width / 2)), 93 - shop.house.img.height); if (A.yardFixtures) A.yardFixtures(c, sc); return null; }
++    var relight = HOUSE[sc.house] ? HOUSE[sc.house](c, s, false) : HOUSE.cabin(c, s, false);
++    if (A.yardFixtures) A.yardFixtures(c, sc); // 2.2.0: the firepit
++    return relight;
+   }
+ 
+   /* ---------- indoor room (cached; window left transparent) ---------- */
+@@ -1315,6 +1321,20 @@
+     waterbuddy: { pose: function (f) { var p0 = NEAR(f); p0.eyes = f % 10 < 5 ? 'happy' : 'open'; return p0; },
+       back: function (c, x, fy, f) { var bx = buddyBowl(c, fy, true); for (var i = 0; i < 2; i++) { var t = (f + i * 6) % 12, dy0 = fy - 22 + t * 1.6; R(c, bx + 3 + i * 2, dy0, 2, 3, P.sky); px(c, bx + 3 + i * 2, dy0 - 1, P.cyan); } if (f % 12 > 9) { px(c, bx + 1, fy - 5, P.cyan); px(c, bx + 6, fy - 5, P.cyan); } } },
+     board: { pose: function (f, sc) { return { dx: sc && sc.indoor ? 22 : A.BOARD_OUT.x + 30 - A.AIU_OUT, flip: true, dy: f % 6 < 3 ? 0 : -1, eyes: f % 10 < 5 ? 'open' : 'happy' }; } }, // 2.1.11: he walks to the board
++    // 2.2.0: Aiu passes your calm thing on to the buddy (a few seconds each): gut = a snack, water = its bowl, heart = a hug,
++    // arms & legs = a brushing, brain = a story, rest = a blanket and a nap
++    care_feed: { pose: function (f) { var p0 = NEAR(f); p0.eyes = 'happy'; return p0; },
++      back: function (c, x, fy, f) { var bx = buddyBowl(c, fy, false), t = f % 10; if (t < 6) { var k = t / 6; bone(c, Math.round(x - 10 + (bx + 2 - (x - 10)) * k), Math.round(fy - 14 - Math.sin(k * Math.PI) * 12 + k * 11)); } else bone(c, bx + 1, fy - 5); } },
++    care_water: { pose: function (f) { var p0 = NEAR(f); p0.eyes = f % 10 < 5 ? 'happy' : 'open'; return p0; },
++      back: function (c, x, fy, f) { var bx = buddyBowl(c, fy, true); for (var i = 0; i < 3; i++) { var t = (f + i * 4) % 10, dy0 = fy - 20 + t * 1.8; R(c, bx + 2 + i * 2, dy0, 1, 3, P.sky); px(c, bx + 2 + i * 2, dy0 - 1, P.cyan); } } },
++    care_hug: { pose: function (f) { var p0 = NEAR(f); p0.dx -= 6; p0.eyes = 'happy'; p0.dy = f % 6 < 3 ? 0 : -1; return p0; },
++      front: function (c, x, fy, f) { var hx = (A.buddyHead ? A.buddyHead.x : A.BUDDY_OUT.x + 20) + 6; for (var i = 0; i < 2; i++) { var t = (f + i * 5) % 10; spr(c, hx - 4 + i * 6, fy - 30 - t * 2, ['r.r', 'rrr', '.r.']); } } },
++    care_brush: { pose: function (f) { var p0 = NEAR(f); p0.dx -= 3 + (f % 6 < 3 ? 2 : 0); return p0; },
++      front: function (c, x, fy, f) { var hd = A.buddyHead || { x: A.BUDDY_OUT.x + 20, y: fy - 20 }, bx = hd.x + 6 + Math.round(Math.sin(f * 0.9) * 6), by = hd.y + 6; R(c, bx - 1, by - 1, 8, 3, P.ink); R(c, bx, by, 6, 1, P.wood); for (var i = 0; i < 6; i += 2) px(c, bx + i, by + 1, P.sand); if (f % 4 < 2) { px(c, bx + 8, by - 3, P.white); px(c, bx - 3, by - 2, P.yellow); } } },
++    care_read: { pose: function (f) { var p0 = NEAR(f); p0.eyes = f % 16 < 2 ? 'blink' : 'open'; return p0; },
++      front: function (c, x, fy, f, cw, ch) { spr(c, x - 4, fy - Math.round(ch * 0.45), BOOK); var t = f % 12; spr(c, x - 10 - t, fy - ch - 4 - Math.floor(t / 2), NOTE); } },
++    care_tuck: { pose: function (f) { var p0 = NEAR(f); p0.eyes = 'happy'; return p0; },
++      back: function (c, x, fy, f, cw, ch, sc) { var bx = A.BUDDY_OUT.x + 2, w = 30; R(c, bx - 1, fy - 12, w + 2, 10, P.ink); R(c, bx, fy - 11, w, 8, sc.accent || P.red); for (var i = 0; i < w; i += 4) px(c, bx + i, fy - 8, P.white); var zs = f % 12; spr(c, bx + 26 + Math.floor(zs / 4), fy - 26 - zs, ZZZ); } },
+     water: { back: function (c, x, fy) { flowerBed(c, x + 12, fy); },
+       front: function (c, x, fy, f, cw, ch) { spr(c, x + Math.round(cw / 2) - 3, fy - Math.round(ch * 0.55), CAN); px(c, x + Math.round(cw / 2) + 5, fy - Math.round(ch * 0.55) + 2 + (f % 3) * 2, P.sky); px(c, x + Math.round(cw / 2) + 7, fy - Math.round(ch * 0.55) + 3 + ((f + 1) % 3) * 2, P.sky); } },
+     workout: { pose: function (f) { return { dy: f % 4 < 2 ? -2 : 0 }; },
+@@ -1525,6 +1545,7 @@
+       cache.relight = sc.indoor ? null : drawLand(cc, sc);
+       if (place === 'library') drawLibrary(cc, sc);
+       else if (place === 'shop') drawShopRoom(cc, sc);
++      else if (A.ROOMS && A.ROOMS[place]) A.ROOMS[place](cc, sc); // 2.2.0: the kitchen and the bathroom
+       else if (sc.indoor) drawRoom(cc, sc);
+       cache.key = key;
+     }
+@@ -1560,7 +1581,8 @@
+     }
+     if (place === 'home' && sc.stage) { if (sc.indoor) roomBoard(L, sc); else yardBoard(L, sc); }
+     if (place === 'home' && sc.indoor && sc.doorOpen) roomDoor(L, sc.house, true); // 2.1.15: the door swings open as he comes or goes
+-    if (place === 'home') { drawBuddy(L, sc); drawMade(L, sc); }
++    if (place === 'home' && !sc.indoor && A.yardLive) A.yardLive(L, sc); // 2.2.0: the campfire
++    if (place === 'home') drawBuddy(L, sc); // 2.2.0: no leftovers: what he made is put away when he's done (drawMade is not used)
+     drawActor(L, sc);
+     if (dim) {
+       L.globalCompositeOperation = 'source-atop';
+@@ -1574,7 +1596,7 @@
+     if (place === 'home' && sc.stage) drone(ctx, sc); // 2.1.13: the Vitals drone (not dimmed at night: its light still shows)
+     // 3. weather in front
+     if (!sc.indoor) weather(ctx, sc, null);
+-    if (sc.flash) { ctx.globalAlpha = Math.min(1, sc.flash); R(ctx, 0, 0, W, H, P.white); ctx.globalAlpha = 1; }
++    if (sc.flash) { var ap0 = A.actorPos(sc), rr = Math.round(10 + (1 - Math.min(1, sc.flash)) * 18); for (var sp0 = 0; sp0 < 12; sp0++) { var an = sp0 / 12 * Math.PI * 2; px(ctx, Math.round(ap0.x + Math.cos(an) * rr), Math.round(ap0.y - 14 + Math.sin(an) * rr * 0.7), sp0 % 2 ? P.yellow : P.white); } } // 2.2.0: a ring of sparkles (no white flash over the whole world)
+   };
+ 
+   var SIL = {};
+@@ -1582,7 +1604,7 @@
+     var k = cv.__sid || (cv.__sid = U.id());
+     if (SIL[k]) return SIL[k];
+     var s = mk(cv.width, cv.height), c = s.getContext('2d');
+-    c.drawImage(cv, 0, 0); c.globalCompositeOperation = 'source-atop'; R(c, 0, 0, s.width, s.height, P.white);
++    c.drawImage(cv, 0, 0); c.globalCompositeOperation = 'source-atop'; R(c, 0, 0, s.width, s.height, P.yellow); // 2.2.0: a warm glow (it was a white flash)
+     SIL[k] = s;
+     return s;
+   }
+@@ -1592,7 +1614,7 @@
+     if (sc.weather === 'rain' || sc.weather === 'storm') {
+       r = U.rng(3);
+       for (i = 0; i < (clip ? 16 : 70); i++) { var rx = x0 + Math.floor(r() * w), ry = y0 + ((Math.floor(r() * h) + sc.f * 5) % h); R(ctx, rx, ry, 1, 3, P.sky); }
+-      if (sc.weather === 'storm' && sc.f % 37 < 2) { ctx.globalAlpha = 0.5; R(ctx, x0, y0, w, h, P.white); ctx.globalAlpha = 1; }
++      if (sc.weather === 'storm' && sc.f % 37 < 2) { var lx = x0 + ((sc.f * 13) % Math.max(1, w - 20)) + 10; line(ctx, lx, y0, lx - 4, y0 + h * 0.25, P.yellow); line(ctx, lx - 4, y0 + h * 0.25, lx + 2, y0 + h * 0.4, P.yellow); ctx.globalAlpha = 0.1; R(ctx, x0, y0, w, h, P.silver); ctx.globalAlpha = 1; } // 2.2.0: a bolt, not a white flash
+     } else if (sc.weather === 'snow') {
+       r = U.rng(5);
+       for (i = 0; i < (clip ? 12 : 50); i++) { var sx = x0 + ((Math.floor(r() * w) + Math.round(Math.sin((sc.f + i) * 0.2) * 2)) % w), sy = y0 + ((Math.floor(r() * h) + sc.f) % h); px(ctx, sx, sy, P.white); }
+
+=================== js/accounts.js
+@@ -14,8 +14,10 @@
+   function touch() {}
+   PN.lockVault = function () {};
+ 
++  AIU.hooks.open.push(function () { VS.cards = null; VS.sig = null; VS.meTried = false; VS.meMaking = false; VS.q = ''; VS.filter = 'All'; if (PN.state) { PN.state.aview = null; PN.state.psub = null; PN.state.doc = null; PN.state.person = null; PN.state.folder = null; } }); // 2.2.0: another profile, other cards
+   PN.accounts = function () {
+     var a = app(), k = K(), mode = a.vaultMode();
++    if (PN.state.aview === 'profile') { ui.panelHead('Accounts', [], null); return AIU.business.profileView(); } // 2.2.0: the profile card's page
+     ui.panelHead('Accounts', [k.btn('+ New', function () { editCard(null); }, 'mini primary'), k.btn('About privacy', moreSheet, 'mini ghost')], null);
+     if (mode === 'none') { body().appendChild(k.empty('This browser can\'t scramble account cards (it needs a secure https page). Open Aiu from https://kodna.net/aiu.')); return; }
+     if (mode === 'plain') return list();
+@@ -23,15 +25,16 @@
+     a.vaultKey().then(function (key) { if (ui.tab !== 'accounts') return; if (key) list(); else askPassword(); });
+   };
+   // A synced Totem: the cards are scrambled with your Aiu password. Each device asks for it once (or uses it from when you logged in).
+-  function askPassword() {
+-    var a = app(), k = K(), p = body(), lock = AIU.core.setting(a.S, 'vaultLock', null), has = Object.keys(a.S.vault || {}).some(function (x) { return !a.S.vault[x].removed; });
++  function askPassword(into, after) {
++    var a = app(), k = K(), p = into || body(), lock = AIU.core.setting(a.S, 'vaultLock', null), has = Object.keys(a.S.vault || {}).some(function (x) { return !a.S.vault[x].removed; });
+     var pw = k.inp({ type: 'password', placeholder: 'your Aiu password', autocomplete: 'current-password', 'aria-label': 'Aiu password' }), m = h('p', { cls: 'formmsg' }), go;
+     go = k.btn(lock ? 'Open my cards' : 'Set up Accounts', function () {
+       if (!pw.value) return k.msg(m, 'Type your Aiu password.', true);
+       k.busy(go, true, 'One moment...');
+-      a.vaultUsePassword(pw.value).then(function () { ui.renderPanel(true); }, function (e) { k.busy(go, false, lock ? 'Open my cards' : 'Set up Accounts'); k.msg(m, e.message, true); });
++      a.vaultUsePassword(pw.value).then(function () { if (after) after(); else ui.renderPanel(true); }, function (e) { k.busy(go, false, lock ? 'Open my cards' : 'Set up Accounts'); k.msg(m, e.message, true); });
+     }, 'primary');
+     pw.addEventListener('keydown', function (e) { if (e.key === 'Enter') go.click(); });
++    if (!into) p.appendChild(AIU.profiles.card()); // 2.2.0: the profile card is always at the top
+     p.appendChild(h('div', { cls: 'pinwrap' }, h('h3', { cls: 'ltitle', text: lock ? 'Open Accounts on this device' : 'Set up Accounts' }),
+       h('p', { cls: 'small', text: 'Your account cards are scrambled with your Aiu password before they sync, so the server can\'t read them. Type your Aiu password once; this device remembers the key (not the password).' }),
+       pw, m, go,
+@@ -76,8 +79,7 @@
+       if (!cards.some(function (c) { return c.key === ME; }) && !VS.meTried) { VS.meTried = true; ensureMe(cards).then(function (made) { if (made) { VS.cards = null; ui.renderPanel(true); } }); }
+       k.clear(p);
+       var me = cards.filter(function (c) { return c.key === ME && !c.locked; })[0];
+-      if (me) p.appendChild(h('button', { type: 'button', cls: 'acard mecard', onclick: function () { viewCard(me); } }, h('span', { cls: 'avatar', text: 'Me' }),
+-        h('span', { cls: 'acbody' }, h('b', { text: me.name || 'Me' }), h('span', { cls: 'small', text: [me.email, me.phone].filter(Boolean).join(' · ') || 'Your own card: name, address, email, phone' })), h('span', { cls: 'tag', text: 'You' })));
++      p.appendChild(AIU.profiles.card()); // 2.2.0: the "Me" card is your profile now (your private details are inside it, under ID)
+       cards = cards.filter(function (c) { return c.key !== ME; });
+       var q = k.inp({ placeholder: 'Search name, username, email...', value: VS.q, 'aria-label': 'Search accounts' });
+       var listBox = h('div');
+@@ -110,6 +112,25 @@
+       draw();
+     }
+   }
++  // 2.2.0: your private details card, drawn inside the profile's ID page (opens the cards first if this device needs the password)
++  PN.meCardInto = function (into) {
++    var a = app(), k = K(), mode = a.vaultMode();
++    if (mode === 'none') { into.appendChild(k.empty('This browser can\'t scramble cards (it needs a secure https page).')); return; }
++    function draw(cards) {
++      k.clear(into);
++      var me = cards.filter(function (c) { return c.key === ME; })[0];
++      if (!me) { if (!VS.meTried) { VS.meTried = true; ensureMe(cards).then(function (made) { if (made) { VS.cards = null; ui.renderPanel(true); } }); } into.appendChild(k.empty('Making your card...')); return; }
++      if (me.locked) { into.appendChild(k.empty('This card was scrambled with an older password. Open Accounts on a device that can still read it.')); return; }
++      var rows = [];
++      [['Name on the card', me.name], ['Email', me.email], ['Phone', me.phone]].concat((me.extra || []).map(function (x) { return [x.k, x.v, x.secret]; })).forEach(function (r) {
++        if (!r[1]) return; rows.push(h('div', { cls: 'item crow' }, h('span', { cls: 'clabel', text: r[0] }), h('span', { cls: 'cval', text: r[2] ? '••••' : r[1] })));
++      });
++      into.appendChild(h('div', { cls: 'mebox' }, rows.length ? rows : k.empty('Nothing filled in yet.'), h('div', { cls: 'row wrap' }, k.btn('Edit my details', function () { editCard(me); }, 'mini primary'), k.btn('Show all', function () { viewCard(me); }, 'mini'))));
++    }
++    into.appendChild(k.empty('Opening...'));
++    if (mode === 'plain') { loadCards().then(draw); return; }
++    a.vaultKey().then(function (key) { if (key) loadCards().then(draw); else { k.clear(into); askPassword(into, function () { VS.cards = null; ui.renderPanel(true); }); } });
++  };
+   function copy(text, label) {
+     var k = K();
+     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { k.snack(label + ' copied.'); }, function () { k.snack('Copy failed. Select the text instead.'); });
+
+=================== js/starter.js
+@@ -14,25 +14,25 @@
+     { key: 'starter-meet', title: 'Meet your Totem', kind: 'main', why: 'Your first quest. Every step checks itself off when you do it. Rename, reorder or delete steps like any quest.', steps: [
+       ['hello', 'Tap your Totem to say hi', function (S, L) { return !!L.petted || S.chat.some(function (e) { return e.type === 'say'; }); }],
+       ['callme', 'Tell it what to call you (Settings)', function (S) { return !!(S.settings.callMe && S.settings.callMe.v); }],
+-      ['quiz', 'Take the personality quiz (Log > Profiles > You)', function (S) { return !!(S.ptype && S.ptype.answered >= ((AIU.persona && AIU.persona.QUIZ.length) || 12)); }],
+-      ['look', 'See your type (Log > Profiles > your name > Profile > Personality)', function (S, L) { return !!(L.seenPersona || (S.settings.seenPersona && S.settings.seenPersona.v)); }]
++      ['quiz', 'Take the personality quiz (Accounts > your profile card > Personality)', function (S) { return !!(S.ptype && S.ptype.answered >= ((AIU.persona && AIU.persona.QUIZ.length) || 12)); }],
++      ['look', 'See your type (Accounts > your profile card > Personality)', function (S, L) { return !!(L.seenPersona || (S.settings.seenPersona && S.settings.seenPersona.v)); }]
+     ] },
+     { key: 'starter-hilltop', title: 'Start the Hilltop habit', kind: 'side', why: 'The daily I Ching reading and journal page. Practical wisdom, not fortune-telling.', steps: [
+-      ['cast', 'Cast your first I Ching reading (Log > Today)', function (S) { return Object.keys(S.reviews || {}).length > 0; }],
++      ['cast', 'Watch Aiu cast your first I Ching reading (Log > I Ching)', function (S) { return Object.keys(S.reviews || {}).length > 0; }],
+       ['time', 'Get two readings in a row (visit Aiu two days running)', function (S) { var r = S.reviews || {}; return Object.keys(r).some(function (d) { return r[AIU.util.addDays(d, 1)]; }); }],
+-      ['story', 'Write your first entry (Log > Today)', function (S) { return (S.journal || []).length > 0; }],
+-      ['direction', 'Finish a tile, then read the Hilltop View at the end of Log > Today', function (S) { return Object.keys(S.tdone || {}).some(function (k) { return S.tdone[k].done; }); }]
++      ['story', 'Write your first entry (Log > Today > Write)', function (S) { return (S.journal || []).length > 0; }],
++      ['direction', 'Finish a tile, then find its sentence in Log > Today (What got done)', function (S) { return Object.keys(S.tdone || {}).some(function (k) { return S.tdone[k].done; }); }]
+     ] },
+     { key: 'starter-gaba', title: 'Aiu Vitals', kind: 'side', why: 'Your Totem\'s health, kept up by calm things you really do (brush your teeth, drink water, take a walk). Let it run down and it gets tired and stops growing.', steps: [
+-      ['calm', 'Check in one calm thing (Profiles > your name > Vitals: answer Yes)', function (S) { return Object.keys(gabaCalm(S)).length > 0; }],
++      ['calm', 'Check in one calm thing (tap the drone in the sky: answer Yes)', function (S) { return Object.keys(gabaCalm(S)).length > 0; }],
+       ['goal', 'Log 3 calm things in one day', function (S) { var n = gabaCalm(S); return Object.keys(n).some(function (d) { return n[d] >= 3; }); }],
+       ['three', 'Get your Vitals to 90% (+10 growth)', function (S) { return Object.keys(S.vitals || {}).length > 0; }]
+     ] },
+     { key: 'starter-organize', title: 'Get organized', kind: 'side', why: 'Lists, the planner, money and accounts, one small step each.', steps: [
+       ['shop', 'Make a shopping list tile and add one thing to get (Quest > + New tile > Shopping list)', function (S) { return AIU.tiles.list(S).some(function (q) { return AIU.tiles.isShop(q) && (q.steps || []).some(function (x) { return !/^example:/i.test(x.title); }); }); }],
+       ['plan', 'Give a tile a day or a repeat, then find it on the Plan', function (S) { return any(S.quests, function (q) { return mine(q) && q.tile && q.tile.when && (q.tile.when.t === 'once' || q.tile.when.t === 'repeat'); }); }],
+-      ['money', 'Log money in or out (Log > Profiles > your name > Profile > Finance)', function (S) { return any(S.plans, function (p) { return !p.removed && (p.kind === 'income' || p.kind === 'expense'); }); }],
+-      ['acct', 'Add your first account card (Accounts: your Me card is already there)', function (S) { return any(S.vault, function (v, k) { return !v.removed && k !== 'v-me'; }) || any(S.accts, function (v, k) { return !v.removed && k !== 'v-me'; }); }]
++      ['money', 'Log money in or out (Accounts > your profile card > Finance)', function (S) { return any(S.plans, function (p) { return !p.removed && (p.kind === 'income' || p.kind === 'expense'); }); }],
++      ['acct', 'Add your first account card (Accounts > + New)', function (S) { return any(S.vault, function (v, k) { return !v.removed && k !== 'v-me'; }) || any(S.accts, function (v, k) { return !v.removed && k !== 'v-me'; }); }]
+     ] },
+     { key: 'starter-own', title: 'Make your own tile', kind: 'side', why: 'You write the tiles; your Totem keeps them in order and asks what it needs.', steps: [
+       ['new', 'Make a tile of your own (Quest > + New tile)', function (S) { return any(S.quests, function (q) { return mine(q); }); }],
+@@ -65,7 +65,7 @@
+     Q.QUESTS.forEach(function (def) {
+       var q = S.quests[def.key]; if (!q || q.state === 'deleted') return;
+       var titles = {}, drop = Q.DROP[def.key] || []; def.steps.forEach(function (st) { titles[st[0]] = st[1]; });
+-      var old = (q.steps || []).some(function (sp) { return titles[sp.id] && titles[sp.id] !== sp.title && /\bLog\b|\bsay\b|tell it|Library|Big quests|Planner > Money|Planner > Self|Planner > I Ching|> Business > You|Quests > Quests|Journal > \+ New entry|Journal > today >|list \(Quests\)|\(Planner > Finance\)|Journal > |\(Finance\)|\(Planner\)|\(Quests\)|own quest|\(or just you\)/i.test(sp.title); });
++      var old = (q.steps || []).some(function (sp) { return titles[sp.id] && titles[sp.id] !== sp.title && /\bLog\b|\bsay\b|tell it|Library|Big quests|Planner > Money|Planner > Self|Planner > I Ching|> Business > You|Quests > Quests|Journal > \+ New entry|Journal > today >|list \(Quests\)|\(Planner > Finance\)|Journal > |\(Finance\)|\(Planner\)|\(Quests\)|own quest|\(or just you\)|Log > Profiles|Profiles > your name|Log > Today\)|Me card is already|Hilltop View at the end/i.test(sp.title); });
+       if (!old && q.title !== 'Make your own quest' && !(q.steps || []).some(function (sp) { return drop.indexOf(sp.id) >= 0; })) return;
+       ev.push({ type: 'quest_set', data: { key: q.key, title: q.title === 'Make your own quest' ? def.title : q.title, why: def.why, kind: q.kind, subject: q.subject, tip: q.tip, due: q.due, steps: (q.steps || []).filter(function (sp) { return drop.indexOf(sp.id) < 0; }).map(function (sp) { return { id: sp.id, title: titles[sp.id] || sp.title }; }) } });
+     });
+
+=================== js/core.js
+@@ -11,7 +11,8 @@
+   var U = AIU.util, Wd = AIU.words;
+   var C = AIU.core = {};
+ 
+-  C.VERSION = 8; // 2.1.6: 8 = Vitals wear down; distressed = no growth (the old Go/Brake quarter-speed rule is gone). 7: 2.1.5: 7 = vitals, and removed GABA entries leave the growth tally.  2.0.8: 5 = game wins (capped). 2.0.6: 4 = finishes and steps pay once (growth rebuilds). 2.0.3: 3 = knows tiles; an older checkpoint rebuilds once from every stored event (a 1.x device may have skipped tile events)
++  C.VERSION = 9; // 2.2.0: 9 = building lessons (+3 once a day per building).
++  // was: C.VERSION = 8; // 2.1.6: 8 = Vitals wear down; distressed = no growth (the old Go/Brake quarter-speed rule is gone). 7: 2.1.5: 7 = vitals, and removed GABA entries leave the growth tally.  2.0.8: 5 = game wins (capped). 2.0.6: 4 = finishes and steps pay once (growth rebuilds). 2.0.3: 3 = knows tiles; an older checkpoint rebuilds once from every stored event (a 1.x device may have skipped tile events)
+   C.HATCH_MS = 0;        // the egg cracks open when you tap Begin
+   C.DAILY_CAP = 30;      // growth per day
+   C.OFFLINE_MS = 5 * 60 * 1000; // events that waited longer than this on a device count as "offline"
+@@ -56,7 +57,7 @@
+   C.pointsFor = function (e) {
+     var d = e.data || {}, txt = textOf(e);
+     switch (e.type) {
+-      case 'journal': return txt.length >= 80 ? 10 : 0;
++      case 'journal': return txt.length >= 80 && !(e.d && e.t && e.d < new Date(e.t - 36e5 * 14).toISOString().slice(0, 10)) ? 10 : 0; // 2.2.0: writing on an earlier day's page doesn't grow Aiu (only today's). UTC-based so every device agrees
+       case 'say': return (txt.length >= 60 && txt.split(/\s+/).length >= 10) ? 5 : 0;
+       case 'remember': return txt.length >= 12 ? 3 : 0;
+       case 'learn': case 'fact': case 'teach': return 3;
+@@ -69,6 +70,7 @@
+       case 'pref': return d.v && d.v !== 'skip' ? 2 : 0;
+       case 'vitals': return 10; // 2.1.6: Aiu Vitals full (90%+) (once a day: see growthStep)
+       case 'game': return d.win ? 1 : 0; // 2.0.8: a mini game win (at most 3 a day count: see growthStep)
++      case 'lesson': return 3; // 2.2.0: a lesson at one of the buildings (once a day per building: see growthStep)
+       case 'pet': return 1; // 10 pets (the app sends at most 3 a day) // 1.1.0: answering one of Aiu's 21 Questions (a puzzle piece)
+       default: return 0;
+     }
+@@ -286,6 +288,17 @@
+         rec = S.lists[list][key] || (S.lists[list][key] = { item: Wd.clean(d.item), done: false, removed: false, t: 0 });
+         if (newer(m, rec.labelM)) { rec.labelM = m; rec.label = String(d.label || '').slice(0, 30); }
+         break;
++      case 'vcustom': // 2.2.0: your own Vitals calm thing (a label and the body part it heals); newest wins
++        if (!d.key) break;
++        var VC = S.vcustom || (S.vcustom = {});
++        if (newer(m, VC[d.key])) VC[d.key] = Object.assign({ key: String(d.key).slice(0, 30), label: String(d.label || '').slice(0, 50), sys: C.VIT.SYS.indexOf(d.sys) >= 0 ? d.sys : 'brain', removed: !!d.removed }, m);
++        break;
++      case 'place': // 2.2.0: the buildings (garage, barn, greenhouse, lab): one small value per key, newest wins
++        if (!d.b || !d.k) break;
++        var PLB = (S.places || (S.places = {}))[d.b] || (S.places[d.b] = {}), pkk = String(d.k).slice(0, 60);
++        if (newer(m, PLB[pkk])) PLB[pkk] = Object.assign({ v: d.v === undefined ? null : d.v }, m);
++        break;
++      case 'lesson': var LS = S.lessons || (S.lessons = {}), lsk = String(d.b || '').slice(0, 20) + '|' + dayOf(e); LS[lsk] = (LS[lsk] || 0) + 1; break;
+       case 'pet': var PD = S.petDays || (S.petDays = {}), pdk = dayOf(e); PD[pdk] = (PD[pdk] || 0) + 1; break; // 2.1.5: the 3-a-day pet points, on every device
+       case 'game': if (d.g && isFinite(+d.score)) { var GB0 = S.gbest || (S.gbest = {}); if (+d.score > (GB0[d.g] || 0)) GB0[d.g] = +d.score; } break; // 2.1.5: best scores sync
+       case 'pref': // 1.1.0: an answer to Aiu's 21 Questions (does lavender calm you? does scrolling rev you up? a personality either/or)
+@@ -441,6 +454,7 @@
+     var once = e.type === 'tile_done' ? day + '|T|' + d0.key + '|' + d0.p : e.type === 'quest_step' ? day + '|S|' + d0.key + '|' + d0.step + '|' + (d0.p || '') : null;
+     if (once) { if (g.seen[once]) return 0; g.seen[once] = 1; }
+     if (e.type === 'pref' && d0.item) { g.pp = g.pp || {}; if (g.pp[d0.item]) return 0; g.pp[d0.item] = 1; } // 2.1.9: an answer pays +2 once; changing it later earns nothing more
++    if (e.type === 'lesson') { var lk = day + '|L|' + String(d0.b || ''); if (g.seen[lk]) return 0; g.seen[lk] = 1; } // 2.2.0: +3 once a day per building
+     if (e.type === 'vitals') { var vk = day + '|V'; if (g.seen[vk]) return 0; g.seen[vk] = 1; }
+     if (e.type === 'game') { var gk = day + '|G'; if ((g.seen[gk] || 0) >= 3) return 0; g.seen[gk] = (g.seen[gk] || 0) + 1; } // 2.0.8: 3 game wins a day grow Aiu, no more
+     var txt = textOf(e).toLowerCase().replace(/\s+/g, ' ');
+@@ -468,7 +482,7 @@
+     S.W = e.seq;
+     var g = S.g, day = dayOf(e);
+     fold(g, day);
+-    var offline = e.off === 1 || (e.rt && (e.rt - e.t) > C.OFFLINE_MS);
++    var offline = !e.imp && (e.off === 1 || (e.rt && (e.rt - e.t) > C.OFFLINE_MS)); // 2.2.0: imported history isn't an offline trip
+     var raw = growthStep(g, e);
+     if (raw) {
+       var gain = raw;
+@@ -508,6 +522,7 @@
+     V.tasks = {};
+     Object.keys(S.tasks).forEach(function (k) { if (S.tasks[k].title) V.tasks[k] = S.tasks[k]; });
+     V.chat = S.recent.filter(function (e) { return !(S.jhide[e.id] && S.jhide[e.id].v); }).map(function (e) { return withEdit(S, e); }); // 1.1.0: any line can be edited or deleted
++    V.vcustom = S.vcustom || {}; V.places = S.places || {}; V.lessons = S.lessons || {}; // 2.2.0
+     V.listMeta = S.listMeta || {}; V.prefs = S.prefs || {}; V.gaba = S.gaba || {}; V.gabaAgg = S.gabaAgg || { calmN: 0, calmPts: 0, stressN: 0, goalN: 0 };
+     V.plans = S.plans || {}; V.planPaid = S.planPaid || {}; V.pdocs = S.pdocs || {}; V.psecs = S.psecs || {}; V.vault = S.vault || {}; V.accts = S.accts || {}; V.cv = S.cv || {}; V.cvItems = S.cvItems || {}; V.cvDocs = S.cvDocs || {}; V.cvTargets = S.cvTargets || {};
+     V.journal = S.journals.filter(function (e) { return !(S.jhide[e.id] && S.jhide[e.id].v); }).map(function (e) { return withEdit(S, e); });
+
+=================== js/panels.js
+@@ -79,7 +79,7 @@
+   function planRange() {
+     var t = today(), f = PN.state.planFrom || t, to = PN.state.planTo || f;
+     if (to < f) { var x = f; f = to; to = x; }
+-    if (U.addDays(f, 41) < to) to = U.addDays(f, 41);
++    if (U.addDays(f, 400) < to) to = U.addDays(f, 400); // 2.2.0: a range can run across months (up to about a year)
+     return { from: f, to: to };
+   }
+   function planView() {
+@@ -89,7 +89,8 @@
+       k.btn('Today', function () { PN.state.planFrom = PN.state.planTo = t; PN.state.planPick = null; PN.state.calMonth = t.slice(0, 7); ui.renderPanel(true); }, 'chip' + (isToday && !picking ? ' on' : '')),
+       k.btn('This week', function () { PN.state.planFrom = wk0; PN.state.planTo = U.addDays(wk0, 6); PN.state.planPick = null; ui.renderPanel(true); }, 'chip' + (isWeek && !picking ? ' on' : '')),
+       k.btn(picking ? 'Tap the last day' : 'Pick days', function () { PN.state.planPick = picking ? null : 'first'; ui.renderPanel(true); }, 'chip' + (picking ? ' on' : ''))));
+-    if (picking) p.appendChild(h('p', { cls: 'small', text: picking === 'first' ? 'Tap the first day.' : 'Now tap the last day.' }));
++    if (picking) p.appendChild(h('p', { cls: 'small', text: picking === 'first' ? 'Tap the first day.' : 'Now tap the last day (use < > to go to another month).' }));
++    else if (rg.from !== rg.to && rg.from.slice(0, 7) !== rg.to.slice(0, 7)) p.appendChild(h('p', { cls: 'small', text: 'Showing ' + PN.nice(rg.from) + ' to ' + PN.nice(rg.to) + ' (' + (Math.round((U.dayToDate(rg.to) - U.dayToDate(rg.from)) / 864e5) + 1) + ' days).' }));
+     calendar(p, rg);
+     // the list: tiles on those days (season tiles once, at the top)
+     var days = []; for (var d = rg.from; d <= rg.to; d = U.addDays(d, 1)) days.push(d);
+
+=================== index.html
+@@ -36,7 +36,7 @@
+ <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+ <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+ <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+-<link rel="stylesheet" href="style.css?v=2.1.15">
++<link rel="stylesheet" href="style.css?v=2.2.0">
+ <title>Aiu Totem</title>
+ </head>
+ <body>
+@@ -61,32 +61,37 @@
+ </script>
+ <div id="app"></div>
+ <noscript><p style="padding:16px">Aiu Totem needs JavaScript turned on.</p></noscript>
+-<script src="config.js?v=2.1.15"></script>
+-<script src="js/util.js?v=2.1.15"></script>
+-<script src="js/store.js?v=2.1.15"></script>
+-<script src="js/core.js?v=2.1.15"></script>
+-<script src="js/art.js?v=2.1.15"></script>
+-<script src="js/persona.js?v=2.1.15"></script>
+-<script src="js/iching.js?v=2.1.15"></script>
+-<script src="js/topics.js?v=2.1.15"></script>
+-<script src="js/hilltop.js?v=2.1.15"></script>
+-<script src="js/gaba.js?v=2.1.15"></script>
+-<script src="js/planner.js?v=2.1.15"></script>
+-<script src="js/vault.js?v=2.1.15"></script>
+-<script src="js/pdf.js?v=2.1.15"></script>
+-<script src="js/tiles.js?v=2.1.15"></script>
+-<script src="js/starter.js?v=2.1.15"></script>
+-<script src="js/mind.js?v=2.1.15"></script>
+-<script src="js/ui.js?v=2.1.15"></script>
+-<script src="js/panels.js?v=2.1.15"></script>
+-<script src="js/questboard.js?v=2.1.15"></script>
+-<script src="js/help.js?v=2.1.15"></script>
+-<script src="js/games.js?v=2.1.15"></script>
+-<script src="js/play.js?v=2.1.15"></script>
+-<script src="js/vitals.js?v=2.1.15"></script>
+-<script src="js/business.js?v=2.1.15"></script>
+-<script src="js/library.js?v=2.1.15"></script>
+-<script src="js/accounts.js?v=2.1.15"></script>
+-<script src="js/app.js?v=2.1.15"></script>
++<script src="config.js?v=2.2.0"></script>
++<script src="js/util.js?v=2.2.0"></script>
++<script src="js/store.js?v=2.2.0"></script>
++<script src="js/core.js?v=2.2.0"></script>
++<script src="js/art.js?v=2.2.0"></script>
++<script src="js/rooms.js?v=2.2.0"></script>
++<script src="js/persona.js?v=2.2.0"></script>
++<script src="js/iching.js?v=2.2.0"></script>
++<script src="js/topics.js?v=2.2.0"></script>
++<script src="js/hilltop.js?v=2.2.0"></script>
++<script src="js/gaba.js?v=2.2.0"></script>
++<script src="js/planner.js?v=2.2.0"></script>
++<script src="js/vault.js?v=2.2.0"></script>
++<script src="js/pdf.js?v=2.2.0"></script>
++<script src="js/tiles.js?v=2.2.0"></script>
++<script src="js/starter.js?v=2.2.0"></script>
++<script src="js/mind.js?v=2.2.0"></script>
++<script src="js/ui.js?v=2.2.0"></script>
++<script src="js/panels.js?v=2.2.0"></script>
++<script src="js/questboard.js?v=2.2.0"></script>
++<script src="js/help.js?v=2.2.0"></script>
++<script src="js/games.js?v=2.2.0"></script>
++<script src="js/play.js?v=2.2.0"></script>
++<script src="js/places.js?v=2.2.0"></script>
++<script src="js/farm.js?v=2.2.0"></script>
++<script src="js/lab.js?v=2.2.0"></script>
++<script src="js/vitals.js?v=2.2.0"></script>
++<script src="js/business.js?v=2.2.0"></script>
++<script src="js/profiles.js?v=2.2.0"></script>
++<script src="js/library.js?v=2.2.0"></script>
++<script src="js/accounts.js?v=2.2.0"></script>
++<script src="js/app.js?v=2.2.0"></script>
+ </body>
+ </html>
+
+=================== sw.js
+@@ -1,8 +1,8 @@
+ /* AIU TOTEM service worker: keeps the app working offline.
+    The Totem's data lives in the browser's database, not in this cache. */
+-var CACHE = 'aiu-2.1.15';
+-var FILES = ['./', 'index.html', 'style.css?v=2.1.15', 'config.js?v=2.1.15', 'js/util.js?v=2.1.15', 'js/store.js?v=2.1.15', 'js/core.js?v=2.1.15',
+-  'js/art.js?v=2.1.15', 'js/persona.js?v=2.1.15', 'js/iching.js?v=2.1.15', 'js/topics.js?v=2.1.15', 'js/hilltop.js?v=2.1.15', 'js/gaba.js?v=2.1.15', 'js/planner.js?v=2.1.15', 'js/vault.js?v=2.1.15', 'js/pdf.js?v=2.1.15', 'js/tiles.js?v=2.1.15', 'js/starter.js?v=2.1.15', 'js/mind.js?v=2.1.15', 'js/ui.js?v=2.1.15', 'js/panels.js?v=2.1.15', 'js/questboard.js?v=2.1.15', 'js/help.js?v=2.1.15', 'js/games.js?v=2.1.15', 'js/play.js?v=2.1.15', 'js/vitals.js?v=2.1.15', 'js/business.js?v=2.1.15', 'js/library.js?v=2.1.15', 'js/accounts.js?v=2.1.15', 'js/app.js?v=2.1.15', 'fonts/aiu-block.woff2', 'fonts/aiu-term.woff2',
++var CACHE = 'aiu-2.2.0';
++var FILES = ['./', 'index.html', 'style.css?v=2.2.0', 'config.js?v=2.2.0', 'js/util.js?v=2.2.0', 'js/store.js?v=2.2.0', 'js/core.js?v=2.2.0',
++  'js/art.js?v=2.2.0', 'js/rooms.js?v=2.2.0', 'js/persona.js?v=2.2.0', 'js/iching.js?v=2.2.0', 'js/topics.js?v=2.2.0', 'js/hilltop.js?v=2.2.0', 'js/gaba.js?v=2.2.0', 'js/planner.js?v=2.2.0', 'js/vault.js?v=2.2.0', 'js/pdf.js?v=2.2.0', 'js/tiles.js?v=2.2.0', 'js/starter.js?v=2.2.0', 'js/mind.js?v=2.2.0', 'js/ui.js?v=2.2.0', 'js/panels.js?v=2.2.0', 'js/questboard.js?v=2.2.0', 'js/help.js?v=2.2.0', 'js/games.js?v=2.2.0', 'js/play.js?v=2.2.0', 'js/places.js?v=2.2.0', 'js/farm.js?v=2.2.0', 'js/lab.js?v=2.2.0', 'js/vitals.js?v=2.2.0', 'js/business.js?v=2.2.0', 'js/profiles.js?v=2.2.0', 'js/library.js?v=2.2.0', 'js/accounts.js?v=2.2.0', 'js/app.js?v=2.2.0', 'fonts/aiu-block.woff2', 'fonts/aiu-term.woff2',
+   'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+ 
+ self.addEventListener('install', function (e) {
+
+=================== config.js
+@@ -4,5 +4,5 @@
+         and remembers the one that works. */
+ window.AIU_CONFIG = {
+   api: 'api.php',
+-  version: '2.1.15'
++  version: '2.2.0'
+ };
+
+=================== api.php
+@@ -1,6 +1,6 @@
+ <?php
+ /*
+- * AIU TOTEM - sync server, PHP edition (2.1.15)
++ * AIU TOTEM - sync server, PHP edition (2.2.0)
+  *
+  * Does exactly what api.cgi (Ruby) does, with the same files on disk, so you can use either one:
+  * PHP runs on every WordPress / DirectAdmin host, Ruby CGI often doesn't. The app tries api.php first,
+@@ -9,6 +9,10 @@
+  * It only: creates accounts, confirms email, resets passwords, and keeps each Totem as a private folder of
+  * plain files (beside public_html, never inside it when the host allows), acting as the "mailbox" for devices.
+  * One live copy of each Totem (no backups). Only "Delete my account" (password + typed phrase) removes it.
++ *
++ * 2.2.0: one account can hold several Aiu profiles (one Totem each). The first profile is the account folder
++ * itself (exactly as before, so nothing moves). Every other profile is its own folder: accounts/<user>/totems/<id>/
++ * with the same files (events.jsonl, meta.json, totem.json, journal/). profiles.json lists their names.
+  */
+ 
+ // ------------------------------------------------------------------ SETTINGS (same names as api.cgi)
+@@ -28,6 +32,7 @@
+ define('MAX_EVENTS_PER_PUSH', 1000);
+ define('MAX_EVENTS_PER_PULL', 3000);
+ define('MAX_EVENT_BYTES', 16000);
++define('MAX_PROFILES', 24);      // Aiu profiles per account (2.2.0)
+ define('PBKDF_ITER', 60000);
+ define('RESET_TTL', 3600);
+ define('LOCK_AFTER', 10);
+@@ -121,6 +126,37 @@
+ }
+ function short_str($s, $max) { return mb_substr(preg_replace('/[\r\n\t]/', ' ', (string) $s), 0, $max, 'UTF-8'); }
+ function acct_dir($u) { return data_dir() . '/accounts/' . $u; }
++// 2.2.0: profiles. '' = the first profile (the account folder itself); others look like t + 8-23 letters/numbers
++function clean_tid($t) {
++  $t = strtolower(trim((string) $t));
++  if ($t === '' || $t === 'main') return '';
++  if (!preg_match('/\At[a-z0-9]{5,23}\z/', $t)) fail(400, 'bad_profile', 'That profile id does not look right.');
++  return $t;
++}
++function totem_dir($u, $tid) { return $tid === '' ? acct_dir($u) : acct_dir($u) . '/totems/' . $tid; }
++function profiles_path($u) { return acct_dir($u) . '/profiles.json'; }
++function read_profiles($u) { $p = read_json(profiles_path($u), array()); return is_array($p) ? $p : array(); }
++function clean_kind($k) { return $k === 'business' ? 'business' : 'personal'; }
++// makes the profile's folder the first time a device syncs it, and keeps its name and kind up to date
++function ensure_profile($u, $tid, $name, $kind) {
++  return with_lock(acct_dir($u) . '/.profiles.lock', function () use ($u, $tid, $name, $kind) {
++    $all = read_profiles($u); $key = $tid === '' ? 'main' : $tid; $changed = false;
++    if ($tid !== '' && !is_dir(totem_dir($u, $tid))) {
++      $n = 0; foreach ($all as $k => $v) if ($k !== 'main' && empty($v['deleted'])) $n++;
++      if ($n + 1 >= MAX_PROFILES) fail(413, 'too_many_profiles', 'This account has the most profiles it can hold (' . MAX_PROFILES . ').');
++      mkdir(totem_dir($u, $tid), 0700, true);
++      write_json(totem_dir($u, $tid) . '/meta.json', array('last_seq' => 0, 'count' => 0));
++      touch(totem_dir($u, $tid) . '/events.jsonl'); @chmod(totem_dir($u, $tid) . '/events.jsonl', 0600);
++    }
++    $rec = isset($all[$key]) && is_array($all[$key]) ? $all[$key] : array('created' => now_ms());
++    if (!empty($rec['deleted'])) fail(410, 'profile_deleted', 'That profile was deleted.');
++    if ($name !== null && $name !== '' && (!isset($rec['name']) || $rec['name'] !== $name)) { $rec['name'] = $name; $changed = true; }
++    if ($kind !== null && (!isset($rec['kind']) || $rec['kind'] !== $kind)) { $rec['kind'] = $kind; $changed = true; }
++    if (!isset($all[$key])) $changed = true;
++    if ($changed) { $all[$key] = $rec; write_json(profiles_path($u), $all, true); }
++    return $rec;
++  });
++}
+ function setup_data_dir() {
+   foreach (array('accounts', 'rate', 'outbox') as $d) { $p = data_dir() . '/' . $d; if (!is_dir($p)) @mkdir($p, 0700, true); }
+   $ht = data_dir() . '/.htaccess';
+@@ -207,6 +243,7 @@
+   $dev = (string) g($e, 'dev', ''); if (preg_match('/\A[A-Za-z0-9_-]{4,64}\z/', $dev)) $ev['dev'] = $dev;
+   if (g($e, 'dn')) $ev['dn'] = short_str(g($e, 'dn'), 40);
+   if (g($e, 'off') === 1) $ev['off'] = 1;
++  if (g($e, 'imp') === 1) $ev['imp'] = 1; // 2.2.0: brought in from a capsule or a device-only Totem (its growth isn't an offline trip)
+   $ev['data'] = $data;
+   return $ev;
+ }
+@@ -224,7 +261,7 @@
+   try { setup_data_dir(); $t = data_dir() . '/.write_test'; $ok = @file_put_contents($t, 'ok') !== false; @unlink($t); } catch (Throwable $e) { $ok = false; }
+   $inside = strpos(realpath(data_dir()) ?: data_dir(), realpath(__DIR__) . '/') === 0;
+   $shop = 0; foreach (glob(SHOP_DIR . '/packs/*/item.json') ?: array() as $f) if (substr(basename(dirname($f)), 0, 1) !== '_') $shop++;
+-  return array('ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'php', 'php' => PHP_VERSION, 'openssl' => function_exists('hash_pbkdf2'),
++  return array('ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'php', 'version' => '2.2.0', 'profiles' => true, 'php' => PHP_VERSION, 'openssl' => function_exists('hash_pbkdf2'),
+     'data_folder_ok' => $ok, 'data_folder_private' => !$inside, 'mail_program_found' => @is_executable(SENDMAIL) || function_exists('mail'),
+     'shop_items' => $shop, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'now' => now_ms());
+ }
+@@ -301,7 +338,10 @@
+ }
+ function act_sync($req) {
+   list($u, $acct, $th) = auth($req);
+-  $dir = acct_dir($u); $now = now_ms();
++  $tid = clean_tid(g($req, 'tid', ''));
++  $pn = g($req, 'pname'); $pk = g($req, 'pkind');
++  ensure_profile($u, $tid, $pn === null ? null : short_str($pn, 40), $pk === null ? null : clean_kind((string) $pk));
++  $dir = totem_dir($u, $tid); $now = now_ms();
+   $since = is_int(g($req, 'since')) ? g($req, 'since') : 0;
+   $incoming = is_array(g($req, 'events')) ? g($req, 'events') : array();
+   if (count($incoming) > MAX_EVENTS_PER_PUSH) fail(413, 'too_many', 'Too many events at once.');
+@@ -367,6 +407,44 @@
+   with_lock(data_dir() . '/accounts/.signup.lock', function () use ($u) { rm_rf(acct_dir($u)); });
+   return array('ok' => true);
+ }
++// 2.2.0: the account's profiles (name, kind, how far its Totem has grown)
++function act_profiles($req) {
++  list($u, $acct, $th) = auth($req);
++  $all = read_profiles($u); if (!isset($all['main'])) $all['main'] = array('created' => $acct['created']);
++  $out = array();
++  foreach ($all as $k => $v) {
++    if (!is_array($v) || !empty($v['deleted'])) continue;
++    $tid = $k === 'main' ? '' : $k;
++    if ($tid !== '' && !preg_match('/\At[a-z0-9]{5,23}\z/', $tid)) continue;
++    $dir = totem_dir($u, $tid); if (!is_dir($dir)) continue;
++    $snap = read_json($dir . '/totem.json', array()); $meta = read_json($dir . '/meta.json', array('count' => 0));
++    $out[] = array('tid' => $tid, 'name' => isset($v['name']) ? $v['name'] : '', 'kind' => isset($v['kind']) ? $v['kind'] : 'personal', 'created' => isset($v['created']) ? $v['created'] : 0,
++      'totem' => isset($snap['name']) ? $snap['name'] : '', 'stage' => isset($snap['stage_name']) ? $snap['stage_name'] : '', 'events' => isset($meta['count']) ? (int) $meta['count'] : 0);
++  }
++  return array('ok' => true, 'profiles' => $out);
++}
++function act_profile_set($req) {
++  list($u, $acct, $th) = auth($req);
++  $tid = clean_tid(g($req, 'tid', ''));
++  $pn = g($req, 'pname'); $pk = g($req, 'pkind');
++  $rec = ensure_profile($u, $tid, $pn === null ? null : short_str($pn, 40), $pk === null ? null : clean_kind((string) $pk));
++  return array('ok' => true, 'profile' => $rec);
++}
++// deleting one profile (not the first one: that is the account itself) needs the password and a typed phrase
++function act_profile_delete($req) {
++  list($u, $acct, $th) = auth($req);
++  $tid = clean_tid(g($req, 'tid', ''));
++  if ($tid === '') fail(400, 'main_profile', 'The first profile is the account itself. Use Delete my account instead.');
++  if (!check_pw($acct['pw'], g($req, 'pw', ''))) fail(401, 'bad_password', 'Your password is wrong.');
++  if ((string) g($req, 'phrase', '') !== 'DELETE PROFILE') fail(400, 'bad_phrase', 'Type the confirmation phrase exactly.');
++  with_lock(acct_dir($u) . '/.profiles.lock', function () use ($u, $tid) {
++    $all = read_profiles($u);
++    rm_rf(totem_dir($u, $tid));
++    $all[$tid] = array('deleted' => now_ms());
++    write_json(profiles_path($u), $all, true);
++  });
++  return array('ok' => true);
++}
+ function act_shop() { // folders you upload by hand: aiu/shop/packs/<item>/item.json + item.png (the shop is on hold in the app)
+   $items = array(); $problems = array(); $cats = array('hat', 'toy', 'backdrop', 'house', 'decor', 'activity');
+   $dirs = glob(SHOP_DIR . '/packs/*') ?: array(); sort($dirs);
+@@ -417,7 +495,7 @@
+     $req = $body === '' ? new stdClass() : json_decode($body, false, 64, JSON_BIGINT_AS_STRING);
+     if (!is_object($req)) fail(400, 'bad_json', 'Bad request.');
+     $acts = array('ping' => 'act_ping', 'signup' => 'act_signup', 'resend' => 'act_resend', 'login' => 'act_login', 'forgot' => 'act_forgot', 'reset' => 'act_reset',
+-      'sync' => 'act_sync', 'me' => 'act_me', 'password' => 'act_password', 'logout' => 'act_logout', 'delete_account' => 'act_delete_account', 'shop' => 'act_shop');
++      'sync' => 'act_sync', 'me' => 'act_me', 'profiles' => 'act_profiles', 'profile_set' => 'act_profile_set', 'profile_delete' => 'act_profile_delete', 'password' => 'act_password', 'logout' => 'act_logout', 'delete_account' => 'act_delete_account', 'shop' => 'act_shop');
+     $an = (string) g($req, 'a', '');
+     if (!isset($acts[$an])) fail(404, 'unknown', 'Unknown action.');
+     $res = call_user_func($acts[$an], $req);
+
+=================== api.cgi
+@@ -10,6 +10,10 @@
+ #
+ # There is one live copy of each Totem (no backups). Only "Delete my account" (password + typed phrase) removes it.
+ #
++# 2.2.0: one account can hold several Aiu profiles (one Totem each). The first profile is the account folder itself
++# (as before, so nothing moves). Every other profile is accounts/<user>/totems/<id>/ with the same files.
++# profiles.json lists their names. Same files and answers as api.php, so either server can take over.
++#
+ # ------------------------------------------------------------------ SETTINGS
+ # Change these if your server is different. Leave the ENV parts alone.
+ APP_URL   = ENV['AIU_APP_URL']   || 'https://kodna.net/aiu/'          # where index.html lives (used in emails)
+@@ -34,6 +38,7 @@
+ MAX_EVENTS_PER_PUSH = 1000
+ MAX_EVENTS_PER_PULL = 3000
+ MAX_EVENT_BYTES     = 16_000
++MAX_PROFILES        = 24 # Aiu profiles per account (2.2.0)
+ PBKDF_ITER  = 60_000
+ RESET_TTL   = 3600          # seconds a reset link stays valid
+ LOCK_AFTER  = 10            # failed logins before a 15 minute lock
+@@ -54,7 +59,7 @@
+ end
+ 
+ STATUS_TEXT = { 200 => 'OK', 400 => 'Bad Request', 401 => 'Unauthorized', 403 => 'Forbidden', 404 => 'Not Found',
+-                405 => 'Method Not Allowed', 409 => 'Conflict', 413 => 'Payload Too Large', 429 => 'Too Many Requests',
++                405 => 'Method Not Allowed', 409 => 'Conflict', 410 => 'Gone', 413 => 'Payload Too Large', 429 => 'Too Many Requests',
+                 500 => 'Internal Server Error' }.freeze
+ 
+ def status_line(status)
+@@ -173,6 +178,63 @@
+   File.join(DATA_DIR, 'accounts', u)
+ end
+ 
++# 2.2.0: profiles. '' = the first profile (the account folder itself); others look like t + 5-23 letters/numbers
++TID_RE = /\At[a-z0-9]{5,23}\z/
++def clean_tid(t)
++  t = t.to_s.strip.downcase
++  return '' if t.empty? || t == 'main'
++  fail!(400, 'bad_profile', 'That profile id does not look right.') unless t =~ TID_RE
++  t
++end
++
++def totem_dir(u, tid)
++  tid.empty? ? acct_dir(u) : File.join(acct_dir(u), 'totems', tid)
++end
++
++def profiles_path(u)
++  File.join(acct_dir(u), 'profiles.json')
++end
++
++def read_profiles(u)
++  p = read_json(profiles_path(u), {})
++  p.is_a?(Hash) ? p : {}
++end
++
++def clean_kind(k)
++  k.to_s == 'business' ? 'business' : 'personal'
++end
++
++def ensure_profile(u, tid, name, kind)
++  with_lock(File.join(acct_dir(u), '.profiles.lock')) do
++    all = read_profiles(u)
++    key = tid.empty? ? 'main' : tid
++    changed = false
++    if !tid.empty? && !File.directory?(totem_dir(u, tid))
++      n = all.count { |k, v| k != 'main' && v.is_a?(Hash) && !v['deleted'] }
++      fail!(413, 'too_many_profiles', "This account has the most profiles it can hold (#{MAX_PROFILES}).") if n + 1 >= MAX_PROFILES
++      FileUtils.mkdir_p(totem_dir(u, tid), :mode => 0o700)
++      write_json(File.join(totem_dir(u, tid), 'meta.json'), { 'last_seq' => 0, 'count' => 0 })
++      File.open(File.join(totem_dir(u, tid), 'events.jsonl'), 'a', 0o600) {}
++    end
++    rec = all[key].is_a?(Hash) ? all[key] : { 'created' => now_ms }
++    fail!(410, 'profile_deleted', 'That profile was deleted.') if rec['deleted']
++    if name && !name.empty? && rec['name'] != name
++      rec['name'] = name
++      changed = true
++    end
++    if kind && rec['kind'] != kind
++      rec['kind'] = kind
++      changed = true
++    end
++    changed = true unless all.key?(key)
++    if changed
++      all[key] = rec
++      write_json(profiles_path(u), all)
++    end
++    rec
++  end
++end
++
+ def setup_data_dir
+   %w[accounts rate outbox].each { |d| FileUtils.mkdir_p(File.join(DATA_DIR, d), :mode => 0o700) }
+   ht = File.join(DATA_DIR, '.htaccess')
+@@ -304,6 +366,7 @@
+   ev['dev'] = e['dev'].to_s if e['dev'].to_s =~ DEV_RE
+   ev['dn'] = short_str(e['dn'], 40) if e['dn']
+   ev['off'] = 1 if e['off'] == 1 # made while the device was offline
++  ev['imp'] = 1 if e['imp'] == 1 # 2.2.0: brought in from a capsule or a device-only Totem
+   ev['data'] = data
+   ev
+ end
+@@ -334,7 +397,7 @@
+   end
+   inside_web = File.expand_path(DATA_DIR).start_with?(File.expand_path(__dir__) + '/')
+   shop_items = Dir.glob(File.join(SHOP_DIR, 'packs', '*', 'item.json')).reject { |f| File.basename(File.dirname(f)).start_with?('_') }.length
+-  { 'ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'ruby' => RUBY_VERSION,
++  { 'ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'ruby', 'version' => '2.2.0', 'profiles' => true, 'ruby' => RUBY_VERSION,
+     'openssl' => defined?(OpenSSL) ? true : false, 'data_folder_ok' => ok_dir,
+     'data_folder_private' => !inside_web, 'mail_program_found' => File.executable?(SENDMAIL),
+     'shop_items' => shop_items, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'now' => now_ms }
+@@ -454,7 +517,9 @@
+ 
+ def act_sync(req)
+   u, _acct, th = auth!(req)
+-  dir = acct_dir(u)
++  tid = clean_tid(req['tid'])
++  ensure_profile(u, tid, req['pname'].nil? ? nil : short_str(req['pname'], 40), req['pkind'].nil? ? nil : clean_kind(req['pkind']))
++  dir = totem_dir(u, tid)
+   now = now_ms
+   since = req['since'].is_a?(Integer) ? req['since'] : 0
+   incoming = req['events'].is_a?(Array) ? req['events'] : []
+@@ -557,6 +622,48 @@
+   { 'ok' => true }
+ end
+ 
++# 2.2.0: the account's profiles (name, kind, how far its Totem has grown)
++def act_profiles(req)
++  u, acct, _th = auth!(req)
++  all = read_profiles(u)
++  all['main'] ||= { 'created' => acct['created'] }
++  out = []
++  all.each do |k, v|
++    next unless v.is_a?(Hash) && !v['deleted']
++    tid = k == 'main' ? '' : k
++    next unless tid.empty? || tid =~ TID_RE
++    dir = totem_dir(u, tid)
++    next unless File.directory?(dir)
++    snap = read_json(File.join(dir, 'totem.json'), {})
++    meta = read_json(File.join(dir, 'meta.json'), { 'count' => 0 })
++    out << { 'tid' => tid, 'name' => v['name'] || '', 'kind' => v['kind'] || 'personal', 'created' => v['created'] || 0,
++             'totem' => snap['name'] || '', 'stage' => snap['stage_name'] || '', 'events' => meta['count'].to_i }
++  end
++  { 'ok' => true, 'profiles' => out }
++end
++
++def act_profile_set(req)
++  u, _acct, _th = auth!(req)
++  tid = clean_tid(req['tid'])
++  rec = ensure_profile(u, tid, req['pname'].nil? ? nil : short_str(req['pname'], 40), req['pkind'].nil? ? nil : clean_kind(req['pkind']))
++  { 'ok' => true, 'profile' => rec }
++end
++
++def act_profile_delete(req)
++  u, acct, _th = auth!(req)
++  tid = clean_tid(req['tid'])
++  fail!(400, 'main_profile', 'The first profile is the account itself. Use Delete my account instead.') if tid.empty?
++  fail!(401, 'bad_password', 'Your password is wrong.') unless check_pw(acct['pw'], req['pw'])
++  fail!(400, 'bad_phrase', 'Type the confirmation phrase exactly.') unless req['phrase'].to_s == 'DELETE PROFILE'
++  with_lock(File.join(acct_dir(u), '.profiles.lock')) do
++    all = read_profiles(u)
++    FileUtils.rm_rf(totem_dir(u, tid))
++    all[tid] = { 'deleted' => now_ms }
++    write_json(profiles_path(u), all)
++  end
++  { 'ok' => true }
++end
++
+ # ------------------------------------------------------------------ shop (folders you upload by hand)
+ # Each shop item is a folder: aiu/shop/packs/<item-id>/item.json + item.png
+ # Folders that start with "_" (like shop/_templates) are ignored. Nothing here can be changed from the app.
+@@ -627,6 +734,7 @@
+   'ping' => :act_ping, 'signup' => :act_signup, 'resend' => :act_resend, 'login' => :act_login,
+   'forgot' => :act_forgot, 'reset' => :act_reset, 'sync' => :act_sync, 'me' => :act_me,
+   'password' => :act_password, 'logout' => :act_logout, 'delete_account' => :act_delete_account,
++  'profiles' => :act_profiles, 'profile_set' => :act_profile_set, 'profile_delete' => :act_profile_delete,
+   'shop' => :act_shop
+ }.freeze
+ 
+

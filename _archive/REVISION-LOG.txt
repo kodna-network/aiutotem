@@ -1,0 +1,805 @@
+AIU TOTEM - REVISION LOG
+========================
+Nothing is ever deleted for good. When something leaves the app it lands here, in _archive,
+with a note on what it was and how to bring it back.
+
+
+1.1.0  (October 8, 2026)  "the big reorganize"
+-----------------------------------------------
+Why: 1.0.5 felt crowded. Too much scrolling, four tabs that didn't match how the app gets used,
+chat lines you couldn't fix, and voice bugs (repeating itself, voice changes not sticking).
+
+NEW MENU                         WHERE THE 1.0.5 PIECES WENT
+  Log (was Talk)                   Talk chat + quick answers. Now every line can be fixed,
+                                   edited, deleted (Undo) or heard again.
+  Quests (lists)                   1.0.5 Quests > Lists (to-do, shopping) became the main view.
+                                   1.0.5 Quests > Quest log / Ideas / Done -> Quests > Big quests.
+                                   1.0.5 Quests > Today -> Planner > Agenda.
+                                   1.0.5 Quests > Reminders & routines -> Planner > Reminders.
+  Planner (new)                    Agenda, Calendar, Business, Money, Self, I Ching, Reminders.
+  Library                          Today's page + the Journal archive (year > season > month >
+                                   day) replace the 1.0.5 Journal / Chapters sections.
+                                   Search moved into Library > Journal.
+                                   Topics, Weekly recaps, Questions, Remembered, Glossary,
+                                   Time capsules, Hidden pages -> Library > More.
+                                   Personality -> Planner > Self (with GABA, new from the GABA
+                                   Explorer). Library > Log = every day's conversation.
+  I Ching                          Planner > I Ching: the cast, the daily cast time (was Settings >
+                                   Reminders, still there too) and every past reading.
+  Accounts (new)                   Phone book of accounts, scrambled with your Aiu password.
+
+ARCHIVED (in this folder)
+  llm-plugin-ai/                   The plug-in AI (1.0.5 aiu/llm/hilltop-prompt.txt). The settings
+                                   screen and "Copy for any AI" / "Ask my AI" buttons were taken out
+                                   of js/ui.js and js/app.js (see aiu-1.0.5-code for that code).
+                                   js/hilltop.js still has H.PROMPT / H.promptData() and old pages
+                                   keep their saved "AI view".
+  shop-1.0.5/                      The whole 1.0.5 aiu/shop folder: 26 starter items (packs/),
+                                   the item templates and HOW-TO (_templates/), preview.html.
+  aiu-1.0.5-code/                  The 1.0.5 code as it was: index.html, style.css, sw.js and js/.
+                                   The Shop screen is shopPanel() in js/ui.js; the old Quests and
+                                   Library screens are questHome() and libraryPanel() there.
+  The original full 1.0.5 zip is still next to this folder: aiu-totem-1.0.5.zip.
+
+STILL IN THE CODE BUT NOT SHOWN
+  - Shop functions in js/app.js (loadCatalog, buy, cacheAsset, equip, tryActivity). They keep
+    hats, toys, houses and activity packs you already own showing on Aiu.
+  - Coins are still counted (growth minus spent) in js/core.js; nothing shows them.
+  - The server still answers api.cgi?a=shop. If the shop folder isn't there it lists nothing.
+
+TO BRING THE SHOP BACK
+  1. Copy shop-1.0.5/ back to aiu/shop/ (and upload it).
+  2. In js/ui.js add ['shop', 'Shop'] to TABS and an ICONS entry, and add a PN.shop panel
+     (port shopPanel() from aiu-1.0.5-code/js/ui.js; it used els.panel the same way).
+  3. In js/app.js sceneState(), let place be 'shop' when ui.tab === 'shop' (the shop scene art
+     is still in js/art.js).
+
+CHANGED BEHAVIOR (on purpose)
+  - "Tap text to hear it" is gone: it fired by accident while scrolling and made Aiu repeat
+    things. Use "Hear it" on a Log line, or "Hear it" in I Ching.
+  - Voice input waits 3 seconds in the text box before sending (Settings > Voice & listening >
+    "When you talk to Aiu" > "Send right away" restores the 1.0.5 behavior).
+  - Chat edits and deletes use new event types line_edit / line_hide, so the server's journal
+    mirror (aiu_data/.../journal/*.md) only gets real journal pages, not chat fixes.
+
+NEW EVENT TYPES (the Totem's DNA; older shells ignore them safely)
+  list_meta, list_label, gaba, plan, plan_paid, pdoc, psec, vault, line_edit, line_hide,
+  acct, cv_item (resume entries), cv_doc (outreach drafts), cv_target.
+  Business folders: pdoc kinds 'profile' and 'person' (sections = form fields).
+  Settings: ckind (creature type: auto / ghost / dragon / robot / beast / plant / aqua / bug /
+  golem / flame / classic).
+  Settings: vaultLock (the salt + a check value for the card key; never the password or the key).
+
+MORE 1.1.0 CHANGES (after the first review)
+  - The 4-digit PIN for Accounts was dropped (your Aiu login and your phone's lock are enough).
+    Cards on a synced Totem are scrambled with a key from your Aiu password instead (vault.js).
+    The PIN version is kept as vault-pin-1.1.0-draft.js in this folder.
+  - No automatic I Ching cast or personality quiz for new Totems: starter quests (starter.js).
+    Totems that already cast keep their 8:00 AM reading.
+  - Speech bubble: short + X, or off. Voice: off until you turn it on. Follow-up questions: one.
+  - Money: cash flow chart, T-chart, net worth (new planner kinds: asset, debt).
+  - New event types: acct (device-only cards), and planner kinds asset / debt.
+
+KNOWN LIMITS / POINTS OF FAILURE (1.1.0)
+  - Accounts: the cards are only as safe as your Aiu password. A device keeps the key (not the
+    password) in its browser storage; anyone who can unlock your phone and open Aiu can read
+    them. Forgot the password and no device still opens the cards = they stay locked.
+  - Changing the password on one device: the others ask for the new password once.
+  - Fixing a misheard line fixes the line and Aiu answers again, but anything Aiu already filed
+    from the old words (a topic answer, a list item) stays as it was: fix those where they live.
+  - GABA notices only things you say you DID ("I went for a walk", "had an energy drink"), not
+    plans. It can still guess wrong; delete any line in Library > GABA > Today's log.
+  - Monthly and yearly planner items don't pop up as reminders (the reminder system only does
+    once / daily / weekdays / weekends / some weekdays). Aiu mentions bills due in the next 3 days
+    in its greeting once a day, and the Agenda lists them.
+  - PDFs use the PDF viewer's built-in font, so emoji and non-Latin letters are dropped.
+  - iPhone home-screen app: the PDF opens in a preview; use Share > Save to Files or Print.
+  - Big business documents: each section holds up to 15,000 characters (the server limits one
+    event to 16 KB). Split very long sections in two.
+
+FINAL 1.1.0 CHANGES (after the second review)
+  - Menu: Log, Quests, Planner, Library, Accounts. The I Ching menu moved into Planner (with
+    Self = Personality + GABA, and Business). Library = Today, Journal, Log, More.
+  - Business planner (js/business.js, from KODNA's BizNet planner): profile form, People with
+    role cards and resumes (import .txt/.docx/.pdf), documents that fill in from the profile,
+    and Outreach drafts (elevator pitch, cold email, follow-up, capability statement / cover
+    letter). The 1.1.0-draft business folders (notes-only documents) open with a new profile.
+  - Plug-in AI removed (archived). Aiu is guardrailed: the Log takes a log entry or a quest
+    entry (two buttons); talk that fits nowhere gets "log entry or quest entry?"; questions it
+    can't answer get "that's outside what I do"; it asks for what it needs each day (log entry,
+    quest progress, a calm thing). 21 Questions and one follow-up question stay on (Settings >
+    Voice & listening > Follow-up questions: one / many / none).
+    Tried and dropped during review: bare "Heard." / "Mm-hm." acknowledgments.
+    Next idea (not built yet): 21 Questions + the personality quiz as "puzzle pieces" Aiu needs
+    to reach 100% and level up.
+  - Creature types (js/art.js typed()): nine types, original pixel designs, each evolving from
+    a round baby to a standing form with wings/armor/crown. The 1.0.5 generator is classic() in
+    the same file and still used for Settings > Creature type > Classic.
+  - Upgrading from 1.0.5: your Totem gets a creature type from its egg (pick Classic to keep the
+    old look), the starter quests, but no "Example:" items when your lists already have things.
+
+KNOWN LIMITS (added)
+  - Resume import reads text PDFs and Word files; scanned PDFs (pictures of text) come back
+    empty: paste the text instead. The sorting is a best guess: check the fields after.
+  - Outreach drafts fill in [brackets] for anything the profile doesn't have yet.
+
+1.1.0 FINAL ROUND (October 8, 2026, after hands-on testing): "no chat"
+  Why: the Log was more to look at than it was worth. Three things to do (journal, quests,
+  accounts), and a game around them (GABA, the personality quiz, 21 Questions) that grows Aiu.
+  - Menus: Quests, Planner, Journal (was Library), Accounts. The Log tab is gone.
+    Its screen (talkPanel, pendingChips, refreshChat, lineActions in js/ui.js) and Aiu's whole
+    conversation engine (js/mind.js, js/topics.js, js/butler.js) are still in the code, unused,
+    ready to come back. Old conversations show on each Journal day ("Conversation that day").
+  - Aiu reacts with emotes and emoji only (app.react in js/app.js). app.speak is switched off
+    (app.dev.talkWords brings words back). The microphone only dictates a journal entry.
+  - Journal: search + table of contents + one page per day; "More" became the notebook.
+    The year > season > chapter tree is gone from the screen (month/year PDFs replace it).
+  - Planner: Agenda + Calendar + Reminders became one Schedule tab.
+  - GABA side quests (a card under Aiu when the bar leans Go or nothing calm happened yet).
+  - 21 Questions (new event type: pref): GABA likes/dislikes and an avoid list, plus 12 extra
+    personality either/or questions (persona.js P.EXTRA). +2 growth per answer.
+  - Personality quiz is 12 taps (ui.quizSheet), not a conversation.
+  - Starter quests reworded (no "say ..."); existing ones are reworded once (starter.js retitle).
+  - "Big quests" are just "Quests".
+  - Tried and dropped during review: Log entry / Quest entry buttons, "what do you need?",
+    bare "Heard." acknowledgments, the guardrail chat replies (all still in js/mind.js).
+  - Money moved into Business as FINANCE, per entity: You (personal, SSN) and each business
+    (EIN, address type). Planner items carry the entity in their existing "folder" field
+    ('' = you; older items are personal). Business rename moves its books. New pdoc kind
+    'personal' (folder '@me') for your own profile; it keeps only the last 4 of the SSN.
+
+1.1.0 LAYOUT FIX (October 9, 2026, after the phone test video)
+  - The fixed full-screen layout (html.fullapp, inner-scrolling .pbody) is replaced by one
+    scrolling page (html.page3): sticky header, Aiu, the work area, a menu pinned at the bottom.
+    The old CSS rules are still in style.css, overridden at the end of the file.
+  - All font sizes are rem; Text size sets the root size (16 / 19 / 23 px) instead of zooming
+    only the panel. Labels, tabs, menu and buttons use the Term font, not the 8px Block font.
+  - Meters moved into the scene; the status line, tracked-quest line and text labels under Aiu
+    are gone (the status is still read to screen readers).
+  - Pet = hearts + new event type 'pet' (+1 growth per 10 pets, max 3 a day).
+  - Speaker button fixed: it was tied to the retired voice setting, so it always showed muted.
+    It now means sound + voice. app.readAloud for journal pages, entries and the reading.
+  - 21 Questions GABA cards became quest offers (gaba.js G.offer). A quest made from one has
+    subject 'gaba:calm|avoid|food:<item>'; finishing it logs the GABA thing.
+  - Fix (Oct 9, MSI Claw test): the suggestion card never went away after Yes / Not today / No
+    thanks / X, because a layout rule beat the [hidden] attribute. "No thanks" is now "Never";
+    a Never can come back once after 90 days, only when there is nothing new to suggest.
+  - The bounty board (ui.js boardItems / gabaNudge): the bar under Aiu is never empty; items in
+    priority order with Next (loops). New scene activity 'board' (art.js bountyBoard) that Aiu
+    does about once an hour (app.js tickBoard / checkBoard), then the board restarts.
+  - All leftover tiny label sizes are bumped (generated block at the end of style.css).
+
+1.1.0g STRESS DRIFT (October 9, 2026)
+  - gaba.js: G.driftAt(t) = 3 points an hour after 8 am (to 10 pm); G.bar subtracts it (past days
+    the full 42). G.RED = 30, G.stressed(S, day). New calm acts: Walk the dog, Brush teeth, Drink a
+    glass of water, Eat a real meal (with offers and as daily basics in the goals).
+  - core.js growthStep keeps a confirmed per-day GABA tally (g.gb); a non-GABA growth event that
+    lands while that day's bar is under 30 counts x0.25. Old days are dropped on fold.
+  - art.js grumpy pose + storm cloud (sc.stressed); app.js 'stressed' emotes; ui.js board item
+    at the top when stressed, red pulsing meter, growth sheet explains it; Self > GABA explains drift.
+  - Cache 1.1.0g.
+
+1.1.0h MENUS AND AIU'S WORLD (October 9, 2026, after the menu walk-through)
+  - Quests: tabs Quests + Lists (panels.js allLists / listSection). One add box with an "Add to"
+    list picker (PN.state.listFocus); old sub names (to-do, shopping, a list key) open Lists.
+    The old one-list view (listView) is still in panels.js, unused.
+  - Planner: Schedule, Finance, Business. Finance has entity chips (PN.state.fent; PN.openFinance).
+    Business no longer has a Finance chip (a "Finance ›" link instead); You (personal) is profile only.
+    Old subs 'money' -> finance; 'self' and 'iching' redirect to the Journal.
+  - Journal: tabs Today, Pages, I Ching, Me (library.js todayView, JSUBS). Today = 4 steps
+    (reading, Go/Brake, write/talk with prompts, read today's page; local.pageSeen). Journal sheet
+    takes opts.prompt. Me = the old Planner > Self view. All links and starter-quest wording
+    point to the new places (starter retitle runs once more: local.starterV2 = 3).
+  - ui.js renderPanel: a ticked checkbox no longer delays the redraw (it counted as "typing").
+  - Scene (art.js): fishing always has water at the line (hole / ice hole) + bucket + a catch every
+    16 s. New base activities kite, bubbles, build, butterfly, sandcastle (need: sand), snowman
+    (need: snow); app.js pickActivity checks need against biome/season. app.madeToday replays
+    today's 20-minute slots from 6 am; drawMade puts those creations in the yard (or room).
+  - Cash flow chart no longer overflows at the largest text size.
+  - Cache 1.1.0h.
+
+1.1.0i LAYOUT, NO EMOJI, BUSINESS SET ASIDE (October 9, 2026 evening, after a play-through)
+  - ui.js main: the bottom rail is gone. .world holds the stage, nav.menu5 (5 menus) and
+    section.cpanel (the board .nudge, the banner and .psub, the menu's pages as icon buttons).
+    The work area (.panel2) follows. New menu 'finance' (PN.finance is now the Finance panel;
+    the old helper is PN.financeInto). panelHead shows one action and puts the rest in "More".
+  - Planner = schedule only (old subs redirect). Business view is unreachable but kept
+    (business.js unchanged); Finance shows business books only if plan items have a folder.
+    planSheet "Whose books" only shows when such books exist. Starter step 'biz' is removed
+    from existing quests once (starter.js Q.DROP, local.starterV2 = 4).
+  - No emoji: ui.pix(name) draws pixel icons (PIX table); EMOTES/KIND_PET use icon names;
+    ui.bubble(icon, label); board items, journal steps, list titles and cards use icons.
+  - gaba.js G.DRIFT 3 -> 1.5.
+  - The first main screen scrolls to the top; startHatch scrolls up too.
+  - Quests: no Main/Side/Idea picker when adding (change it on the quest); lists have no Options
+    buttons (tap the list's name).
+  - Cache 1.1.0i.
+
+2.0.0 THE SCRUM BOARD (October 10, 2026)
+  - 1.1.0i code archived in _archive/aiu-1.1.0i-code.
+  - New js/tiles.js (engine: pieces, butler rules, occurrences, ranking, upgrade) and js/questboard.js
+    (board, tile view, when sheet, question cards). Tiles reuse the quest events; new event types
+    'tile' {key, set:{status, when, who, dur, acct, calm}} (newest wins per field) and 'tile_done'
+    {key, p, undone} (+5 growth). core.js applies both; S.tdone.
+  - Header: nav.hicons (Quest, Plan, Log, Accounts + the Settings gear with a sync dot). The menu row,
+    control panel, name/stage/sync pill and mute button are gone from the screen (Settings has them).
+  - Aiu's pick (ui.js boardItems) is one list with one link per line: ringing reminder, stress,
+    bills, today's items, top 5 ranked tiles, Aiu's tile offer, today's Log entry, two evergreens.
+    ui.showReminder / showReview no longer pop up; they refresh the pick line.
+  - Plan: calendar + reminders (tiles on the calendar, season ranges); + Add sheet.
+  - Log: Today / Journal / Profiles (library.js). Profiles = business.js folders (You + businesses)
+    with piece checks, question cards (askField; Skip remembered per device) and Finance inside.
+  - Inventory = a shopping tile (rule 'shop': finishing removes checked steps; never "done";
+    ranked only when something is left to get). 1.x lists are migrated once per device with fixed
+    keys (inventory, todo-<item>); list UI retired (code kept in panels.js).
+  - Starter: 'todo' step dropped, wording updated (local.starterV2 = 5), "Make your own tile".
+  - Cache 2.0.0, config version 2.0.0.
+
+2.0.1 INSTRUCTIONS AND ONE PDF MAKER (October 10, 2026)
+  - New js/help.js: AIU.help.BOOK (chapters), help.sheet() (Settings > Instructions), help.doc() (PDF).
+  - Settings > Save as PDF (ui.js settings): checkboxes per part (local.pdfPick, local.pdfRange),
+    combined into one PDF with page breaks. Builders exposed: PN.questsDoc (now the tile board),
+    PN.agendaDoc, PN.journalDoc(days, label) (async), PN.readingsDoc, PN.gabaDoc, PN.moneyDoc,
+    AIU.business.packetPdf / peopleDocs, PN.cardsDoc (needs the "I understand" tick).
+  - PN.pdfBtn returns nothing now, so no screen shows a PDF button; the Accounts "Save all cards as
+    PDF" and the outreach draft PDF buttons moved into the maker. Old single-PDF code is kept.
+  - Cache 2.0.1.
+
+2.0.2 (October 10, 2026)
+  - Settings > Save as PDF: journal range 'custom' with From / To dates (local.pdfFrom / pdfTo).
+  - tiles.js: the 'account' rule has no 'acct' piece (the card-linking code stays, unused).
+  - Generic sample text: tile, list, business and account placeholders, the Inventory examples
+    (milk, bread), the instructions book, GABA idea options (no named places or animals).
+  - Cache 2.0.2.
+
+2.0.3 REVIEW FIXES + FULL SCREEN (October 10, 2026)
+  - Independent code review; fixes verified by test/t23.py (18 checks).
+  - core.js C.VERSION 3 (older checkpoints rebuild once; harmless with no live users yet).
+  - tiles.js: T.stepId (unique step ids), T.monthDay (real month end), repeats that start later
+    are not due, shopping tiles always "clear bought" on finish, finishing marks the tile's
+    reminder done (repeats) or turns it off (one-time).
+  - questboard.js: 'Set aside' filter + Restore; rename/set aside/delete carry the tile-<key>
+    reminder (with Undo); finish() is a no-op when already done; setWhen reactivates a finished
+    tile that becomes a repeat; note on which repeats can ring.
+  - ui.js: ui.go clears jday/jview for Log sub links; wording (Settings sound, notebook path);
+    ui.worldFull (Fullscreen API, iPhone fallback = fixed full-page stage; Esc and fullscreenchange exit).
+  - business.js: B.folders adds orphan business books; personal profile key 'me-personal'.
+  - app.js: 2.0 upgrade waits for a good sync on synced Totems; capsule quests.json has tile pieces.
+  - Cache 2.0.3.
+
+2.0.4 TILES IN THE DAILY LOG (October 10, 2026)
+  - library.js PN.tileLog(S, day): built from the state (quest.first, tileM per field, setM,
+    qsteps, tdone, stateM); shown in Log > Today ("Tiles today"), the day page ("Tiles"), the
+    Journal row count, read aloud and PDF pages. Days with tile activity appear in the Journal.
+    Changes made in the same moment as a finish (within 0.6 s) count as the finish; automatic
+    "Doing" status and example items are left out. Tile steps moved out of the day's "Done" list.
+  - tile_done carries items for shopping tiles (core.js keeps them).
+  - Cache 2.0.4.
+
+2.0.5 SEVERAL TIMES A DAY + PET LINE (October 10, 2026)
+  - tiles.js: when.times (sorted HH:MM list, daily repeats); T.times, T.nowHM; occurrence slot
+    period 'YYYY-MM-DD@HH:MM' (the latest time already reached, else the first); T.taskKeys /
+    T.taskKey ('tile-<key>', 'tile-<key>~2'...); finishing marks only that time's reminder;
+    "Morning and night" answer (08:00, 21:00).
+  - questboard.js: when sheet with a list of times (+ Another time); setWhen keeps one reminder
+    per time; rename / set aside / delete / restore handle all of them; next-time text.
+  - ui.js editReminder: optional second time (key~2). Aiu's pick: pet line shows pets left and
+    hides after a point (local.petAt) or 3 points a day; standing lines hide for the hour once
+    tapped (local.everDone); "All caught up" if nothing is left.
+  - Cache 2.0.5.
+
+
+2.0.6 TRAFFIC LIGHT STATUS + POINTS PAY ONCE (October 10, 2026)
+  - tiles.js: T.STATUS is three lights: next = Go (green), doing = Doing (yellow), done = Done
+    (red, stop). T.LIGHT maps them to colors. The old 'backlog' status now reads as Go (nothing
+    deleted from stored data; it simply shows green). Inventory upgrade uses 'next'.
+  - questboard.js: the 4-part status bar became a light switch (.lights): tap green / yellow /
+    red. Red finishes the tile; green from red takes the finish back. Each tile card has its
+    lamp in the corner; filters are All / Go / Doing / Done / Repeats / Set aside.
+    Checking a step sends the tile's period (p) with quest_step.
+  - core.js growthStep: a tile finish (key + period) and a step check (key + step + period) pay
+    once a day. Start it again / Not done after all / flipping the light / unchecking and
+    rechecking no longer farm growth. C.VERSION 4 so growth rebuilds with the rule.
+  - ui.js: Aiu's pick says "Go: <tile>" (was Up next / In the backlog). help.js updated.
+  - Cache 2.0.6.
+
+2.0.7 ONE STATUS EVERYWHERE (October 10, 2026)
+  - panels.js: Plan rows for tiles carry the tile's traffic light. Today it's a button: green >
+    yellow > red (finished) > green, the same status as inside the tile (PN.setLight). Other
+    days show the light without changing it. A tile with several times a day has one row per
+    time, each with its own light (only the current time can be tapped). A tile's own reminder
+    no longer shows as a second row on the day list (planItems); it's still in Reminders.
+  - questboard.js: PN.setLight(q, to) shared by the tile view and the Plan; finish returns a promise.
+  - tiles.js: T.tileOfTask (which tile a reminder belongs to), T.NEXTLIGHT.
+  - app.js reminderDone: Done on a ringing tile reminder finishes the tile (and checks the reminder).
+  - Cache 2.0.7.
+
+2.1.0 THE TRAVEL BUDDY AND THE MINI GAMES (October 10, 2026)
+  - art.js: the travel buddy in the yard (A.BUDDIES horse / ghost / dog / cat / conjure; A.buddyOf picks one
+    by the egg), wearing gear (A.GEAR saddle / collar / backpack / nothing; A.gearOf picks a fit). Indoors the
+    buddy stays out and a computer on a desk is the hub. A.hubRect for taps, A.drawBuddyAt for reuse.
+    Alignment marks: a halo (Light) or little horns (Shadow). The conjure is an original star spirit.
+  - app.js: app.alignment() from the last 7 days of Go / Brake points (Light = calm leads 2:1 with 20+,
+    Shadow = revved up leads 2:1 with 20+, else Balanced). app.view keeps the camera (zoom) for tap mapping.
+    sceneState carries buddy, gear, align.
+  - ui.js: tapping the buddy / computer opens the games (ui.hubHit); a hidden "Mini games" button for
+    keyboards; Settings > Travel buddy and Buddy gear; an Aiu's pick line points to the games.
+  - games.js (new): the hub and seven games, all drawn in code: Slice (40 s fruit rush), Wilds (quick
+    turn-based battle with timed hits and blocks, element types), Wilds Cup (3 rounds + champ), Spar (box
+    your Aiu: jab, block, counter), Dash (foot race with hurdles), Fling (45 s ragdoll throw through the
+    valley forest into the treasure cave), Drop (build a drone, deliver the package to the board, land).
+  - core.js: event 'game' {g, win, score}: a win is +1 growth, at most 3 a day (counted in growthStep, so
+    it can't be farmed). C.VERSION 5.
+  - help.js: Mini games chapter. style.css: game frame, hub cards, drone builder. Cache 2.1.0.
+
+2.1.1 CLEANER TILES, A TODAY BADGE, THE GABA STANDUP, iPHONE FIT (October 10, 2026)
+  - iPhone: viewport-fit=cover removed and the home-screen status bar is solid ("black"), so Safari's
+    floating bars and the clock no longer sit over the page; more room under the last button.
+  - Tiles: + New tile asks the kind: Task list or Shopping list (tile.kind; core accepts 'kind').
+    A task list finishes by itself when its last box is checked; the red light is locked until then;
+    no Done button while boxes are left (tiles with no boxes keep Done). Shopping lists keep Done shopping.
+    Undo: a snack right after finishing, and "Undo complete" on every finished tile (also the green light
+    on a red tile). tile_done now remembers the checked boxes (steps), the last box (last) and a shopping
+    list's items (list), so undo puts things back; restored boxes carry the same period, so they never
+    pay twice. Rename / Set aside / Delete moved to the bottom of the tile.
+  - No auto Inventory tile: the 1.x upgrade only makes one ("Shopping") when an old shopping list had
+    items. The starter step now asks you to make a shopping list tile. ui.go('inventory') opens your
+    first shopping list.
+  - No "More" menus anywhere: the header keeps one button; the others sit in a row under it (.pextra).
+    Accounts' More is now "About privacy".
+  - Aiu's pick line is gone (archived in this log). In its place: the Today badge in Aiu's world (top
+    right): a count of only what matters today (a ringing reminder - it turns red and pulses -, bills due,
+    today's plan, tiles due today, the I Ching, the GABA standup). Tap for the list; Hide for today.
+    No filler lines, no stress lines, no 21-question offers popping up.
+  - The daily GABA standup (Log > Today, and from the badge): once a day, your Go / Brake now and how
+    yesterday ended, and ONE brake for today from your daily picks: I'll do it (a calm tile for today,
+    no questions), Another idea, Not today. Stored as the synced setting 'standup'.
+  - Settings: the Totem name and "It calls you" save by themselves on Done / Enter / leaving the box
+    (the Save names button could be missed while the iPhone keyboard was up). Every setting was tested.
+  - Cache 2.1.1.
+
+2.1.2 THE DAILY HILLTOP: ONE STANDUP, THREE PARTS (October 10, 2026)
+  - One daily standup instead of three: 1 Cast (the I Ching in one line, Read more for the whole reading),
+    2 Look back and ahead (yesterday's tiles finished, entries and Go / Brake next to what you expected;
+    How did it go: As planned / Partly / Off track; today's one focus; what you expect tomorrow; a trajectory
+    line over the last week), 3 Brake (one calm thing for today). In Log > Today it replaces the separate
+    I Ching and GABA standup sections; the Today counter shows one "Daily Hilltop" item until all three are
+    done (the separate I Ching and standup items are gone).
+  - Answers live on the day pages (jpage fields): 'went' on yesterday's page, 'priorities' (focus) and
+    'carry' (tomorrow) on today's, 'look' = done. They sync like the rest of the journal.
+  - The day page (Journal) and its PDF are short now: the Daily Hilltop (reading, how it went, focus,
+    expected for tomorrow), entries, tiles, done, GABA, your own notes. The long auto page (whole terrain,
+    continuity, loose ends, practical plan) is archived in _archive/hilltop-page-2.1.1.
+  - Fix: Read more opens the whole reading. The sheet shows the reading as soon as the coins land.
+  - Cache 2.1.2.
+
+2.1.3 iPHONE: NO ZOOM OR HIGHLIGHT WHILE PLAYING (October 10, 2026)
+  - Games: touch-action none, no text selection, no long-press menu, no tap highlight inside the game frame;
+    the viewport is locked (no pinch / double-tap zoom) while a game is open and restored when it closes;
+    quick second taps can't zoom (buttons excluded so Close and Play again always work).
+  - Aiu's world: fast petting taps never zoom, and every tap still counts as one pet.
+  - The whole app: double-tap zoom off (pinch zoom still works outside the games).
+  - Cache 2.1.3.
+
+2.1.4 SLICE ON THE BEACH (October 10, 2026)
+  - Slice: the fruit are now seashells (scallop, conch, clam) and tree logs (oak, birch), each with an outline
+    and a cut face (pearl for shells, wood for logs). The bombs are the rainbow egg from the first screen,
+    fading through the colors (frames made once, pixel by pixel). The table is a beach with waves and foam.
+    Gentler start: one item per wave for the first 8 seconds, and a missed wave costs one heart at most.
+  - Cache 2.1.4.
+
+2.1.5 PLAN, TODAY, PROFILE AND AIU VITALS; THE WORLD REARRANGED; A BIG CLEAN-UP (October 10, 2026)
+  - Plan: only the calendar and the tiles on the picked day(s). Today by default; tap a day, This week,
+    or Pick days (first and last). No add buttons (make tiles in Quest), no reminder list.
+  - Log > Today: the date, the Daily Hilltop (the cast), Today's entry, Tiles today (folded) and Aiu's
+    Hilltop View (its overview: yesterday done / missed, still waiting, today left, Vitals, journal streak).
+    Gone: Look back and ahead, the Go / Brake section, the whole-page button. All parts fold.
+  - Profiles: your folder carries your name; two pages: Profile (About you, Personality, "Aiu knows you %"
+    with the personality questions, Finance) and Aiu Vitals. GABA and Ideas pages are gone.
+  - Aiu Vitals (vitals.js): five body systems (Brain, Heart, Arms & legs, Gut, Rest) fed by calm things;
+    each fills at 10 points; all five = 100% = +10 growth once a day ('vitals' event). The brain shows the
+    Go / Brake gauge. The daily suggestion (Yes / Not today / Never) lives here. LOG and INFO tabs.
+    Drawn in the app's own colors.
+  - Looks: Settings > Color (Classic, Green, Blue, Red) with Light / Dark / device. Settings > World view.
+  - The world: a toolbar above the picture (meters, Today counter, door, full screen); no zoom button: the
+    close-up frames the yard (house door, buddy, Aiu). The buddy stands by the house, mirrored to face Aiu;
+    Aiu has the right side; the computer sits under the window. The door asks Aiu inside / outside for
+    30 minutes (bedtime still wins). Tap the buddy: Games / Pet / Snack / Water; Aiu also pets it, gives it
+    a bone and fills its water bowl on his own (no points).
+  - Data: removed GABA entries now leave the growth tally (stress no longer lingers); one rule logs calm
+    tiles (every finish, repeating tiles too, once a day); the Vitals coach is a synced setting; the 3-a-day
+    pet points, game best scores, profile skips and "seen your type" now sync. C.VERSION 7.
+  - Redundancy: one cast button (the Daily Hilltop), the cast time only on the I Ching page, one Sync now,
+    no dead PDF buttons (Settings > Save as PDF is the one way), one route to Vitals.
+  - Clean-up: the dictionary (11 MB), butler and chat screens archived; ~60 functions nothing called
+    (lists UI, old renderers, chat) moved to _archive/dead-code-2.1.5; 177 dead CSS rules archived;
+    one U.today(); the games use the world's pixel tools (A.kit). The app folder is 1.3 MB (was 12.5 MB).
+  - Getting-started tiles updated for the new places. Cache 2.1.5.
+
+
+2.1.6 AIU VITALS ON THEIR OWN; CHECK-INS; DISTRESS; CALMERS IN PROFILE (October 10, 2026)
+  - Tiles and Vitals are separate: finishing a calm tile no longer logs GABA (app.js gabaQuestsDone
+    archived to vitals-2.1.5/app.gabaQuestsDone.js); tile texts and the "calm when stressed" ranking gone.
+  - Vitals levels (core.js C.VIT): each of the five parts is a 0-100 level that wears down ~45 a day.
+    A calm check-in adds 50 to its part (gaba event data.sys). Everyone starts at 70.
+    Under 25 on average = distressed: no growth except the check-ins themselves (replaces the old
+    quarter-speed Go / Brake rule). 90%+ = the 'vitals' reward, +10 once a day. C.VERSION 8 (rebuilds).
+  - Vitals screen (vitals.js rewritten; 2.1.5 copy in vitals-2.1.5/): one question at a time, lowest
+    part first and your own calmers first, time of day aware. Yes / Not yet (Make a tile, prefilled,
+    or Skip for today on this device). Tap a part to check in something else. LOG = today's check-ins
+    and the week; INFO = how it works. The Go / Brake gauge and the Go / mixed grids are gone.
+  - Profile: "knows you" asks personality and calm / stress questions in one stream (Yes / No / Skip),
+    no tile offers. New "What calms you (and what stresses you)" lists with Change. Stressors are noted only.
+  - Distressed in the world: Aiu slumps with heavy eyelids, a sweat drop and a sigh (the storm cloud
+    is archived); the V meter (was G) shows the Vitals average and goes red; the Today counter adds
+    "Aiu is worn out". The buddy's halo / horns follow your week of check-ins.
+  - The journal coach only checks in calm things now (Settings > Vitals from my journal).
+  - gaba.js: the Go / Brake bar, brake levels, streaks, tile offers and suggestions archived
+    (vitals-2.1.5/gaba.go-brake-engine.js). The PDF "Vitals log" lists check-ins.
+  - Help, getting-started tiles and the Hilltop View updated. Cache 2.1.6.
+
+
+2.1.7 PLAY WITH AIU AND THE BUDDY; NEW BUDDIES; SURPRISE EVOLUTIONS; SETTINGS AND PROFILE CLEAN-UP (October 10, 2026)
+  - play.js (new): the care bar under the world (tap the buddy): Snack (a treat flies in on an arc, the
+    buddy catches and munches it), Water (drops splash the bowl, it laps), Games, and Tummy / Water meters.
+    Full: a trick (jump, spin, roll over, dance) or a nap instead. Rub = drag side to side (the world now
+    allows only up/down page scrolling over it). Levels are per device and empty over a few hours. No points.
+    The old Games / Pet / Snack / Water sheet and app.buddyCare are archived (_archive/ui.buddyMenu-2.1.5.js).
+  - Aiu: tap = a trick (hop, spin, jump, dance; never the same twice in a row); rub = wiggle (counts as
+    petting); worn out = a yawn and a one-question Vitals sheet. The world draws faster only while you play.
+  - Buddies (art.js): Bear Dog, penguin, eagle and parrot (on a post). A.NOGEAR: ghost, conjure and birds
+    never show gear, and the gear setting hides for them. The egg still only picks the first five buddies.
+  - Evolutions: no stage preview in Settings; C.formSeedAt: crossings after Oct 11 2026 roll a new seed
+    from the egg, the stage, the day and the strongest Vitals part. Earlier forms keep their seeds.
+  - Vitals: C.VIT.GRACE (3 days) before a new Totem can be distressed (core and screen agree).
+  - Settings: five folded groups (Aiu & buddy, Look & sound, Reminders weather & time, Account & data,
+    Help & about); Developer appears after 5 taps on the version. Reminder sound: picking plays only that
+    sound, "Off" plays nothing, and Off no longer silences other sounds. Aiu's voice: babble (default,
+    pitched by his seed and stage), a real device voice (picker shown only then), or silent. Reading
+    your own pages aloud still uses a real voice. Full screen moved here.
+  - Profile > About you removed (archived: _archive/business.about-you-2.1.6.js). Accounts makes a "Me"
+    card (key v-me, scrambled), moves any old About-you values into it and empties the plain copy. The
+    Me card is pinned on top and can't be deleted; it doesn't tick the "first account card" starter step.
+  - World toolbar: growth + Vitals in one chip (red outline when distressed); full screen button only
+    shows while in full screen (to leave it).
+  - Games: Slice combos +2 s each extra slice (up to +40 s); Fling gems +3 s, every 5 coins +1 s (up to +45 s).
+  - Help updated. Cache 2.1.7.
+
+
+2.1.8 FIX: AIU TWITCHING (October 11, 2026)
+  - app.js sceneState: when a door request (or 2.1.6's buddy menu) put Aiu in the other place than his
+    scheduled activity, the stand-in activity was picked with app.f % 2, so it flipped between 'butterfly'
+    and 'workout' every frame (different spot, facing and hat each frame) for up to 30 minutes. Now one is
+    picked per 10-minute block. Seen on a brand-new account's test run (iPhone). Cache 2.1.8.
+  - Door button removed (archived: _archive/ui.door-button-2.1.7.js); app.requestPlace stays, unused.
+  - One move at a time: Aiu's tap tricks and the buddy's moves (jump, spin, roll, dance, nap) finish before
+    the next starts; taps during a move only add hearts and petting. A happy hop never cuts off a trick.
+
+
+2.1.9 JOURNAL SUMMARY, SEARCH AND GLOSSARY; PROFILE WITHOUT TABS; CHANGE YOUR ANSWERS (October 11, 2026)
+  - library.js: Aiu's notebook removed (archived: _archive/library.notebook-2.1.8.js, with the 2.1.8 Journal
+    page). New Journal page: PN.journalSummary (rebuilt whenever the Totem changes: overview and streak,
+    I Ching repeats / recent themes / leaning mode / changing lines, most-used words and new ones this week,
+    tiles finished and steps this week, Vitals check-ins, overdue tiles, words with no tile, a nudge to
+    write), Contents (sort + "which days" filter), Search (all words must be on the day; entries, notes,
+    reading names/themes, check-ins; Search button, Enter/Go, Clear), Glossary (PN.wordCounts, names kept
+    capitalized; tap to search), Hidden entries (moved from the notebook).
+  - business.js: no Profile / Vitals chips; Vitals only via the meter (PN.openVitals) with "< Back". The
+    "Vitals" piece left the folder card.
+  - PN.answersInto: every persona and calm/stress answer, newest first, tap another to change it.
+    Quiz sheet: "< Back" and "*" on last time's answers. core.js: a 'pref' answer pays +2 only once per
+    question (g.pp); the pending-growth scratch now copies g.pp and the Vitals state.
+  - ui.js / style.css: the meter chip spans the toolbar, a leaf icon for Vitals; .pacts min-height so
+    Plan / Finance headers match Quest; "Quest" title. Help updated. Cache 2.1.9.
+
+
+2.1.10 HATCHING CLEANED UP; THE I CHING CAST BY HAND (October 11, 2026)
+  - app.pet / ui sceneTap / rubbing: while S is still an egg or app.hatching runs, a tap only wobbles the egg
+    (mode 'eggtap', a knock). Before, taps during the 2.8 s hatch played tricks, hearts and counted pets.
+  - New activity 'newborn' (art.js; never picked at random): for 10 minutes after you see the hatch
+    (app.local.bornAt, set in checkStage) Aiu looks left and right between the two eggshell halves.
+    Before, he went straight to his scheduled hobby (fishing).
+  - I Ching: tickReading no longer casts on a timer (it only shows a reading cast on another device).
+    The "Daily cast time" setting is gone. ui.castSheet: three coins (crypto random), six tosses, coin flip
+    animation, the hexagram builds bottom-up (changing lines red). app.finishCast saves the 'review' from
+    your own lines (I.fromLines). The old automatic cast is kept as app.autoCast (unused).
+  - Today counter: no "cast today's reading" item. Starter step "Pick a daily cast time" became "Cast two
+    days in a row". Help updated. Cache 2.1.10.
+
+
+2.1.11 THE BOUNTY BOARD; THE I CHING CASTS ITSELF WHEN AIU IS FREE; DEVICE NAME AND TIME (October 11, 2026)
+  - art.js: a permanent yard board (A.BOARD_OUT, x 98) and a room corkboard (A.BOARD_IN) carry the Today count
+    (pixel digits, 9+, a blinking red pin while ringing); A.boardRect for taps. Aiu's hourly "board" visit walks
+    to it. The old per-visit board drawing is archived (_archive/art.bountyBoard-2.1.10.js). The yard easel moved
+    right (+55) and the birdhouse to x 178 to make room.
+  - ui.js: the badge left the toolbar (it still computes; app.boardInfo feeds the scene); tapping the board
+    opens "Bounty board: today"; a screen-reader button carries the count.
+  - I Ching: tickReading casts on its own when castReady(): no mode/trick, no play, no forceAct, no open
+    sheet, not in the 10 newborn minutes, and 4 s since your last tap. The reading is castFor(egg, day) (fixed
+    for the day). 15 s ritual; no desktop notification. 2.1.10's hand-toss sheet archived
+    (_archive/iching.hand-cast-2.1.10.js). Taps on Aiu don't interrupt the toss.
+  - Device names: Phone / Tablet / Computer (by touch and screen size); old automatic names are replaced.
+    Time: U.setZone(null) always (this device's clock and zone); the Time zone picker is gone; the city is
+    weather only. The server clock correction (over 2 min off) stays. Cache 2.1.11.
+
+
+2.1.12 THE WHEN PICKER (October 11, 2026)
+  - tiles.js: a repeat can be { every: 'days', days: [0-6], step: 1|2 } (T.dayOn, T.multi, T.daysText); occurrence,
+    onDay and whenText know it; several times a day work on picked days too. Old week / 2 weeks / month
+    tiles keep working (opening one shows its weekday picked).
+  - questboard.js: whenPicker (On a date / Repeat / Any time, plus A season for seasonal tiles) replaces the
+    When sheet (archived: _archive/questboard.whenSheet-2.1.11.js) and the answer chips in Aiu's question.
+    Reminders follow the picked days. Help updated. Cache 2.1.12.
+
+
+2.1.13 THE VITALS DRONE; ANY-TIME TILES ON THE BOARD; RENAME / ARCHIVE / DELETE (October 11, 2026)
+  - art.js: a drone in the sky (indoors near the ceiling), lit by the Vitals average / distress; A.droneRect.
+  - ui.vitalsPop: the Vitals screen as a pop-up (V.view takes a redraw; check-ins, parts and tabs redraw it;
+    "Make a tile" and "What calms me" close it first). PN.openVitals and the leaf bar open it.
+  - Board: tiles with When = Any time are listed until done; the sheet lost "Hide for today".
+  - Tile footer: Rename / Archive / Delete, equal widths on one line; "Set aside" became "Archived"
+    everywhere it shows. Help updated. Cache 2.1.13.
+
+
+2.1.14 SHARE CARD AND METADATA (October 11, 2026)
+  - index.html head only (no on-page changes): a clearer meta description, application-name, author, robots,
+    canonical https://kodna.net/aiu/, Open Graph (title, description, url, image 1200x630 with alt, locale),
+    X/Twitter summary_large_image, schema.org WebApplication JSON-LD (free, KODNA), a 32 px favicon.
+  - icons/og-image.png: rendered from the app's own art (the yard: cabin, buddy, bounty board, Aiu, drone)
+    with the title in the app's pixel fonts. icons/favicon-32.png from the 192 icon.
+  - manifest: id, lang, categories, fuller description. Cache 2.1.14.
+
+
+2.1.15 ACCOUNT SERVER IN PHP; A PAT, NOT A TRICK; IN AND OUT OF THE HOUSE; MORE TO DO (October 11, 2026)
+  - api.php: a PHP twin of api.cgi (same actions, same JSON, same files in aiu_data: account.json with the
+    same PBKDF2-SHA256 hashes, tokens.json, meta.json, events.jsonl lines, totem.json, journal/*.md, outbox,
+    rate). Either server can take over from the other. Data folder beside public_html, or aiu/aiu_data (with a
+    deny .htaccess) when the host won't let PHP write there. ping reports "server":"php".
+  - app.api: tries config's server, then the other one, when a reply isn't Aiu's JSON (a host error page, a
+    404, CGI not running); remembers the one that answered (localStorage aiu-api). The error names both
+    status codes and the ping link. config.js: api.php. sw.js leaves api.php alone. .htaccess: CGI lines off.
+  - Pat: app.pet = a heart + a music-box note (ui.pat, a 'note' pixel icon), happy eyes (sc.pat), beep
+    'musicbox' plays the next two notes of a little tune. No trick or yawn. aiuRub: hearts, no wiggle.
+    react(): happy eyes instead of a hop for good news.
+  - Trips: app.houseTap / app.trip (wait -> walk -> through the door -> arrive). Waits for app.busyNow()
+    (a mode, the I Ching toss, evolving, hatching); a second tap while waiting cancels, while walking turns
+    him back (dir 'back'). Inside: a front door (art.js roomDoor, A.DOOR_IN, opens as he passes). Sets
+    app.placeReq for 30 minutes, like the old door button. A.houseRect, ui.houseHit, sceneState.walk /
+    doorOpen, drawActor walks him (tools stay put). The I Ching toss waits for a trip too.
+  - Activities: a day deck (dayDeck: shuffled per egg and day; a new hobby is in it twice, half a deck apart,
+    for 3 days) instead of a dice roll every 20 minutes. Build / sandcastle / snowman progress over the
+    20-minute visit (buildStage); a bird moves into the finished birdhouse. New base activities: journal,
+    tidy, puzzle (in), birdwatch (out).
+  - Close-up view removed (the whole world only; dev.zoom forced off). Log > Today: one Daily Hilltop card
+    with the Hilltop View inside; "Tiles today" -> "Tile log". Settings: Theme / Which look, no Hear button,
+    no "Add another account" on a device-only Totem ("Use another account" when signed in).
+  - Removed code: _archive/removed-2.1.15.txt. Help: new chapter "Account server"; pats, trips, hobbies.
+    Tests t58 (both servers + fallback), t59 (pat, trips), t60 (variety). Cache 2.1.15.
+
+2.2.0 PROFILES; THE BOOK; VITALS CHECKLIST; ROOMS; PLACES (GARAGE, BARN, GREENHOUSE, LAB); DELIVER (October 14, 2026)
+  - Server (api.php + api.cgi, identical behavior, tested against each other): optional tid on sync;
+    accounts/<u>/totems/<tid>/ (meta.json, events.jsonl); profiles.json; actions profiles, profile_set,
+    profile_delete (password + "DELETE PROFILE", leaves a deleted marker; sync answers 410); MAX_PROFILES 24;
+    clean_event keeps imp:1 (imported events don't count as an offline trip). ping: version 2.2.0, profiles:true.
+  - app.js: profile ids u:name (the account, tid '') and u:name#tNNN; device-only groups (grp). openProfile
+    resets every per-profile runtime flag and runs AIU.hooks.open. One login token for every profile in the
+    account. newProfile / renameProfile / deleteProfile / fetchProfiles / groupPids / forgetGroup.
+    Capsules: exportCapsule (one), exportAllCapsule (aiu_totem/profiles/NN-name/...), importCapsule (into this
+    profile, imp flag), importNewProfiles (as new profiles; vault events dropped, account cards re-added).
+  - profiles.js (new): the profile card at the top of Accounts, switcher, new/edit sheets.
+    business.js: B.profileView (ID / Documents / Finance / Personality), résumé template, People and Outreach
+    UI removed (data kept), "Make it its own profile" for old business folders.
+  - library.js rewritten: Today (stamp, entry, sentence tile log via PN.tileLog), Book (years > months >
+    days, search), Glossary, My story (summary + whole book + PDF, title/author settings), I Ching
+    (Translation / Interpretation / Suggestions). Backdated entries (draft.day) don't grow Aiu (core: UTC rule).
+  - I Ching: readingShown(day) gates every view; autoCast at midnight, first cast HATCH_CAST_MS after hatching;
+    a cast from another device replays its toss here first. Board waits for today's reading.
+  - vitals.js: one screen, Back = undoLast, checklist resets at midnight (doneToday), vcustom events (own
+    calm things + body part), Make a tile / LOG / INFO removed. careBuddy: a calm check-in makes Aiu do the
+    matching care_* activity for the buddy (duration from points).
+  - rooms.js (new): kitchen (Korean, retro gas range), bath (Japanese), firepit, outhouse with moon door;
+    activities cookpan, foodprep, tea, dishes, brushteeth, bath, hibachi, laptop, bugnet, weedwhack, fetch,
+    laundry; A.ROUTINE time windows. sceneState puts Aiu in a room while an indoor room activity runs.
+    drawMade no longer called (he cleans up). Hatch/evolve white overlay -> sparkle ring; lightning gentler.
+  - places.js (new): icon row under the world (SVG pixel icons, aria-labels, a dot when something waits),
+    the visit overlay (.bov), PL.orderPuzzle, PL.quiz, 'place' events (newest wins per key) and 'lesson'
+    events (+3 once a day per building; core C.VERSION 9 so growth rebuilds the same on every device).
+    Garage: vehicles, weekly job plan per vehicle, max 3 open, diag only with none open, advanced toggle,
+    shop manual, vehicle sprites. farm.js (new): barn (7 animals, unlock by chore days) and greenhouse
+    (4 pots, 6 stages, care questions, harvest/seed saving, hand crosses F1/F2, seed swap box).
+    lab.js (new): 5 tracks, 3 cards a day, levels, "try it" cards.
+  - games.js: Deliver (paper route + passengers) using the garage ride; hub card and icon.
+  - ui.js: welcome/login/signup import rows, sound switch in Look & sound, full-screen option removed,
+    location section rewritten (saved line, Enter/blur, Census address lookup via JSONP), PDF section,
+    buddy name. panels.js: Pick days across months (up to 400 days). dict/places.txt: ~30 small towns.
+  - Removed code: _archive/removed-2.2.0.txt (diffs) and _archive/2.2.0-replaced/ (whole 2.1.15 library.js,
+    vitals.js, business.js, help.js). Help rewritten for 2.2.0 (Profiles, the book, I Ching, Places, Deliver).
+    Cache 2.2.0. Deferred: profiles shared between accounts.
+
+2.3.0 THE PROPERTY; TOY BOX; DOLLHOUSE; VITALS FOR THINGS; TOY-BOX LOOK (October 14, 2026)
+  - world.js (new): the outdoor world is one fixed 192x144 picture of the property (Garden of Earthly Delights-style
+    layout: high horizon, landmarks in the middle distance, busy field in front), drawn at 4x on the canvas so sprites
+    can be drawn at 3/4 or 5/4 size and stay crisp. The old yard pictures (Aiu's activities, the buddy) are drawn
+    shifted by A.YARD. A.LANDMARKS with tap areas and doors; A.hitAt (one hit test for everything, top-most wins);
+    A.actorPosP; buddy roams at its own size (A.buddySize); barn animals wander and wrap around; Aiu walks a path with
+    depth scaling (1, 3/4, 1/2). Inside: the house as a dollhouse (A.HOUSE_AREAS: bath + bedroom upstairs, kitchen +
+    living downstairs, each a crop of the old room pictures), a small regulator clock, the front door on the right
+    wall, the corkboard, the drone in the attic. Peek: app.peek shows the yard while Aiu stays in a room.
+  - toybox.js (new): hold-to-pick-up (420 ms), drag, drop reactions (enter a building, bonk + hug, board, pond splash,
+    drone ride, roof slide, coins when shaken, cart cooking), A.toyOver / A.toyPos easing things back; visits (Aiu
+    walks to a building, the overlay opens, he walks back when it closes); the shed, well and outhouse surprises.
+  - rooms.js: the firepit is now a Japanese food cart (yatai): A.yardBack / A.yardLive; 'hibachi' = Aiu as the chef
+    inside it. Kitchen got a door; the bath's sink moved beside the tub; eat/brushteeth spots moved.
+  - places.js / farm.js / lab.js: PL.health (parts wear by days; max 3 'bad'; 'last' parts wait), PL.fixed,
+    PL.meterRow, PL.marker (tap dots in the picture; the building canvas is 4x). Garage PARTS per ride (car adds
+    suspension/alignment job). Barn: a care meter per animal. Greenhouse systems (GSYS). Lab stations (LSYS) with
+    bed-leveling and nozzle-clog puzzles. The icon row and the garage's game link are gone.
+  - library.js: Log = Today (PN.ichingInto + PN.pastReadingsInto) and Book (cover, search, outline, glossary, your life
+    so far). PN.bookPdf moved to Settings > Save as PDF.
+  - games.js: Easy/Normal/Hard (GM.D), first-play how-to card, Best on the end panel, Deliver swipe lanes.
+  - ui.js: sceneTap via A.hitAt; ui.speakBtn + tap-text-to-hear; addRow keeps the keyboard after Enter; ticker;
+    tab labels; settings reorganized (sync only on top; ride picker; sounds in Look & sound; notifications + app
+    badge via navigator.setAppBadge; book PDF). The "Vitals from my journal" setting removed (journal no longer
+    checks in calm things).
+  - app.js: frame() renders A.renderWorld at A.SCALE; sceneState aiuIn/roomPlace (peek); ROOM_EXIT 128;
+    capsulePreview / importPart / mergeInto (backups: same egg -> only missing events; new -> new profile).
+  - profiles.js: Your profiles + Backups (save / open with a preview). style.css: the toy-box look.
+  - Generic examples (Atlanta, GA; Sam); credit KODNA Network (https://KODNA.net). Server unchanged (2.2.0).
+  - Removed or changed code: _archive/removed-2.3.0.txt. Cache 2.3.0.
+
+2.3.1 STYLE CHOICE; BUILDINGS BEHIND THE STREAM; PET; HANDS-ON GREENHOUSE AND BARN; PROFILE IN SETTINGS (October 14, 2026)
+  - style.css: the toy-box rules are scoped to html.toy (dev.style 'toy' or 'retro', Settings > Look & sound).
+  - world.js: cart drawn behind the stream at 3/4 (A.CART_AT; Aiu cooks inside it there), well behind the house (left),
+    garage moved right, lab observatory redrawn (dome, slot, telescope, railing), animals wander x 6..82 (no wrap), the
+    pet roams only to the left; herd sizes from PL.herd.
+  - minis.js (new): PL.play runner (a game in the building picture, then a fact; Try again on a loss); greenhouse games
+    (pests, vents, water, light, soil, glass) and barn games (feed, water, poop, hay, eggs, milk, brush).
+    places.js: the building canvas runs at full speed and passes pointer events while a game is on.
+  - farm.js: greenhouse systems open the games; barn care = feed + water + one job per animal; babies every 4th care
+    (herd:<animal>, HERDMAX); barn interior redrawn.
+  - accounts.js/business.js: the profile card is gone from Accounts; My profile (Settings > Account & data) with three
+    picture tiles (My info + About me, Docs, Money).
+  - "buddy" -> "pet" in everything you read. Help and README updated. Removed code: _archive/removed-2.3.1.txt.
+
+IDEAS FOR LATER (on hold, not built: shop and multiplayer stay on hold as of 2.3.0)
+  - Bring the shop back one day (the 1.0.5 shop is archived in _archive/shop-1.0.5).
+  - Mini games: difficulty modes, with more growth for the harder ones; a "party" style where a random tiny
+    game picks which mini game you play next.
+  - Multiplayer as its own mode, maybe a big team-versus-team match (50 vs 50). Still being thought through.
+
+
+
+2.4.0 THE FINISHING ROUND (October 15, 2026)
+  - ui.js: TABS = World, Quest, Log, Accounts (Plan is the top of Quest: panels.js PN.planInto); the app opens on
+    World; 10 idle minutes -> World; the world only draws on World (app.js frame); one page reader (ui.readBtn,
+    ui.pageSpeech) in the panel head and above the world; Account & data trimmed; sign-up without email.
+  - api.php / api.cgi: email optional, no confirm (REQUIRE_EMAIL_CONFIRM off), unconfirmed old accounts can log in,
+    forgot-password needs a real email on file. Ping says 2.4.0.
+  - app.js: eggIndex / findDupes / combine; importNewProfiles merges an Aiu you already have instead of copying it;
+    hobbies in 2-5 minute slots (hourSlots, slotAt); textSize defaults to large (dev.v240); wind chimes; bells in the
+    music box; the cast waits for the World tab.
+  - core.js: C.VERSION 10. From C.T240 (2026-10-15): game wins +3 first per game per day, +1 for beating today's
+    score (twice), and x2 for events marked by the joy streak. Older events keep the old rules.
+  - life.js (new): joy streak, the outhouse need, picking Aiu up frees him, the stand-up at the bounty board.
+  - arcade.js, arcade-games.js, arcade-more.js (new): the dice and the eight games at 180x240.
+  - oddities.js (new): the wandering creatures per biome.
+  - world.js: walk-through dollhouse (archways, stairs, route between rooms), drone above the house, buildings by
+    style (log, stone, adobe, arctic: igloos, hex dome), the lantern and fireflies, the "!" on the board, oddities.
+  - toybox.js: pick Aiu up mid-activity; drop on bed / kitchen / cart / board / outhouse; buildings are peeks.
+  - rooms.js: shorter routine (teeth 2 min, cooking 4, meals 5). art.js: drawRoom dollhouse flags (sc.dh).
+  - style.css: World layout, icon-only menu at the end of the page, big controls, joy chip, brief card, arcade.
+  - Removed text: _archive/removed-2.4.0.txt. Replaced file: _archive/2.4.0-replaced/games.js.
+  - Later the same day: the menu moved to the top (sticky); world.js dollStatic draws the four rooms clean (the
+    cropped room pictures, housePics, are kept but unused); the lab is a low building with a wide dome and telescope;
+    biomeDecor gives each land its own details; oddities.js draws the forest walker as a proper sasquatch sprite.
+  - Shopping lists: a list holds up to 80 things (core.js was 30: anything past 30 quietly didn't stick), a pasted
+    list keeps every item (mind.js stepsFrom stopped at 10), adding something already on the list says so instead of
+    doubling it, and Done shopping turns the light back to green for the next trip.
+  - An upstairs hallway (x 97-126) where the stairs come up: a window, a banister and a runner, with archways to the
+    bathroom and the bedroom (the bedroom area is now x 129-192; the walk goes top -> a3 -> bedroom).
+  - The hallway is wider (x 97-136) with open floor: the banister across it is gone (a newel post against the wall
+    instead), the bedroom is x 139-192 with a bedside lamp, and a walk that changes target mid-way carries on from
+    where Aiu is (he used to pop into the next room).
+  - The dollhouse is four floors (A.HOUSE_H 270; the canvas grows when Aiu is inside): attic office + lab, the old two
+    floors moved down by DY 63, basement garage + grow room, ladders (hallway up, kitchen down). aiuArea sends games and
+    journal to the office, tinker and pottery to the lab, workout to the garage, yoga to the grow room. The drone docks
+    in the office; the office computer opens the dice. ui.worldPt handles a letterboxed picture. The page speaker on
+    World moved onto the stand-up card.
+  - Inside walls are full walls down to a doorway (no floating lintel by the stairs). The food cart is routine only:
+    tapping it or dropping Aiu on it no longer forces cooking (it used to pull him out of bed at night); he cooks there
+    at lunch (new 11:56 slot) and dinner when the weather is nice.
+  - app.js dailyPlan: seeded per day (egg + day) care and chores in windows; ROUTINE_ONLY keeps routine things out of
+    the hobby deck (no random teeth brushing at noon); free time picks a seeded random hobby per slot, never twice in
+    a row; asleep until 6:45. Bad weather turns an outdoor chore into tidying inside.
+  - Shopping tiles finish like any tile (tiles.js doneEvents no longer clears the list; doneNow no longer skips shop
+    tiles; undo restores the state); no pieces on a shopping tile; friendlier words; the item box keeps the keyboard.
+    Tiles: Archive button retired (old archived tiles still show under Archived); Delete is now Discard, with a Discard
+    pile filter, Restore, and Delete forever (quest_state 'purged', typed DELETE; core.questList hides purged).
+    House: toilet, stair side boards and trim, oil drum moved.
+  - The page reader on Log read only the word "Log" (the generic reader found no plain paragraphs there). Log > Today now
+    reads a briefing (the reading, what you wrote today, tiles finished) and Log > Book reads the book's title, pages and
+    your latest entry; the generic reader no longer says just the page title.
+
+
+2.5.0 YOUR NAME; ACCOUNT & DATA; ACCOUNTS TABS AND FILES; TOKENS AND THE CORNER MART (October 15, 2026)
+-------------------------------------------------------------------------------------------------------
+  - Your username is your name: signed in, Aiu calls you by it (core.view: opts.display, the casing you typed at log
+    in, kept on the device as prof.disp). Usernames were already one per account (the server lowercases them); the
+    sign-up screen now says so and suggests another when one is taken. The "It calls you" box is for device-only Aius.
+  - Settings > Account & data: User info (username, Log out, Change password), Profiles (a drop-down: tap one and you
+    become it, back in its World; + Add a profile; Combine for copies) and Capsules (Export capsule, with "Include my
+    files"; Export all; Import capsule with the look-inside preview). "Backups" are called capsules everywhere.
+  - Accounts is four tabs (the panel's sub-tabs): Cards, Person (the quiz, the either/or questions, what calms you; a
+    business shows its business info), Files and Finance. My info is gone (see removed-2.5.0.txt).
+  - Files (js/files.js): any file, folders inside folders, open / share / download, rename and move, the Discard pile
+    and Delete forever (typed DELETE). Synced: each file gets its own AES-GCM key and is scrambled on the device, then
+    uploaded in 512 KB pieces (api.php/api.cgi: blob_put, blob_get, blob_del, blob_usage; stored in
+    <profile folder>/files/<id>/); the list (names, folders, small previews, the file keys) is a 'dfile' event
+    scrambled with the vault key like an account card, and re-scrambled when the password changes. Device-only: the
+    bytes stay in IndexedDB ('aiu-files'). Uploads that fail wait on the device and go up later. Space: 1000 MB per
+    account (AIU_FILES_MAX_MB), 25 MB per file. The Written folder holds the old Docs list.
+  - Tokens replace the joy streak (core VERSION 11, C.T250, C.TOK_START 100): every confirmed growth point from
+    2.5.0 on adds a token (S.tok, S.tokDays); 'tbuy' events spend them (only if the wallet holds enough when the server
+    sees it). The wallet chip sits under the heart and the leaf; the wallet sheet has an address and a ledger.
+  - The Shop tab (js/shop.js): the Corner Mart, our own little store in the style of classic handheld adventure-game
+    shops: a shopkeeper at the counter, BUY / MY STUFF / SEE YOU!, a list with prices, a description box, YES/NO.
+    27 items in six shelves: hats and faces for Aiu (art.js drawActor), pet things (art.js drawBuddy, at the head or
+    neck), yard pieces (world.js, front right), bedroom wall art and living room rugs (world.js, over dollStatic).
+    What's on is the setting 'cos' {hat, face, pet, yard, wall, rug}.
+  - World: the picture is on top, right under the menu; the meters and the wallet are under it. The pet has its own
+    patch between the board and the pond. Fishing happens at the pond (mirrored, casting into the real water). The
+    meadow's "stick" is a proper windmill with turning sails.
+  - Games: a play session starts easy (pace 0.75 and a spare heart) and each finished game speeds the next one up a
+    little (to 1.15; a loss eases it back; 20 minutes away resets it). G.speed scales the game's own clock. Spar comes
+    up twice as often. iPhone double-tap zoom is blocked on the game screen (touchend guard). Garden Defense is
+    gentler, and a bug that reaches a seedling eats it and crawls away instead of walking on past.
+
+
+2.6.0 CLOSING THE LOOPS: INVITES, ADMIN, RECOVERY CODE, LOCKED CAPSULES; ALLOWANCE AND GOOD STARS (October 15, 2026)
+------------------------------------------------------------------------------------------------------------------
+  Safety
+  - Sign-up needs the invite code (INVITE_CODE in api.php/api.cgi, AIU_INVITE_CODE; the README has it).
+  - Admin recovery: action 'admin_recover' (admin user + password, checked against ADMIN_SALT/ADMIN_HASH; the plain
+    password is only in the README) sets a temporary password for an account and logs out its devices. Logged to
+    aiu_data/admin.log; rate-limited. The app: Log in > Forgot your password? > I'm the admin.
+  - Recovery code (vault.js newCode/wrapRescue/openRescue/codeOf; app.js rescueMake/rescueUse; setting
+    'vaultRescue'): a 16-character code wraps the card key; the code itself is kept sealed by the card key, so a
+    password change re-wraps the same code (vaultRekey). Accounts > Cards > Lost your password? opens everything
+    with the code + the current password, then re-locks it all to that password.
+  - Locked capsules (.aiucap): "AIUCAP1\n" + salt + iv + the zip under AES-GCM (PBKDF2 200,000 from the capsule
+    password). On by default; unlocked needs a confirm. Every export path goes through it.
+  - Dev tools only with config.js devtools: true; the server drops 'dev_growth' unless AIU_ALLOW_DEV=1; test growth
+    and imported (imp) events never make tokens; imported 'tbuy' doesn't spend.
+  - Files: 250 MB per account, 5000 MB per server (507 server_full). blob_list + F.tidy (weekly): server files
+    nothing points to are removed after a week; a file this device holds that never reached the server goes up again.
+  - shop.js watchBuys: a purchase that came up short when it synced says so (and takes the item off).
+  Economy (core VERSION 12)
+  - 'allow' events: 10 a day (+25 the first day of each week, by its Monday), at most once a day; the day must be
+    within a week before the server's receive day (offline days still count; a moved clock can't add any).
+  - Good Stars (S.stars {lv, last}, starsTo): a day with 10+ growth steps up, a day without steps down; earned
+    tokens x C.STAR_MULT[lv] (1 to 2), at most 60 a day (S.tokEarn).
+  - 'tspend' events: treats (fireworks and confetti drawn by shop.js drawFx over World; the fancy snack fills the
+    pet). The Corner Mart: This week (4 of 10 specials, seeded by the Monday), Treats, Pet gear (free collar,
+    saddle, no gear; backpack 35).
+  - The old server-folder shop is retired (_archive/2.6.0-replaced/app.old-shop-1.0.5.js).
+
+
+2.7.0 LOCKED DOWN; ONE LAYOUT; WALKING EVERYWHERE; ARRANGE; FUSED CREATURES (October 15, 2026)
+-----------------------------------------------------------------------------------------------
+  - No way back into an account without its password: admin_recover, the recovery code (vault wrap/unwrap, app
+    rescueMake/rescueUse, the Accounts and Settings pieces) and the email forgot/reset are gone (forgot/reset answer
+    410 no_recovery). All of it is in _archive/2.7.0-replaced/recovery-2.6.0.txt. An old 'vaultRescue' setting is
+    cleared, and a password change clears it too.
+  - World: one layout (the phone column, max 560px, centered on big screens). The meters are buttons: an icon key, a
+    bar, a number (els.gval, els.vval; the wallet chip shows the count). Go inside / Go outside and Arrange sit under
+    the picture.
+  - Walking (app.js sceneState + world.js houseWalk): when an activity moves Aiu in or out, an automatic trip
+    (trip.auto) walks him: through the rooms to the front door (NODE.door), out, across the yard (or the reverse:
+    in the door, then room by room, via trip.toArea). A.houseRouteMs times the inside part. Ladders: a climbing pose.
+  - Tokens (core VERSION 13, C.T270): no multiplier; a won game ('game' with stars) pays C.GAME_TOK (2) a star, up to
+    C.GAME_TOK_CAP (30) a day, inside the 60-a-day earning cap.
+  - Art: stairs() per house (STAIR palette, a closed panel, a cupboard door, a post every other step; the old one is
+    in _archive/2.7.0-replaced/world.stairs-2.4.0.js); car() in the garage (old: world.car-2.4.0.js); adobe is
+    terracotta and every textured building gets a dark edge; oddities.js is all two-animal fusions (old: oddities-2.4.0.js).
+  - Arrange (world.js HOME spots, A.layoutOf / A.applyLayout, setting 'layout'): buildings swap spots; landmarks (taps
+    and doors) move with them; the static picture's cache key includes the layout.

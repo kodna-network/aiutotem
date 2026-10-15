@@ -1,0 +1,33 @@
+# AIU TOTEM - Apache settings for this folder
+#
+# The account server is api.php (runs on any PHP host, nothing to switch on).
+# api.cgi (Ruby) is a spare copy of the same server. To use it instead, remove the # from the two lines
+# below. Some hosts don't allow "Options" in .htaccess and show a 500 error for the WHOLE folder when it's
+# there; if that happens, put the # back.
+# Options +ExecCGI
+# AddHandler cgi-script .cgi
+
+# Always check for a fresh copy of the app files (the service worker keeps an offline copy).
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|js|css|webmanifest)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <Files "sw.js">
+    Header set Cache-Control "no-cache, no-store"
+  </Files>
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+  AddType font/woff2 .woff2
+</IfModule>
+
+# Nothing private lives in this folder, but block stray files anyway.
+<FilesMatch "\.(log|jsonl|bak|md)$">
+  Require all denied
+</FilesMatch>
+
+# If the host keeps Aiu's private data folder here (aiu/aiu_data), nobody can open it from the web.
+<IfModule mod_alias.c>
+  RedirectMatch 404 /aiu_data(/|$)
+</IfModule>

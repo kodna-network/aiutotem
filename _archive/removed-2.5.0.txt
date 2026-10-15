@@ -1,0 +1,102 @@
+AIU TOTEM 2.5.0 - what left the app (nothing is deleted for good; this is how to bring it back)
+=============================================================================================
+
+1. THE JOY STREAK (js/life.js, 2.4.0). Replaced by tokens and the Corner Mart. The x2 rule in core.js still counts
+   for events made between 2.4.0 (C.T240) and 2.5.0 (C.T250), so past growth never changes. L.joy, L.x2, L.mark,
+   L.joyFill and L.joyLeft are kept as no-ops so older calls keep working. The original block:
+
+  /* ---------- the joy streak ---------- */
+  var JOY_FULL = 20, JOY_MS = 3 * 60000, GAIN = { pet: 1, snack: 3, water: 3, help: 4, step: 3, game: 4, tile: 5 };
+  var joy = { pts: 0, x2Until: 0, petAt: 0 };
+  L.x2 = function () { return Date.now() < joy.x2Until; };
+  L.joyLeft = function () { return Math.max(0, joy.x2Until - Date.now()); };
+  L.joyFill = function () { return L.x2() ? 1 : Math.min(1, joy.pts / JOY_FULL); };
+  L.joy = function (kind) {
+    var a = app(); if (!a.S || !a.S.hatched) return;
+    var now = Date.now();
+    if (kind === 'pet') { if (now - joy.petAt < 3000) return; joy.petAt = now; }
+    if (L.x2()) return draw();
+    joy.pts += GAIN[kind] || 1;
+    if (joy.pts >= JOY_FULL) {
+      joy.pts = 0; joy.x2Until = now + JOY_MS;
+      try { a.beep('ping'); ui().hearts(5, ['star', 'heart', 'sparkle']); ui().k.snack('Joy streak! Everything counts double for 3 minutes.'); } catch (e) {}
+    }
+    draw();
+  };
+  // the little star meter beside the heart and the leaf
+  var chip = null;
+  L.chip = function () {
+    chip = h('button', { type: 'button', cls: 'joychip', 'aria-label': 'Joy streak', onclick: function () { ui().k.sheet('Joy streak', [
+      h('p', { text: 'Pet ' + app().S.totemName + ', feed and water the pet, drag him to what he needs, check off steps and win games. When the star fills up, everything that grows him counts double for 3 minutes.' }),
+      h('p', { cls: 'small', text: 'Petting counts once every few seconds. The daily growth limit still holds: the streak just gets you there faster.' })]); } },
+      h('span', { cls: 'jstar' }, ui().pix('star')), h('span', { cls: 'jbar' }, h('i')), h('b', { cls: 'jx' }));
+    draw(); return chip;
+  };
+  function draw() {
+    if (!chip) return;
+    var on = L.x2(), left = Math.ceil(L.joyLeft() / 1000);
+    chip.classList.toggle('on', on);
+    chip.querySelector('.jbar i').style.width = Math.round(L.joyFill() * 100) + '%';
+    chip.querySelector('.jx').textContent = on ? 'x2 ' + Math.floor(left / 60) + ':' + U.p2(left % 60) : '';
+    chip.setAttribute('aria-label', on ? 'Joy streak: double growth for ' + left + ' more seconds' : 'Joy streak ' + Math.round(L.joyFill() * 100) + '% full');
+  }
+  setInterval(function () { if (chip && L.x2()) draw(); else if (chip && chip.classList.contains('on')) draw(); }, 1000);
+  // events that can count double (marked when they're made, so every device agrees)
+  var X2 = { pet: 1, quest_step: 1, tile_done: 1, game: 1, gaba: 1, journal: 1, jpage: 1 };
+  L.mark = function (d) {
+    if (!d || !X2[d.type]) return d;
+    if (d.type === 'quest_step' && d.data && d.data.done) L.joy('step');
+    if (d.type === 'tile_done' && d.data && !d.data.undone) L.joy('tile');
+    if (L.x2()) d.data = Object.assign({}, d.data || {}, { x2: 1 });
+    return d;
+  };
+
+
+2. SETTINGS > ACCOUNT & DATA, "YOUR DATA" (js/ui.js, 2.3.0-2.4.0). The My info / Your profiles / Backups buttons and the
+   two hidden file inputs (import into this profile, import as new profiles). Now: User info, Profiles (a drop-down,
+   AIU.profiles.dropdown) and Capsules (AIU.profiles.capsules). The original block:
+
+    var file = h('input', { type: 'file', accept: '.zip,.jsonl,application/zip', cls: 'hidden' }), file2 = h('input', { type: 'file', accept: '.zip,.jsonl,application/zip', cls: 'hidden' }), dm = h('p', { cls: 'formmsg' });
+    file2.addEventListener('change', function () { // 2.2.0: a capsule (one profile or all of them) becomes new profiles here
+      if (!file2.files[0]) return; msg(dm, 'Reading...');
+      a.importNewProfiles(file2.files[0], { account: true }).then(function (made) { msg(dm, 'Imported ' + made.length + ' new profile' + (made.length === 1 ? '' : 's') + '. Open them in Profiles.'); }, function (e) { msg(dm, e.message, true); });
+      file2.value = '';
+    });
+    file.addEventListener('change', function () {
+      if (!file.files[0]) return;
+      msg(dm, 'Reading...');
+      a.importCapsule(file.files[0]).then(function (r) { msg(dm, 'Imported ' + r.added + ' new events (' + (r.total - r.added) + ' were already here).'); }, function (e) { msg(dm, e.message, true); });
+      file.value = '';
+    });
+    var data = [
+      h('p', { cls: 'small', text: S.total + ' events' + (S.unsent && !a.prof.local ? ' (' + S.unsent + ' waiting to sync)' : '') + ' · saved in this browser (' + AIU.store.kind + ')' }),
+      h('div', { cls: 'row wrap' }, btn('My info', function () { s.remove(); var st = AIU.panels.state; st.aview = 'profile'; st.psub = 'id'; ui.go('accounts'); ui.toPanel(); }), btn('Your profiles', function () { AIU.profiles.switcher(); }), btn('Backups', function () { AIU.profiles.backups(); })), dm, // 2.3.0: one simple place for backups
+      h('p', { cls: 'small', text: 'A backup is your own copy of an Aiu in a .zip file. Opening an old one only adds what\'s missing: it never erases anything.' }),
+      h('p', { cls: 'small caution', text: a.prof.local ?
+        'Careful: this Aiu lives only in this browser. Clearing browser data, a private window, or losing the device deletes it. Save a backup now and then.' :
+        'Off-grid caution: anything you do without internet is saved only in this browser until it syncs. Clearing browser data, a private window, uninstalling the app, or losing the device before a sync loses those changes. On iPhone, use the Home Screen app (Safari can clear websites that are not used for 7 days). Heading off-grid for a while? Sync first and save a capsule.' })
+    ];
+
+3. ACCOUNTS > THE PROFILE PAGE'S THREE BIG BUTTONS (js/business.js B.profileView, 2.3.1): My info (name, birthday,
+   address, About me), Docs, Money. The code is still in business.js below the 2.5.0 early return
+   ("if (AIU.panels.accounts) return AIU.panels.accounts();"): delete that line to bring the old page back. Accounts
+   is four tabs now: Cards, Person (the personality parts of About me), Files (your files + the Written folder with
+   the old Docs list) and Finance (the old Money).
+   Your private details card ("Me", v-me) is no longer made automatically (accounts.js ensureMe is kept, unused).
+   An existing Me card stays, as an ordinary card. The profile card at the top of Accounts (profiles.js PF.card) is
+   kept, unused.
+
+4. "IT CALLS YOU" for a signed-in Aiu (Settings, the egg screen, "call me ..." in chat). Signed in, Aiu calls you by
+   your username. The setting (callMe) is kept and still used by device-only Aius.
+
+5. SMALL THINGS
+   - world.js: the pet roamed dx 0..26 (it stood in front of the pond); now -20..-6, dy 3..12.
+   - world.js meadow windmill: was R(c, 180, 112, 1, 18, P.ink); R(c, 178, 112, 5, 4, P.ink); R(c, 179, 113, 3, 2,
+     P.white); GM_wind(c, 180, 112, sc) with four 6-pixel blades.
+   - art.js fishing: outside, he used to fish into a little pond drawn beside him; now he stands on the real pond's
+     bank (drawn mirrored) and casts into it (an ice hole on it in winter).
+   - arcade-more.js Garden Defense: sun 100 (now 150), waves 8/11/14 (now 6/9/12), first bug at 2.2 s (now 3.5),
+     bugs every 2-3.4 s (now 2.8-4.2), sunshine every 5.5 s lasting 9 s (now 4.2 s, 12 s), ladybugs fire every 1.3 s
+     (now 1.0), helpers' hp marigold 4 / ladybug 4 / copper 10 (now 6 / 6 / 14), bugs eat helpers at 1.2 hp/s (now
+     0.8); a bug that reached a seedling vanished (now it turns around and crawls away full).
+   - arcade.js joy text on the end card ("joy streak x2!").

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1a1c2c">
+<meta name="description" content="Aiu Totem: raise a little pixel companion from an egg. Quests, a planner, a journal with a daily I Ching reading, Vitals for your calm habits, and mini games. Free, private, works offline.">
+<meta name="application-name" content="Aiu Totem">
+<meta name="author" content="KODNA">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://kodna.net/aiu/">
+<!-- sharing: the card people see when you send the link by text or post it -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Aiu Totem by KODNA">
+<meta property="og:title" content="Aiu Totem">
+<meta property="og:description" content="Raise a little pixel companion from an egg. Quests, plan, journal, a daily I Ching reading and mini games. Free, private, works offline.">
+<meta property="og:url" content="https://kodna.net/aiu/">
+<meta property="og:image" content="https://kodna.net/aiu/icons/og-image.png">
+<meta property="og:image:secure_url" content="https://kodna.net/aiu/icons/og-image.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Aiu Totem: a pixel-art yard with a log cabin, a dog, a bounty board and a little creature, next to the words Raise a little companion from an egg.">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Aiu Totem">
+<meta name="twitter:description" content="Raise a little pixel companion from an egg. Quests, plan, journal, a daily I Ching reading and mini games. Free, private, works offline.">
+<meta name="twitter:image" content="https://kodna.net/aiu/icons/og-image.png">
+<meta name="twitter:image:alt" content="Aiu Totem: a pixel-art yard with a log cabin, a dog, a bounty board and a little creature.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Aiu Totem","url":"https://kodna.net/aiu/","description":"Raise a little pixel companion from an egg. Quests, a planner, a journal with a daily I Ching reading, Vitals for your calm habits, and mini games. Works offline.","applicationCategory":"LifestyleApplication","operatingSystem":"Any (web browser)","browserRequirements":"Requires JavaScript","image":"https://kodna.net/aiu/icons/og-image.png","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"isAccessibleForFree":true,"creator":{"@type":"Organization","name":"KODNA","url":"https://kodna.net/"}}</script>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Aiu Totem">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css?v=2.7.0">
+<title>Aiu Totem</title>
+</head>
+<body>
+<script>
+/* Start-up safety net: there is no loading screen. If Aiu can't start, a small bar at the top says why, with a Reload button. */
+(function () {
+  function bar(text) {
+    var b = document.getElementById('aiubar');
+    if (!b) { b = document.createElement('div'); b.id = 'aiubar'; b.className = 'aiubar'; b.setAttribute('role', 'alert'); document.body.appendChild(b); }
+    b.innerHTML = ''; var s = document.createElement('span'); s.textContent = text; b.appendChild(s);
+    var r = document.createElement('button'); r.type = 'button'; r.textContent = 'Reload'; r.onclick = function () { location.reload(); }; b.appendChild(r);
+  }
+  window.AIU_BAR = bar;
+  window.addEventListener('error', function (e) {
+    if (window.AIU_STARTED) return;
+    var t = e && e.target && e.target.src ? 'a file did not load (' + String(e.target.src).split('/').pop().split('?')[0] + ')' : (e && e.message) || 'unknown error';
+    bar('Aiu could not start: ' + t + '. Check your connection and reload.');
+    document.getElementById('aiubar').setAttribute('data-keep', '1'); // stays until you reload
+  }, true);
+  setTimeout(function () { if (!window.AIU_STARTED) bar('Aiu is taking a while to start. Check your connection, or reload.'); }, 8000);
+})();
+</script>
+<div id="app"></div>
+<noscript><p style="padding:16px">Aiu Totem needs JavaScript turned on.</p></noscript>
+<script src="config.js?v=2.7.0"></script>
+<script src="js/util.js?v=2.7.0"></script>
+<script src="js/store.js?v=2.7.0"></script>
+<script src="js/core.js?v=2.7.0"></script>
+<script src="js/art.js?v=2.7.0"></script>
+<script src="js/rooms.js?v=2.7.0"></script>
+<script src="js/world.js?v=2.7.0"></script>
+<script src="js/oddities.js?v=2.7.0"></script>
+<script src="js/persona.js?v=2.7.0"></script>
+<script src="js/iching.js?v=2.7.0"></script>
+<script src="js/topics.js?v=2.7.0"></script>
+<script src="js/hilltop.js?v=2.7.0"></script>
+<script src="js/gaba.js?v=2.7.0"></script>
+<script src="js/planner.js?v=2.7.0"></script>
+<script src="js/vault.js?v=2.7.0"></script>
+<script src="js/pdf.js?v=2.7.0"></script>
+<script src="js/tiles.js?v=2.7.0"></script>
+<script src="js/starter.js?v=2.7.0"></script>
+<script src="js/mind.js?v=2.7.0"></script>
+<script src="js/ui.js?v=2.7.0"></script>
+<script src="js/panels.js?v=2.7.0"></script>
+<script src="js/questboard.js?v=2.7.0"></script>
+<script src="js/help.js?v=2.7.0"></script>
+<script src="js/arcade.js?v=2.7.0"></script>
+<script src="js/arcade-games.js?v=2.7.0"></script>
+<script src="js/arcade-more.js?v=2.7.0"></script>
+<script src="js/play.js?v=2.7.0"></script>
+<script src="js/places.js?v=2.7.0"></script>
+<script src="js/farm.js?v=2.7.0"></script>
+<script src="js/minis.js?v=2.7.0"></script>
+<script src="js/lab.js?v=2.7.0"></script>
+<script src="js/toybox.js?v=2.7.0"></script>
+<script src="js/life.js?v=2.7.0"></script>
+<script src="js/shop.js?v=2.7.0"></script>
+<script src="js/vitals.js?v=2.7.0"></script>
+<script src="js/business.js?v=2.7.0"></script>
+<script src="js/profiles.js?v=2.7.0"></script>
+<script src="js/library.js?v=2.7.0"></script>
+<script src="js/accounts.js?v=2.7.0"></script>
+<script src="js/files.js?v=2.7.0"></script>
+<script src="js/app.js?v=2.7.0"></script>
+</body>
+</html>

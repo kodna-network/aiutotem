@@ -1,0 +1,7 @@
+{
+  "name": "Party hat",
+  "category": "hat",
+  "price": 30,
+  "desc": "Every day is a party.",
+  "file": "item.png"
+}

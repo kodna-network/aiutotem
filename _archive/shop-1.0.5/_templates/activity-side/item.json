@@ -1,0 +1,20 @@
+{
+  "name": "Campfire",
+  "category": "activity",
+  "price": 80,
+  "desc": "Warm glow for chilly evenings.",
+  "label": "sitting by the campfire",
+  "where": "out",
+  "anchor": "side",
+  "fps": 5,
+  "keys": [
+    "campfire",
+    "camping",
+    "camp",
+    "marshmallow",
+    "smores",
+    "bonfire"
+  ],
+  "frames": 4,
+  "file": "item.png"
+}

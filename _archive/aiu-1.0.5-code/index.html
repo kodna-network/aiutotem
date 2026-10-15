@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a1c2c">
+<meta name="description" content="Aiu Totem - a little AI companion you raise from an egg. Works offline.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Aiu Totem">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css?v=1.0.5">
+<title>Aiu Totem</title>
+</head>
+<body>
+<script>
+/* Start-up safety net: there is no loading screen. If Aiu can't start, a small bar at the top says why, with a Reload button. */
+(function () {
+  function bar(text) {
+    var b = document.getElementById('aiubar');
+    if (!b) { b = document.createElement('div'); b.id = 'aiubar'; b.className = 'aiubar'; b.setAttribute('role', 'alert'); document.body.appendChild(b); }
+    b.innerHTML = ''; var s = document.createElement('span'); s.textContent = text; b.appendChild(s);
+    var r = document.createElement('button'); r.type = 'button'; r.textContent = 'Reload'; r.onclick = function () { location.reload(); }; b.appendChild(r);
+  }
+  window.AIU_BAR = bar;
+  window.addEventListener('error', function (e) {
+    if (window.AIU_STARTED) return;
+    var t = e && e.target && e.target.src ? 'a file did not load (' + String(e.target.src).split('/').pop().split('?')[0] + ')' : (e && e.message) || 'unknown error';
+    bar('Aiu could not start: ' + t + '. Check your connection and reload.');
+    document.getElementById('aiubar').setAttribute('data-keep', '1'); // stays until you reload
+  }, true);
+  setTimeout(function () { if (!window.AIU_STARTED) bar('Aiu is taking a while to start. Check your connection, or reload.'); }, 8000);
+})();
+</script>
+<div id="app"></div>
+<noscript><p style="padding:16px">Aiu Totem needs JavaScript turned on.</p></noscript>
+<script src="config.js?v=1.0.5"></script>
+<script src="js/util.js?v=1.0.5"></script>
+<script src="js/store.js?v=1.0.5"></script>
+<script src="js/core.js?v=1.0.5"></script>
+<script src="js/art.js?v=1.0.5"></script>
+<script src="js/dict.js?v=1.0.5"></script>
+<script src="js/butler.js?v=1.0.5"></script>
+<script src="js/persona.js?v=1.0.5"></script>
+<script src="js/iching.js?v=1.0.5"></script>
+<script src="js/topics.js?v=1.0.5"></script>
+<script src="js/hilltop.js?v=1.0.5"></script>
+<script src="js/mind.js?v=1.0.5"></script>
+<script src="js/ui.js?v=1.0.5"></script>
+<script src="js/app.js?v=1.0.5"></script>
+</body>
+</html>

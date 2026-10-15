@@ -1,0 +1,7 @@
+{
+  "name": "Rubber duck",
+  "category": "toy",
+  "price": 25,
+  "desc": "Squeak.",
+  "file": "item.png"
+}

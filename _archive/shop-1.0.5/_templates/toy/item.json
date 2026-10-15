@@ -1,0 +1,7 @@
+{
+  "name": "Teddy bear",
+  "category": "toy",
+  "price": 40,
+  "desc": "A friend for naps.",
+  "file": "item.png"
+}

@@ -1,0 +1,46 @@
+AIU TOTEM 2.6.0 - what left the app (nothing is deleted for good; this is how to bring it back)
+=============================================================================================
+
+1. THE OLD SERVER-FOLDER SHOP (js/app.js, 1.0.5-2.5.0): app.loadCatalog, itemInfo, buy, cacheAsset,
+   registerActivities, loadOwnedAssets and the sceneState "shop" slots (hat, toy, backdrop, house, decor). The whole
+   block is in _archive/2.6.0-replaced/app.old-shop-1.0.5.js. The Corner Mart (js/shop.js) is the only shop. The
+   server's act_shop and the old 'buy' events (coins) are untouched, so nothing old breaks.
+
+2. SETTINGS > PET GEAR (js/ui.js). Pet gear is the Corner Mart's Pet gear shelf now (the setting 'cos'.gear; the old
+   'gear' setting is still read when nothing is chosen in the shop). The menu was:
+    var gearF = field('Pet gear', sel(Object.assign({ auto: 'Best fit' }, A.GEAR), C.setting(S, 'gear', 'auto'), function (v) { a.setSetting('gear', v); }), 'Ghosts, conjures and birds never wear any: it falls right through them.');
+
+3. THE OLD BACKUPS SHEET (js/profiles.js PF.backups, 2.3.0). It saved capsules unlocked. PF.backups now shows the
+   Capsules block (locked capsules). The original:
+  PF.backups = function () {
+    var a = app(), k = K(), s, pids = a.groupPids(), m = h('p', { cls: 'formmsg', 'aria-live': 'polite' }), look = h('div'), file = h('input', { type: 'file', accept: '.zip,.aiucap,.jsonl,application/zip,application/octet-stream', cls: 'hidden' });
+    file.addEventListener('change', function () { var f = file.files[0]; if (!f) return; file.value = ''; PF.restore(f, look, m); });
+    s = k.sheet('Capsules', [
+      h('h3', { text: 'Save a backup' }),
+      h('p', { cls: 'small', text: 'A backup is a .zip file you keep (on your computer, a USB drive, or a cloud folder).' }),
+      h('div', { cls: 'row wrap' }, k.btn('Save ' + a.profName(), function () { a.exportCapsule().then(function (n) { k.msg(m, 'Saved ' + n + '.'); }); }, 'primary'),
+        pids.length > 1 ? k.btn('Save all ' + pids.length + ' profiles', function () { a.exportAllCapsule().then(function (r) { k.msg(m, 'Saved ' + r.name + ' (' + r.n + ' profiles).'); }, function (e) { k.msg(m, e.message, true); }); }) : null),
+      h('h3', { text: 'Open a backup' }),
+      h('p', { cls: 'small', text: 'Pick a backup .zip. Aiu looks inside first and shows you what it will do. Nothing you have gets erased or replaced.' }),
+      k.btn('Open a backup file', function () { file.click(); }), file, m, look]);
+  };
+
+4. THE EMAIL "FORGOT PASSWORD" SCREEN (js/ui.js ui.forgotScreen). Accounts have no email since 2.4.0, so it could
+   never work. Now: Forgot your password? explains the admin + recovery code, and has the admin screen. The
+   original (ui.resendScreen and ui.checkEmailScreen are still in ui.js, unused):
+  ui.forgotScreen = function (un) {
+    var u = inp({ value: un || '', placeholder: 'username' }), em = inp({ type: 'email', placeholder: 'the email on the account' }), m = h('p', { cls: 'formmsg' }), go;
+    go = btn('Email me a reset link', function () {
+      if (!u.value.trim() || !em.value.trim()) return msg(m, 'Enter both your username and email.', true);
+      busy(go, true, 'Sending...');
+      app().api('forgot', { u: u.value.trim().toLowerCase(), email: em.value.trim() }).then(function () {
+        busy(go, false, 'Email me a reset link'); msg(m, 'If those match an account, a reset link is on its way. It works for 1 hour.');
+      }, function (e) { busy(go, false, 'Email me a reset link'); msg(m, e.message, true); });
+    }, 'primary');
+    screen([logo(), h('h2', { text: 'Forgot password' }), h('p', { cls: 'small', text: 'Enter your username and the email on your account.' }), field('Username', u), field('Email', em), m, go, btn('Back', function () { ui.loginScreen(u.value); }, 'ghost')]);
+  };
+
+5. SMALL THINGS
+   - The developer tools: tapping the version 5 times only works when config.js has devtools: true.
+   - Sign-up: "Someone already has <name>... Try another, like <name>42." is now "This name is taken. Try another name."
+   - Files space: 1000 MB per account (2.5.0) is 250 MB, with a 5000 MB total for the server.

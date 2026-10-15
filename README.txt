@@ -1,4 +1,4 @@
-AIU TOTEM 2.8.0 - install guide
+AIU TOTEM 2.9.0 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -19,6 +19,16 @@ ACCOUNTS
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
 
+WHAT'S NEW IN 2.9.0
+  Upload: the whole aiu folder (api.php and api.cgi only changed their version number).
+  - World: one card right under the picture: what Aiu is doing on top, then four icon buttons: the house or the tree
+    (go inside / outside), the heart (growth), the leaf (Vitals) and the token (your wallet).
+  - Log > Today: two sections. Today's I Ching (the word, the number, the changing lines, then one paragraph that
+    translates it, explains it and gives suggestions), then today's entry (write or talk it, what you wrote, what got
+    done). No folds, no Hilltop view, no past readings (every day in the Book keeps its reading), no Add to another
+    day (open that day in the Book instead).
+  - Accounts: Cards, Person and Finance (the Files tab is gone; files already saved still go into capsules).
+  - Shop: Buy asks "OK?" in a pop-up with YES and NO.
 WHAT'S NEW IN 2.8.0
   Upload: the whole aiu folder, INCLUDING api.php and api.cgi (both changed).
   - Private data on the server. Every synced Totem is scrambled (AES-GCM) on your device before it leaves:

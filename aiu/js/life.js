@@ -88,7 +88,7 @@
       var ls = lines(); a.local.briefAt = Date.now(); a.local.briefSig = sig(); a.saveLocal();
       ui().todaySheet(ls); if (!a.dev.mute && a.dev.voiceMode && a.dev.voiceMode !== 'babble' && a.dev.voiceMode !== 'off') a.speak(ls.join(' '), true); else a.babble && a.babble(ls[0]);
     }
-    if (!outside || a.busyNow() || (AIU.toy && AIU.toy.holding())) return show();
+    if (!outside || a.busyNow() || a.trip || a.visit || (AIU.toy && AIU.toy.holding())) return show(); // 2.9.0: not while he's walking in or out, or already off somewhere (he used to jump)
     a.forceAct = null; a.free = null;
     a.visit = { id: 'board', dir: 'go', phase: 'walk', start: Date.now(), dur: 1400, fun: true };
     setTimeout(function () {
@@ -100,7 +100,7 @@
   };
   function briefTick() {
     var a = app(), S = a.S; if (!S || !S.hatched || !ui().onMain || document.hidden || ui().tab !== 'world') return;
-    if (a.casting || a.hatching || a.evolve || a.busyNow() || document.querySelector('.sheet, .gov, .bov') || (AIU.toy && AIU.toy.holding())) return;
+    if (a.casting || a.hatching || a.evolve || a.busyNow() || a.trip || a.visit || document.querySelector('.sheet, .gov, .bov') || (AIU.toy && AIU.toy.holding())) return; // 2.9.0: and not mid-walk
     if (Date.now() - (ui().lastTouch || 0) < 4000) return;
     var day = U.dayStr(new Date(a.trueNow())); if (!(a.readingShown && a.readingShown(day))) return; // after the toss
     if (Date.now() - (a.local.briefAt || 0) < 3 * 3600000) return;

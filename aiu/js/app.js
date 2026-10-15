@@ -990,6 +990,7 @@
     var now = Date.now(), born = Math.max(app.S.hatchAt || 0, app.local.bornAt || 0);
     if (app.mode && now < app.modeUntil) return false;
     if (app.trip) return false; // 2.1.15: walking in or out (the toss waits its turn)
+    if (app.placeReq && app.placeReq.indoor && now < app.placeReq.until) return false; // 2.9.0: you asked him to stay inside: the toss (in the yard) waits, instead of walking him straight back out
     if (app.forceAct && now < app.forceAct.until) return false;
     if (app.care) return false; // 2.2.0: passing care on to the pet
     if (AIU.play && AIU.play.active()) return false;

@@ -4,6 +4,6 @@
         and remembers the one that works. */
 window.AIU_CONFIG = {
   api: 'api.php',
-  version: '2.8.0',
+  version: '2.9.0',
   devtools: false // 2.6.0: true only on a test copy (Settings > Help & about: tap the version 5 times). The server also turns away test growth unless AIU_ALLOW_DEV=1.
 };

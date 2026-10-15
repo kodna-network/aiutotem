@@ -48,9 +48,7 @@
      A moved building is drawn by its own code at its old place, then shifted (and scaled) to its spot; its tap area and door
      move with it. HOME = where each building's code draws it (its center and its base line). */
   var HOME = { barn: { cx: 19, b: 62 }, lab: { cx: 177, b: 62 }, greenhouse: { cx: 48, b: 82 }, garage: { cx: 158, b: 82 }, shed: { cx: 72, b: 85 }, well: { cx: 66, b: 54 }, outhouse: { cx: 115, b: 50 } };
-  // 2.9.0: the outhouse stands beside the house (big houses hid it); the front yard buildings are 3/2 size (whole fine pixels)
-  var SPOTS = { outhouse: { cx: 141, b: 60, s: 1 }, greenhouse: { cx: 40, b: 196, s: 1.5 }, garage: { cx: 152, b: 196, s: 1.5 }, shed: { cx: 30, b: 247, s: 1.5 } };
-  var FRONT = { greenhouse: 1, garage: 1, shed: 1 };
+  var SPOTS = { greenhouse: { cx: 44, b: 186, s: 1.25 }, garage: { cx: 150, b: 186, s: 1.25 }, shed: { cx: 30, b: 236, s: 1.25 } };
   A.BUILDINGS = Object.keys(HOME);
   function spotOf(b) { var h0 = HOME[b], sp = SPOTS[b]; return sp ? sp : { cx: h0.cx, b: h0.b, s: 1 }; }
   function moveR(b, r) { var h0 = HOME[b], sp = spotOf(b); return { x: Math.round(sp.cx + (r.x - h0.cx) * sp.s), y: Math.round(sp.b + (r.y - h0.b) * sp.s), w: Math.round(r.w * sp.s), h: Math.round(r.h * sp.s) }; }
@@ -97,14 +95,14 @@
     biomeDecor(c, sc, r); // 2.4.0: each land has its own little details
     // the buildings
     // 2.8.0: each building at its spot, back to front (the front yard ones come after the house, below)
-    var DRAW = { outhouse: function (g) { outhouse(g, sc); }, well: function (g) { well(g, 60, 54, sc); }, barn: function (g) { barn(g, 6, 62, sc); }, lab: function (g) { lab(g, 162, 62, sc); }, greenhouse: function (g) { greenhouse(g, 35, 82, sc); }, garage: function (g) { garage(g, 143, 82, sc); }, shed: function (g) { shed(g, 65, 85, sc); } };
-    var back = A.BUILDINGS.filter(function (b) { return !FRONT[b]; }), front = A.BUILDINGS.filter(function (b) { return FRONT[b]; });
-    back.sort(function (a0, b0) { return spotOf(a0).b - spotOf(b0).b; }).forEach(function (b) { atSpot(c, b, function () { fineDraw(c, HOME[b].cx, HOME[b].b, DRAW[b]); }); });
+    var DRAW = { outhouse: function () { outhouse(c, sc); }, well: function () { well(c, 60, 54, sc); }, barn: function () { barn(c, 6, 62, sc); }, lab: function () { lab(c, 162, 62, sc); }, greenhouse: function () { greenhouse(c, 35, 82, sc); }, garage: function () { garage(c, 143, 82, sc); }, shed: function () { shed(c, 65, 85, sc); } };
+    var back = A.BUILDINGS.filter(function (b) { return !SPOTS[b]; }), front = A.BUILDINGS.filter(function (b) { return SPOTS[b]; });
+    back.sort(function (a0, b0) { return HOME[a0].b - HOME[b0].b; }).forEach(function (b) { atSpot(c, b, DRAW[b]); });
     // the house, 3/4 size (drawn from the same house pictures as always)
     var hv = houseSprites(sc); stat.houseCv = hv.unlit; stat.houseLit = hv.lit;
-    houseBlit(c, hv.unlit);
+    c.drawImage(hv.unlit, HOUSE_DOOR.x - 33 * HS, HOUSE_DOOR.y - 72 * HS, hv.unlit.width * HS / SC, hv.unlit.height * HS / SC);
     frontYard(c, sc, r, C0, tk); // 2.8.0: the front yard: a path, the vegetable garden, a fence, trees
-    front.sort(function (a0, b0) { return spotOf(a0).b - spotOf(b0).b; }).forEach(function (b) { atSpot(c, b, function () { fineDraw(c, HOME[b].cx, HOME[b].b, DRAW[b]); }); });
+    front.sort(function (a0, b0) { return spotOf(a0).b - spotOf(b0).b; }).forEach(function (b) { atSpot(c, b, DRAW[b]); });
     // tall grass and flowers along the front edge
     for (var gx = 40; gx < 150; gx += 7) { var gh = 3 + ((gx * 7) % 4); R(c, gx, H - gh, 1, gh, P.green); R(c, gx + 2, H - gh + 1, 1, gh - 1, P.teal); if (gx % 3 === 0 && sc.season !== 'winter') spr(c, gx - 1, H - gh - 3, ['.P.', 'PyP', '.P.']); }
     return cv;
@@ -179,37 +177,9 @@
   }
   function GM_ring(c, cx, cy, r0, col) { for (var i = 0; i < 16; i++) { var a = i / 16 * Math.PI * 2; px(c, Math.round(cx + Math.cos(a) * r0), Math.round(cy + Math.sin(a) * r0), col); } line(c, cx - 2, cy - 1, cx + 2, cy + 1, col); }
   function GM_wind(c, x, y, sc) { var a0 = (sc.tsec || 0) * 0.8; for (var i = 0; i < 4; i++) { var a = a0 + i * Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a); line(c, x, y, Math.round(x + ca * 9), Math.round(y + sa * 9), P.bark); for (var t = 3; t <= 9; t++) px(c, Math.round(x + ca * t - sa * 2), Math.round(y + sa * t + ca * 2), t % 2 ? P.white : P.silver); } } // turning sails
-  /* 2.9.0: fine pixels. A building is drawn at its normal size (one art pixel each), then doubled with Scale2x (a pixel-art
-     upscale that rounds the stair-step corners), and every patch of color gets a thin light edge on top and a thin shadow
-     underneath, at the finer grid. So the buildings have twice the pixels, like the food cart, and look sharper. */
-  function fine2x(cv) {
-    var w = cv.width, hh = cv.height, src = cv.getContext('2d').getImageData(0, 0, w, hh), s32 = new Uint32Array(src.data.buffer);
-    var out = mk(w * 2, hh * 2), oc = out.getContext('2d'), dst = oc.createImageData(w * 2, hh * 2), d32 = new Uint32Array(dst.data.buffer), W2 = w * 2;
-    function at(x, y) { return x < 0 || y < 0 || x >= w || y >= hh ? 0 : s32[y * w + x]; }
-    for (var y = 0; y < hh; y++) for (var x = 0; x < w; x++) {
-      var P0 = s32[y * w + x], A0 = at(x, y - 1), B0 = at(x + 1, y), C0 = at(x - 1, y), D0 = at(x, y + 1), e1 = P0, e2 = P0, e3 = P0, e4 = P0;
-      if (C0 === A0 && C0 !== D0 && A0 !== B0) e1 = A0; if (A0 === B0 && A0 !== C0 && B0 !== D0) e2 = B0;
-      if (D0 === C0 && D0 !== B0 && C0 !== A0) e3 = C0; if (B0 === D0 && B0 !== A0 && D0 !== C0) e4 = D0;
-      var i = y * 2 * W2 + x * 2; d32[i] = e1; d32[i + 1] = e2; d32[i + W2] = e3; d32[i + W2 + 1] = e4;
-    }
-    var px0 = dst.data, copy = new Uint32Array(d32), H2 = hh * 2;
-    function tone(j, k) { var o = j * 4; if (px0[o + 3] < 200) return; var r = px0[o], g = px0[o + 1], b = px0[o + 2]; if (r + g + b < 120) return; // (not the ink outlines)
-      if (k > 0) { px0[o] = r + (255 - r) * k; px0[o + 1] = g + (255 - g) * k; px0[o + 2] = b + (255 - b) * k; } else { px0[o] = r * (1 + k); px0[o + 1] = g * (1 + k); px0[o + 2] = b * (1 + k); } }
-    for (var yy = 0; yy < H2; yy++) for (var xx = 0; xx < W2; xx++) {
-      var j = yy * W2 + xx, v = copy[j]; if (!v) continue;
-      var up = yy > 0 ? copy[j - W2] : 0, dn = yy < H2 - 1 ? copy[j + W2] : 0;
-      if (up !== v && (yy % 2 === 0)) tone(j, 0.22); else if (dn !== v && (yy % 2 === 1)) tone(j, -0.2);
-    }
-    oc.putImageData(dst, 0, 0); return out;
-  }
-  function fineDraw(c, cx, base, fn) { // draws fn(g) (pixel art around cx / base) in fine pixels
-    var ox = cx - 44, oy = base - 56, w = 88, hh = 64, cv = mk(w, hh), g = cv.getContext('2d');
-    g.imageSmoothingEnabled = false; g.translate(-ox, -oy); fn(g);
-    c.drawImage(fine2x(cv), ox, oy, w, hh);
-  }
   function houseSprites(sc) {
     var HO = IN.HOUSE[sc.house] || IN.HOUSE.cabin;
-    function one(lit) { var cv = mk(80, 90), c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.translate(0, -20); HO(c, sc.season, lit); return fine2x(cv); } // 2.9.0: fine pixels
+    function one(lit) { var cv = big(80, 90), c = cv.getContext('2d'); c.translate(0, -20); HO(c, sc.season, lit); return cv; }
     var unlit = one(false), lit = one(true);
     // the windows: only the pixels that change when the lights come on
     var a = unlit.getContext('2d').getImageData(0, 0, unlit.width, unlit.height), b = lit.getContext('2d').getImageData(0, 0, lit.width, lit.height), m = mk(unlit.width, unlit.height), mc = m.getContext('2d'), out = mc.createImageData(m.width, m.height);
@@ -217,7 +187,7 @@
     mc.putImageData(out, 0, 0); stat.mask = m;
     return { unlit: unlit, lit: lit };
   }
-  function houseBlit(c, img) { c.drawImage(img, HOUSE_DOOR.x - 33 * HS, HOUSE_DOOR.y - 72 * HS, 80 * HS, 90 * HS); } // (the pictures are 80x90 art pixels, drawn fine: 2.9.0)
+  function houseBlit(c, img) { c.drawImage(img, HOUSE_DOOR.x - 33 * HS, HOUSE_DOOR.y - 72 * HS, img.width * HS / SC, img.height * HS / SC); }
   function houseToP(x, y) { return { x: HOUSE_DOOR.x - 33 * HS + x * HS, y: HOUSE_DOOR.y - 72 * HS + (y - 20) * HS }; }
 
   /* ---------- the buildings (our own pixel art; a little whimsy: coral, pink and blue, odd toppers) ----------

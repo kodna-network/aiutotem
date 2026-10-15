@@ -38,7 +38,7 @@
   };
   T.visitTick = function () {
     var a = app(), v = a.visit; if (!v) return;
-    if (v.phase === 'walk' && Date.now() - v.start >= v.dur) {
+    if (v.phase === 'walk' && !(v.fun && v.dir === 'go') && Date.now() - v.start >= v.dur) { // (3.1: a fun visit's own timer takes him in)
       if (v.dir === 'go') { a.visit = { id: v.id, phase: 'in' }; a.beep('door'); if (AIU.places && AIU.places[v.id]) AIU.places.open(v.id); else a.visit = null; }
       else a.visit = null;
     }
@@ -53,13 +53,14 @@
     var a = app(), L = A.landmark(id); if (!L) return;
     var sc = a.view && a.view.sc; if (!sc || sc.aiuIn || A.isRoom(sc) || a.trip || a.visit) { ui().k.snack(SAY[id] || (id === 'well' ? 'The well. Splash!' : id === 'shed' ? 'The tool shed.' : 'The outhouse. Occupied? No, empty.')); return; }
     a.visit = { id: id, dir: 'go', phase: 'walk', start: Date.now(), dur: 1800, fun: true };
-    setTimeout(function () {
+    var arrived = function (fn) { if (!A.CASTLE || !AIU.castle) return setTimeout(fn, 1800); var t0 = Date.now(); (function wait() { if (!a.visit || a.visit.id !== id) return; if ((Date.now() - t0 > 600 && !AIU.castle.walking()) || Date.now() - t0 > 20000) fn(); else setTimeout(wait, 150); })(); }; // 3.1: in the castle, once he's actually there
+    arrived(function () {
       if (!a.visit || a.visit.id !== id) return;
       a.visit = { id: id, phase: 'in' };
-      anims.push({ kind: FUN[id] === 'peek' ? 'peek' : id, start: Date.now(), end: Date.now() + 2600, at: L.door, id: id }); if (SAY[id]) ui().k.snack(SAY[id]);
+      if (!L.bath) anims.push({ kind: FUN[id] === 'peek' ? 'peek' : id, start: Date.now(), end: Date.now() + 2600, at: L.door, id: id }); // (3.1: in the castle's bathroom he just goes) if (SAY[id]) ui().k.snack(SAY[id]);
       if (id === 'outhouse') { a.beep('door'); if (AIU.life) AIU.life.potty(); } else if (id === 'well') a.beep('splash'); else a.beep('knock');
       setTimeout(function () { if (a.visit && a.visit.id === id) a.visit = { id: id, dir: 'back', phase: 'walk', start: Date.now(), dur: 1600 }; a.react(id === 'shed' ? 'happy' : 'happy'); }, 2600);
-    }, 1800);
+    });
   }
   setInterval(function () { try { T.visitTick(); } catch (e) {} }, 120);
 

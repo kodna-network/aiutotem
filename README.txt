@@ -1,4 +1,4 @@
-AIU TOTEM 3.0.0 - install guide
+AIU TOTEM 3.1.0 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -18,6 +18,33 @@ ACCOUNTS
     aiu_data/accounts/<username> in DirectAdmin > File Manager (that account is gone for good), or set
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
+
+WHAT'S NEW IN 3.1.0 - BIGGER ROOMS
+  Upload: the whole aiu folder (js/castle.js was rewritten; api.php and api.cgi only changed their version).
+  - The castle picture is bigger (288 x 405, drawn 3x) and each room is twice the size: 3 rooms across, 4 floors,
+    12 rooms in all. Every room is one of a kind (no more joining two of the same).
+  - The 12 rooms: living room, kitchen, bedroom, bathroom (the seed you start with), then office 60, library 80,
+    garage 90, music room 100, art studio 100, greenhouse 120 (hydroponics under LED grow lights), lab 150 and
+    stable 150. The top two floors are open from the start, the third at Sprout, the fourth at Scout.
+  - New room art, cuter and more detailed: wallpaper and wainscot, curtains, a fish tank, a fridge with a drawing on
+    it, a quilt in Aiu's colors, a clawfoot tub with a rubber duck, a pegboard, hydroponic racks, an upright piano,
+    an easel, a 3D printer, hay bales and chickens. The Corner Mart's wall art and rugs show up in the rooms.
+  - Aiu does his own little animation in each room: stirring a pot at the stove, chopping, making tea, the dishes,
+    sleeping tucked in under his quilt (Zzz), brushing his teeth, soaking in the tub, gaming, typing, lifting
+    weights, building a birdhouse, watering the hydroponics, yoga, reading in the armchair, guitar and piano,
+    painting (the canvas fills in), pottery, the 3D printer, feeding the chickens, and more. The status line says
+    what he's doing in the castle's own words. No room for it yet: he does something close in the living room.
+  - Outside: six spots (well 30, outhouse 30, banner 25, tool shed 40, garden 60, pond 70, windmill 90, statue
+    200). The garden is the outdoor one, the greenhouse the indoor one: you can have both. He goes outside for the
+    stand-up, the food cart, the I Ching, the pet, fishing, the garden and the observatory. No outhouse? He uses
+    the bathroom (he sits on the toilet once he gets there).
+  - The observatory (180 tokens, Scout) isn't a room: it pops up off the castle's right tower, and he climbs up
+    to stargaze at night.
+  - The strange creatures wander the hillside behind the castle again (tap one). At night the pet curls up at the
+    foot of Aiu's bed; by day it wanders the grounds on the right. When Aiu looks after it, they meet at the gate.
+  - A 3.0 castle carries over: its rooms move into the new grid (the workshop becomes the garage), and the things
+    outside keep their spots.
+  - Not in this version: raids and defense (a later version).
 
 WHAT'S NEW IN 3.0.0 - THE CASTLE
   Upload: the whole aiu folder (there's a new file, js/castle.js; api.php and api.cgi only changed their version).

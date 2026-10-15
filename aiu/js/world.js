@@ -760,7 +760,7 @@
     if (sc.act === 'hibachi' && !A.isRoom(sc)) return { x: A.CART_AT.x, y: A.CART_AT.y - 4, s: 0.5 };
     var o = A.frameOff(sc), p = A.actorPos(sc); return { x: p.x + o.x, y: p.y + o.y, s: 1 };
   };
-  A.droneRectP = function (sc) { var r = A.droneRect(Object.assign({}, sc, { place: 'home' })); if (!r) return null; var o = A.isRoom(sc) ? (sc.place === 'library' ? { x: 0, y: OFF } : DRONE_IN) : SKYOFF; return { x: r.x + o.x, y: r.y + o.y, w: r.w, h: r.h }; };
+  A.droneRectP = function (sc) { if (A.CASTLE && AIU.castle && !A.isRoom(sc)) return AIU.castle.droneRect(sc); var r = A.droneRect(Object.assign({}, sc, { place: 'home' })); if (!r) return null; var o = A.isRoom(sc) ? (sc.place === 'library' ? { x: 0, y: OFF } : DRONE_IN) : SKYOFF; return { x: r.x + o.x, y: r.y + o.y, w: r.w, h: r.h }; };
   function inR(pt, r) { return !!(r && pt && pt.x >= r.x && pt.x <= r.x + r.w && pt.y >= r.y && pt.y <= r.y + r.h); }
   // What's under a tap (property pixels). The thing on top wins: Aiu, the pet and the animals, then the board and the
   // drone, then the buildings. Something walking past never blocks a building for long: only a tap right on it counts.

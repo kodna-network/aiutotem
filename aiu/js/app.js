@@ -1317,7 +1317,7 @@
     if (AIU.ui.tab && AIU.ui.tab !== 'world' && !document.documentElement.classList.contains('worldfull')) return; // 2.4.0: the world only draws on the World tab
     var sc = app.sceneState(), ctx = cv.getContext('2d');
     if (app.f % 8 === 0 && AIU.ui.statusTick) AIU.ui.statusTick(sc);
-    { var SC = A.SCALE || 1; A.H = sc.place === 'library' && A.isRoom(sc) ? 144 : A.isRoom(sc) ? (A.HOUSE_H || 270) : (A.YARD_H || 144); // 2.8.0: the yard is as tall as the house (the library page keeps its own size)
+    { var CSL = A.CASTLE && AIU.castle && !A.isRoom(sc); A.W = CSL ? AIU.castle.W : 192; A.SCALE = CSL ? AIU.castle.SC : 4; var SC = A.SCALE || 1; A.H = CSL ? AIU.castle.H : sc.place === 'library' && A.isRoom(sc) ? 144 : A.isRoom(sc) ? (A.HOUSE_H || 270) : (A.YARD_H || 144); // 3.1: the castle is its own size (288 x 405, drawn 3x) // 2.8.0: the yard is as tall as the house (the library page keeps its own size)
       if (cv.width !== A.W * SC || cv.height !== A.H * SC) { cv.width = A.W * SC; cv.height = A.H * SC; cv.style.aspectRatio = A.W + ' / ' + A.H; ctx = cv.getContext('2d'); } // 2.3.0: the property (drawn 4x for crisp in-between sizes)
       app.view = { sx: 0, sy: 0, z: 1, sc: sc }; if (A.renderWorld) A.renderWorld(ctx, sc); else A.render(ctx, sc);
       if (PLY) { var fo = A.frameOff ? A.frameOff(sc) : { x: 0, y: 0 }; ctx.save(); ctx.setTransform(SC, 0, 0, SC, SC * fo.x, SC * fo.y); PLY.draw(ctx, sc); ctx.restore(); }

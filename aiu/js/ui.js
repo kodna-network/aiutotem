@@ -480,7 +480,7 @@
     var sc = a.sceneState(), w = sc.weatherInfo, wtxt = w.source === 'guess' ? '' : ' · ' + w.label + (w.temp !== undefined ? ' ' + w.temp + '°' + w.units : '') + (w.stale && w.source === 'live' ? ' (' + w.ago + ')' : '');
     if (a.hatching) els.status.textContent = 'The egg is cracking!';
     else if (!S.hatched) els.status.textContent = (sc.eggProgress > 0.9 ? 'The egg is cracking!' : 'Hatches in ' + a.fmtDur(S.hatchAt - a.trueNow())) + wtxt;
-    else { var tips = ['Tap the pet, then Play!', 'Hold Aiu to pick him up.', 'Drag Aiu to the outhouse, the cart or the board.', 'Tap the drone for Vitals.', 'Tap the board: Aiu tells you the day.']; els.status.textContent = 'is ' + sc.actLabel + (sc.indoor && sc.place === 'home' && sc.act !== 'sleep' ? ' inside' : '') + wtxt + ' · ' + tips[Math.floor(Date.now() / 20000) % tips.length]; }
+    else { var tips = ['Tap the pet, then Play!', 'Hold Aiu to pick him up.', 'Drag Aiu to the outhouse, the cart or the board.', 'Tap the drone for Vitals.', 'Tap the board: Aiu tells you the day.']; els.status.textContent = 'is ' + (AIU.castle ? AIU.castle.labelFor(sc, sc.actLabel) : sc.actLabel + (sc.indoor && sc.place === 'home' && sc.act !== 'sleep' ? ' inside' : '')) + wtxt + ' · ' + tips[Math.floor(Date.now() / 20000) % tips.length]; }
     els.status.setAttribute('data-name', S.totemName);
     if (els.canvas) els.canvas.setAttribute('aria-label', 'Pet ' + S.totemName + '. ' + els.status.textContent);
     // growth bar
@@ -596,6 +596,7 @@
     if (hit.kind === 'cart') { var cs = a.view && a.view.sc; if (cs && cs.act === 'hibachi') { a.react('happy'); a.beep('chirp'); return; } a.beep('knock'); ui.k.snack(a.S.totemName + '\'s food cart. He cooks here at lunch and dinner when the weather is nice.'); return; } // 2.4.0: it's part of his routine (a tap doesn't drag him out of bed)
     if (hit.kind === 'landmark') return AIU.toy.visit(hit.id);
     if (hit.kind === 'pond') { a.beep('splash'); return; }
+    if (hit.kind === 'obs') { a.beep('knock'); ui.k.snack(AIU.castle.obsInfo()); return; }
     if (hit.kind === 'room') { a.beep('knock'); ui.k.snack(AIU.castle.roomInfo(hit.type)); return; } // 3.0: the castle's rooms and grounds
     if (hit.kind === 'orn') { var od0 = AIU.castle.ORN[hit.id]; a.beep(hit.id === 'pond' ? 'splash' : 'knock'); ui.k.snack(od0.name + ': ' + od0.desc); return; }
     if (hit.kind === 'gate') { a.beep('door'); ui.k.snack('The gate to ' + a.S.totemName + '\'s castle. Tap the hammer to build rooms and things outside.'); return; }

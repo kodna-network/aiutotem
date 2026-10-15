@@ -26,13 +26,18 @@
     var ranked = T.rank(S, d, ctx(S)), order = {}; ranked.forEach(function (q, i) { order[q.key] = i; });
     var q = k.inp({ type: 'search', placeholder: 'Search your tiles', value: st.tq || '', 'aria-label': 'Search tiles' });
     var grid = h('div', { cls: 'tiles' });
-    function count(f) { if (f === 'aside') return aside.length; if (f === 'discard') return disc.length; return T.list(S).filter(function (x) { return f === 'all' ? T.status(S, x, d) !== 'done' : f === 'repeats' ? T.repeats(x) : T.status(S, x, d) === f; }).length; }
-    var chips = h('div', { cls: 'chips tfilt', role: 'group', 'aria-label': 'Show' }, [['all', 'All'], ['next', 'Go'], ['doing', 'Doing'], ['done', 'Done'], ['repeats', 'Repeats'], ['aside', 'Archived'], ['discard', 'Discard pile']].filter(function (f) { return (f[0] !== 'aside' || aside.length || filt === 'aside') && (f[0] !== 'discard' || disc.length || filt === 'discard'); }).map(function (f) {
+    var labs = T.labels(S), lab = /^L:/.test(filt) ? filt.slice(2) : null; // 2.8.0: one filter per label, in front of Archived and the Discard pile
+    if (lab && !labs.some(function (L) { return L.id === lab; })) { lab = null; filt = 'all'; }
+    function count(f) { if (f === 'aside') return aside.length; if (f === 'discard') return disc.length; if (/^L:/.test(f)) return T.list(S).filter(function (x) { return T.tile(x).label === f.slice(2); }).length; return T.list(S).filter(function (x) { return f === 'all' ? T.status(S, x, d) !== 'done' : f === 'repeats' ? T.repeats(x) : T.status(S, x, d) === f; }).length; }
+    var FL = [['all', 'All'], ['next', 'Do'], ['doing', 'Doing'], ['done', 'Done'], ['repeats', 'Repeats']].concat(labs.map(function (L) { return ['L:' + L.id, L.name, L]; })).concat([['aside', 'Archived'], ['discard', 'Discard pile']]);
+    var chips = h('div', { cls: 'chips tfilt', role: 'group', 'aria-label': 'Show' }, FL.filter(function (f) { return (f[0] !== 'aside' || aside.length || filt === 'aside') && (f[0] !== 'discard' || disc.length || filt === 'discard') && (!f[2] || count(f[0]) || filt === f[0]); }).map(function (f) {
       var n = count(f[0]);
-      var b = k.btn(f[1] + (n && f[0] !== 'done' ? ' ' + n : ''), function () { st.tfilt = f[0]; ui.renderPanel(true); }, 'chip' + (filt === f[0] ? ' on' : ''));
+      var b = k.btn(f[1] + (n && f[0] !== 'done' ? ' ' + n : ''), function () { st.tfilt = f[0]; ui.renderPanel(true); }, 'chip' + (filt === f[0] ? ' on' : '') + (f[2] ? ' lchip' : ''));
       if (T.LIGHT[f[0]]) b.insertBefore(h('i', { cls: 'lamp ' + T.LIGHT[f[0]], 'aria-hidden': 'true' }), b.firstChild);
+      if (f[2]) b.insertBefore(h('i', { cls: 'ldot c' + ((f[2].c || 0) % 8), 'aria-hidden': 'true' }), b.firstChild);
       return b;
     }));
+    chips.appendChild(k.btn('Labels...', function () { PN.editLabels(); }, 'chip ghost'));
     function draw() {
       k.clear(grid);
       var term = q.value.trim().toLowerCase();
@@ -41,8 +46,9 @@
         if (filt === 'aside' || filt === 'discard') s0 = filt;
         if (filt === 'all' && s0 === 'done') return false;
         if (filt === 'repeats' && !T.repeats(x)) return false;
-        if (filt !== 'all' && filt !== 'repeats' && filt !== 'aside' && filt !== 'discard' && s0 !== filt) return false;
-        if (term) { var hay = [x.title, x.why, T.tile(x).who].concat((x.steps || []).map(function (y) { return y.title; })).join(' ').toLowerCase(); if (hay.indexOf(term) < 0) return false; }
+        if (lab) { if (T.tile(x).label !== lab) return false; }
+        else if (filt !== 'all' && filt !== 'repeats' && filt !== 'aside' && filt !== 'discard' && s0 !== filt) return false;
+        if (term) { var hay = [x.title, x.why, T.tile(x).who, (T.labelOf(S, x) || {}).name].concat((x.steps || []).map(function (y) { return y.title; })).join(' ').toLowerCase(); if (hay.indexOf(term) < 0) return false; }
         return true;
       }).sort(function (x, y) { var ox = order[x.key], oy = order[y.key]; return (ox === undefined ? 999 : ox) - (oy === undefined ? 999 : oy) || y.first - x.first; });
       if (!list.length) grid.appendChild(k.empty(term ? 'No tiles match "' + q.value.trim() + '".' : filt === 'done' ? 'Nothing finished yet.' : 'No tiles here. Tap + New tile.'));
@@ -66,8 +72,10 @@
       h('b', { cls: 'tttl', text: q.title }),
       h('span', { cls: 'twhen', text: T.whenText(q, K().c24()) }),
       T.isShop(q) ? h('span', { cls: 'twhen', text: steps.length ? sd + ' of ' + steps.length + ' in the cart' : 'Add your items' }) : h('span', { cls: 'tpcs', 'aria-label': (pcs.length - miss.length) + ' of ' + pcs.length + ' pieces' }, pcs.map(function (x) { return h('i', { cls: x.ok ? 'ok' : '' }); })),
-      h('span', { cls: 'thint' + (miss.length && !T.isStarter(q) ? ' ask' : ''), text: hint }));
+      h('span', { cls: 'thint' + (miss.length && !T.isStarter(q) ? ' ask' : ''), text: hint }),
+      labelTag(T.labelOf(S, q)));
   }
+  function labelTag(L) { return L ? h('span', { cls: 'tlabel' }, h('i', { cls: 'ldot c' + ((L.c || 0) % 8), 'aria-hidden': 'true' }), L.name) : null; }
 
   /* ---------- a new tile: just the name; Aiu asks the rest ---------- */
   function newTile(kind0, title0) { // title0: a starting name (2.1.6: from a Vitals check-in you said 'not yet' to)
@@ -78,17 +86,25 @@
     }));
     function show() {
       ['list', 'shop'].forEach(function (x) { kb[x].classList.toggle('on', kind === x); kb[x].setAttribute('aria-checked', kind === x ? 'true' : 'false'); });
+      drawLabels();
       lab.textContent = kind === 'shop' ? 'Name the list' : 'What do you want to get done?';
       name.placeholder = kind === 'shop' ? 'e.g. Groceries, Hardware store, Pet supplies' : 'e.g. Water the plants, Clean my room, Call a friend';
       hint.textContent = kind === 'shop' ? 'A shopping list: add your items, check them off as you get them, then tap Done shopping to finish it.' : 'A task list: ' + a.S.totemName + ' asks when, then you add the to-do boxes. It finishes by itself when every box is checked.';
     }
+    var lpick = null, lrow = h('div', { cls: 'chips lpick', role: 'radiogroup', 'aria-label': 'Label' }); // 2.8.0: a label, guessed from the name until you pick one
+    function drawLabels() {
+      var cur = lpick !== null ? lpick : T.guessLabel(a.S, name.value, kind); k.clear(lrow);
+      T.labels(a.S).concat([{ id: '', name: 'No label' }]).forEach(function (L) { var b = k.btn(L.name, function () { lpick = L.id; drawLabels(); }, 'chip' + (cur === L.id ? ' on' : '')); b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', cur === L.id ? 'true' : 'false'); if (L.id) b.insertBefore(h('i', { cls: 'ldot c' + ((L.c || 0) % 8), 'aria-hidden': 'true' }), b.firstChild); lrow.appendChild(b); });
+    }
+    name.addEventListener('input', function () { if (lpick === null) drawLabels(); });
     function go() {
       var t = Wd.cap(name.value.trim()).slice(0, 60); if (!t) return k.msg(m, 'Give it a name.', true);
-      s.remove(); var r = T.createEvents(a.S, t, { set: kind === 'shop' ? { kind: 'shop', when: { t: 'any' } } : { kind: 'list' } });
+      var set0 = kind === 'shop' ? { kind: 'shop', when: { t: 'any' } } : { kind: 'list' }; set0.label = lpick !== null ? lpick : T.guessLabel(a.S, t, kind); if (!set0.label) delete set0.label;
+      s.remove(); var r = T.createEvents(a.S, t, { set: set0 });
       a.addEvents(r.events).then(function () { ui.openQuest(r.key); });
     }
     name.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
-    s = k.sheet('New tile', [h('span', { cls: 'flabel', text: 'Kind' }), seg, h('label', { cls: 'field' }, lab, name), hint, m,
+    s = k.sheet('New tile', [h('span', { cls: 'flabel', text: 'Kind' }), seg, h('label', { cls: 'field' }, lab, name), hint, h('span', { cls: 'flabel', text: 'Label' }), lrow, m,
       h('div', { cls: 'row spread' }, h('span'), k.btn('Make the tile', go, 'primary'))]);
     show();
     setTimeout(function () { try { name.focus(); } catch (e) {} }, 60);
@@ -179,6 +195,7 @@
     var optBtns = [
       k.btn('Rename', function () { k.editSheet('Rename tile', [{ label: 'Name', value: q.title }, { label: 'Notes (optional)', value: q.why || '', type: 'textarea' }], function (v) { var t = Wd.cap(v[0].trim()).slice(0, 60); if (!t) return; var dd = M.questSetData(q, (q.steps || []).slice()); dd.title = t; dd.why = v[1].trim() || undefined; a.addEvents([{ type: 'quest_set', data: dd }].concat(tsks.map(function (x) { return { type: 'task_set', data: Object.assign(taskData(x), { title: t.slice(0, 60) }) }; }))); }); }),
       null && k.btn('Archive', function () { a.addEvents([{ type: 'quest_state', data: { key: key, state: 'dropped' } }].concat(offTask)).then(function () { ui.questOpen = null; ui.renderPanel(true); k.snack('Archived "' + q.title + '". Find it under the Archived filter.', function () { a.addEvents([{ type: 'quest_state', data: { key: key, state: 'active' } }].concat(backTask)); }); }); }),
+      q.state === 'deleted' ? null : k.btn('Duplicate', function () { duplicate(q); }), // 2.8.0: a copy with the same steps, label and when (boxes unchecked)
       q.state === 'deleted' ? null : k.btn('Discard', function () { var was = q.state; a.addEvents([{ type: 'quest_state', data: { key: key, state: 'deleted' } }].concat(offTask)).then(function () { ui.questOpen = null; ui.renderPanel(true); k.snack('"' + q.title + '" is in the discard pile.', function () { a.addEvents([{ type: 'quest_state', data: { key: key, state: was } }].concat(backTask)); }); }); }, 'del')];
     var p = body();
     if (q.state === 'deleted') p.appendChild(h('div', { cls: 'askcard' }, h('p', { text: 'This tile is in the discard pile.' }), h('div', { cls: 'row wrap' }, // 2.4.0: bring it back, or delete it for good
@@ -186,6 +203,8 @@
       k.btn('Delete forever', function () { var inp0 = k.inp({ placeholder: 'type DELETE' }), m0 = h('p', { cls: 'formmsg' }), s0 = k.sheet('Delete forever', [h('p', { text: 'This removes "' + q.title + '" for good. Type DELETE to confirm.' }), inp0, m0, k.btn('Delete forever', function () { if (inp0.value.trim().toUpperCase() !== 'DELETE') return k.msg(m0, 'Type DELETE to confirm.', true); s0.remove(); a.addEvents([{ type: 'quest_state', data: { key: key, state: 'purged' } }]).then(function () { ui.questOpen = null; ui.renderPanel(true); k.snack('Deleted for good.'); }); }, 'danger')]); }, 'del'))));
     if (q.state === 'dropped') p.appendChild(h('div', { cls: 'askcard' }, h('p', { text: 'This tile is archived.' }), k.btn('Restore it', function () { a.addEvents([{ type: 'quest_state', data: { key: key, state: 'active' } }]).then(function () { if (tl.when) PN.setWhen(S.quests[key], tl.when); }); }, 'primary')));
     p.appendChild(h('p', { cls: 'small', text: T.whenText(q, k.c24()) + (q.why ? ' · ' + q.why : '') }));
+    var L0 = T.labelOf(S, q); // 2.8.0: the tile's label (tap to change it)
+    p.appendChild(h('button', { type: 'button', cls: 'linkrow tlabrow', onclick: function () { labelSheet(q); } }, h('span', null, 'Label: ', L0 ? labelTag(L0) : h('span', { cls: 'muted', text: 'none' })), h('span', { cls: 'small', text: 'Change >' })));
     // status
     // status: a traffic light. Green = go, yellow = doing, red = stop (finished)
     p.appendChild(h('div', { cls: 'lights', role: 'radiogroup', 'aria-label': 'Status' }, T.STATUS.map(function (x) {
@@ -235,6 +254,13 @@
     p.appendChild(fin);
     // tile options (no More menu)
     p.appendChild(h('div', { cls: 'topts' }, optBtns.filter(Boolean))); // 2.1.13: Rename · Archive · Delete on one line
+  }
+  function duplicate(q) {
+    var a = app(), tl = T.tile(q), set = {}, used = [];
+    ['kind', 'label', 'when', 'who', 'dur', 'calm'].forEach(function (f) { if (tl[f] !== undefined && tl[f] !== '') set[f] = tl[f]; });
+    var steps = (q.steps || []).map(function (x) { var st0 = { id: T.stepId(q, used), title: x.title }; used.push(st0); return st0; });
+    var r = T.createEvents(a.S, Wd.cap((q.title + ' (copy)').slice(0, 60)), { set: set, quest: { steps: steps, why: q.why } });
+    a.addEvents(r.events).then(function () { var nq = a.S.quests[r.key]; if (nq && tl.when) return PN.setWhen(nq, tl.when); }).then(function () { ui.openQuest(r.key); K().snack('Made a copy: ' + q.title + ' (copy).'); });
   }
   function nextText(q, d) { var w = T.tile(q).when || {}; if (w.t === 'window') return 'next ' + T.mdText(w.from); var o0 = T.occurrence(q, d); if (o0.slot) return o0.nextSlot ? 'at ' + U.fmtHm(o0.nextSlot, K().c24()) : 'tomorrow at ' + U.fmtHm(T.times(q)[0], K().c24()); if (w.every === 'day') return 'tomorrow'; var o = T.occurrence(q, d); return o.next ? U.fmtDay(o.next) : w.every === 'month' ? 'next month' : 'next time'; }
   function finish(q, opt) {
@@ -314,6 +340,40 @@
       cards.forEach(function (c) { box.appendChild(k.btn(c.name || 'Card', function () { s.remove(); a.addEvents([T.setEv(q.key, { acct: c.key })]); })); });
     }, function () { k.clear(box); box.appendChild(h('p', { cls: 'small', text: 'Open Accounts first, then come back.' })); });
   }
+  /* ---------- 2.8.0: labels (categories you name yourself) ---------- */
+  function labelSheet(q) {
+    var a = app(), k = K(), s, cur = T.tile(q).label || '', row = h('div', { cls: 'chips lpick' });
+    T.labels(a.S).concat([{ id: '', name: 'No label' }]).forEach(function (L) {
+      var b = k.btn(L.name, function () { s.remove(); if (L.id !== cur) a.addEvents([T.setEv(q.key, { label: L.id })]); }, 'chip' + (cur === L.id ? ' on' : ''));
+      if (L.id) b.insertBefore(h('i', { cls: 'ldot c' + ((L.c || 0) % 8), 'aria-hidden': 'true' }), b.firstChild);
+      row.appendChild(b);
+    });
+    s = k.sheet('Label: ' + q.title, [row, h('div', { cls: 'row spread' }, h('span'), k.btn('Edit labels...', function () { s.remove(); PN.editLabels(); }, 'ghost'))]);
+  }
+  PN.editLabels = function () {
+    var a = app(), k = K(), s, list = T.labels(a.S).map(function (L) { return { id: L.id, name: L.name, c: L.c || 0 }; }), box = h('div', { cls: 'labedit' }), m = h('p', { cls: 'formmsg' });
+    function used(id) { return T.list(a.S).filter(function (x) { return T.tile(x).label === id; }).length; }
+    function draw() {
+      k.clear(box);
+      list.forEach(function (L, i) {
+        var nm = k.inp({ value: L.name, maxLength: 20, autocapitalize: 'words', 'aria-label': 'Label name' }); nm.addEventListener('input', function () { L.name = nm.value; });
+        var dot = h('button', { type: 'button', cls: 'ldot big c' + (L.c % 8), 'aria-label': 'Change the color of ' + (L.name || 'this label'), onclick: function () { L.c = (L.c + 1) % 8; draw(); } });
+        var n = used(L.id);
+        box.appendChild(h('div', { cls: 'row labrow' }, dot, nm, h('span', { cls: 'small muted', text: n ? n + ' tile' + (n === 1 ? '' : 's') : '' }), k.btn('Delete', function () { list.splice(i, 1); draw(); }, 'mini del')));
+      });
+      if (!list.length) box.appendChild(k.empty('No labels. Add one below.'));
+    }
+    function save() {
+      var seen = {}, out = [];
+      for (var i = 0; i < list.length; i++) { var nm0 = Wd.cap(String(list[i].name || '').trim()).slice(0, 20); if (!nm0) return k.msg(m, 'Every label needs a name (or Delete it).', true); if (seen[nm0.toLowerCase()]) return k.msg(m, 'Two labels are called "' + nm0 + '".', true); seen[nm0.toLowerCase()] = 1; out.push({ id: list[i].id, name: nm0, c: list[i].c % 8 }); }
+      s.remove();
+      a.setSetting('tileLabels', out).then(function () { ui.renderPanel(true); k.snack('Labels saved.'); });
+    }
+    draw();
+    s = k.sheet('Labels', [h('p', { cls: 'small', text: 'Labels sort your tiles (Home, Exercise, Work...). Rename them, tap a dot to change its color, add your own. Deleting a label takes it off its tiles; the tiles stay.' }), box,
+      k.btn('+ Add a label', function () { if (list.length >= T.LABEL_MAX) return k.msg(m, 'That\'s the most labels (' + T.LABEL_MAX + ').', true); list.push({ id: 'l' + U.id().replace(/[^A-Za-z0-9]/g, '').slice(-8).toLowerCase(), name: '', c: list.length % 8 }); draw(); var ins = box.querySelectorAll('input'); if (ins.length) ins[ins.length - 1].focus(); }, 'mini'),
+      m, h('div', { cls: 'row spread' }, k.btn('Starting labels', function () { list = T.LABELS0.map(function (L) { return Object.assign({}, L); }); draw(); }, 'ghost'), k.btn('Save', save, 'primary'))]);
+  };
   function stepsBox(q, withAdd) {
     var a = app(), S = a.S, k = K(), key = q.key, raw = (q.steps || []).slice(), steps = C.questSteps(S, q), ns = C.nextStep(S, q);
     function setSteps(list) { return a.addEvents([{ type: 'quest_set', data: M.questSetData(q, list) }]); }

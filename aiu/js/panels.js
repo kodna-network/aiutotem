@@ -155,12 +155,12 @@
     var tag = it.src === 'task' ? (it.kind === 'wake' ? 'wake-up' : 'reminder') : it.src === 'iching' ? 'i ching' : (PL.KINDS[it.kind] || it.kind).toLowerCase() + (p && p.folder ? ' · ' + p.folder : '');
     if (it.src === 'tile') {
       // 2.0.7: the tile's traffic light. Today you can tap it: green > yellow > red (done) > green. It's the same status as inside the tile.
-      var T = AIU.tiles, LB = { next: 'Go', doing: 'Doing', done: 'Done' }, lt = it.light || 'next', q0 = a.S.quests[it.key];
+      var T = AIU.tiles, LB = { next: 'Do', doing: 'Doing', done: 'Done' }, lt = it.light || 'next', q0 = a.S.quests[it.key];
       var lamp = it.live && q0 ? h('button', { type: 'button', cls: 'plight', 'aria-label': it.title + ': ' + LB[lt] + '. Tap for ' + LB[T.NEXTLIGHT[lt]] + '.', onclick: function () {
         var to = T.NEXTLIGHT[lt]; PN.setLight(q0, to).then(function (r) { if (r !== false && to !== 'done' && lt !== 'done') k.snack(it.title + ': ' + LB[to] + '.'); });
       } }, h('i', { cls: 'lamp ' + T.LIGHT[lt] })) : h('span', { cls: 'plight off', title: LB[lt] }, h('i', { cls: 'lamp ' + T.LIGHT[lt] }));
       return h('div', { cls: 'item prow k-tile' + (it.done ? ' done' : '') }, lamp, h('span', { cls: 'itime', text: it.win ? 'season' : fmtT(it.time) }),
-        h('button', { type: 'button', cls: 'ititle linkish', text: it.title, onclick: function () { ui.openQuest(it.key); } }), h('span', { cls: 'tag', text: 'tile' }));
+        h('button', { type: 'button', cls: 'ititle linkish', text: it.title, onclick: function () { ui.openQuest(it.key); } }), h('span', { cls: 'tag', text: (q0 && T.labelOf && (T.labelOf(a.S, q0) || {}).name) || 'tile' })); // 2.8.0: its label, if it has one
     }
     if (it.src === 'iching') return h('div', { cls: 'item prow k-iching' + (it.done ? ' done' : '') }, h('span', { cls: 'pdot', text: it.done ? 'x' : '' }), h('span', { cls: 'itime', text: fmtT(it.time) }),
       h('button', { type: 'button', cls: 'ititle linkish', text: it.title, onclick: function () { ui.go('journal', 'today'); } }), h('span', { cls: 'tag', text: tag }));

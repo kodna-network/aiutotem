@@ -112,14 +112,14 @@
     var a = app(), link = ui.linkFrom;
     ui.linkFrom = null;
     if (!link) return a.openProfile(pid);
-    var pr = a.profiles[pid], main = 'u:' + pr.u;
+    var pr = a.profiles[pid], main = a.pidFor(pr.u, '');
     return a.api('sync', { u: pr.u, token: pr.token, since: 0, events: [], tid: '' }).then(function (r) {
       var target = main;
       if (r.events.length) { // 2.2.0: the account already has a Totem, so this one joins it as another profile
-        var lp = a.profiles[link] || {}, tid = a.newTid(); target = 'u:' + pr.u + '#' + tid;
-        a.profiles[target] = { u: pr.u, email: pr.email, token: pr.token, created: Date.now(), local: false, tid: tid, pname: lp.pname || (lp.label ? lp.label.replace(/ \(.*\)$/, '') : 'My Aiu'), pkind: lp.pkind || 'personal' };
+        var lp = a.profiles[link] || {}, tid = a.newTid(); target = a.pidFor(pr.u, tid);
+        a.profiles[target] = { u: pr.u, email: pr.email, token: pr.token, dk: pr.dk, created: Date.now(), local: false, tid: tid, pname: lp.pname || (lp.label ? lp.label.replace(/ \(.*\)$/, '') : 'My Aiu'), pkind: lp.pkind || 'personal' };
       }
-      return a.saveProfiles().then(function () { return a.linkLocalTo(link, target); }).then(function () { return a.openProfile(target); }).then(function () { if (target !== main) a.api('profile_set', { u: pr.u, token: pr.token, tid: a.profiles[target].tid, pname: a.profiles[target].pname, pkind: a.profiles[target].pkind }).catch(function () {}); ui.snack && ui.snack(target === main ? 'Your Totem now lives in your account and syncs everywhere.' : 'Your account already had a Totem, so this one is now its own profile in the account.'); });
+      return a.saveProfiles().then(function () { return a.linkLocalTo(link, target); }).then(function () { return a.openProfile(target); }).then(function () { if (target !== main) a.profileSet(a.profiles[target]).catch(function () {}); ui.snack && ui.snack(target === main ? 'Your Totem now lives in your account and syncs everywhere.' : 'Your account already had a Totem, so this one is now its own profile in the account.'); });
     });
   }
 
@@ -342,8 +342,6 @@
       onkeydown: function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); a.pet(); } } });
     (function () { var last = 0; els.canvas.addEventListener('touchend', function (e) { var t = Date.now(); if (t - last < 350) { e.preventDefault(); if (e.changedTouches && e.changedTouches[0]) els.canvas.dispatchEvent(new MouseEvent('click', { clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY, bubbles: true })); } last = t; }, { passive: false }); })(); // 2.1.3: fast petting on iPhone: no zoom, every tap still counts
     rubbing(els.canvas);
-    ['pointerdown', 'pointermove', 'pointerup'].forEach(function (ev, n) { els.canvas.addEventListener(ev, function (e) { if (A.arrangeUI) ui._arr[['down', 'move', 'up'][n]](e); }, true); }); // 2.7.0: Arrange mode takes the taps first
-    els.canvas.addEventListener('click', function (e) { if (A.arrangeUI) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
     if (AIU.toy) AIU.toy.attach(els.canvas); // 2.3.0: hold and drag to pick things up
     // 2.1.7: the care bar under the world (tap the pet): Snack and Water as often as you like, Games, and how full it is
     els.care = h('div', { cls: 'care', hidden: true, role: 'group', 'aria-label': 'Look after your pet' });
@@ -387,12 +385,9 @@
     }).concat([gear]));
     els.toast = h('div', { cls: 'toast', role: 'alert' });
     els.wbar = h('div', { cls: 'wbar' }, h('div', { cls: 'smeters' }, mGrow, mGaba, AIU.life ? AIU.life.chip() : null), h('div', { cls: 'wbtns' }, els.full)); // 2.1.5: the buttons sit above the world, not on it
-    // 2.7.0: Arrange: drag a building onto another and they swap places (or tap one, then the other)
-    els.arrBtn = h('button', { type: 'button', cls: 'doorbtn arrbtn', text: 'Arrange', onclick: function () { ui.arrange(!A.arrangeUI); } });
-    els.arrBar = h('div', { cls: 'arrbar', hidden: true }, h('span', { text: 'Drag a building onto another to swap them.' }), btn('Reset', function () { app().setSetting('layout', null); ui.snack('Back to the first layout.'); }, 'mini ghost'), btn('Done', function () { ui.arrange(false); }, 'mini primary'));
     els.doorBtn = h('button', { type: 'button', cls: 'doorbtn', text: 'Go inside', onclick: function () { var v = app().view && app().view.sc; if (v) app().houseTap(!!(v.indoor || A.isRoom(v))); } }); // 2.7.0: in or out, without hunting for the door
     els.world = h('section', { cls: 'world', 'aria-label': a.S.totemName }, h('div', { cls: 'stage' }, els.canvas, els.fx, els.bubble, h('button', { type: 'button', cls: 'sr', text: 'Play a game (the dice pick one)', onclick: function () { AIU.games.roll(); } }), els.boardSr = h('button', { type: 'button', cls: 'sr', text: 'Bounty board: today\'s list', onclick: function () { ui.todaySheet(); } })),
-      h('div', { cls: 'doorrow' }, els.arrBtn, els.doorBtn), els.arrBar, els.wbar, els.care, /* 2.7.0: the door button sits just under the picture (it covered things on it); 2.5.0: the world first, right under the menu; growth, vitals and tokens under it */ els.status, els.nudge, els.banner);
+      h('div', { cls: 'doorrow' }, els.doorBtn), els.wbar, els.care, /* 2.7.0: the door button sits just under the picture (it covered things on it); 2.5.0: the world first, right under the menu; growth, vitals and tokens under it */ els.status, els.nudge, els.banner);
     els.panel2 = h('section', { cls: 'panel2' }, h('div', { cls: 'phead' }, els.ptitle, els.pacts, els.pread = ui.readBtn()), els.pextra, els.psub, els.panel, els.pfoot);
     var firstMain = !document.querySelector('.app2');
     r.appendChild(h('div', { cls: 'app2' },
@@ -458,30 +453,6 @@
 
   // keep the status line in step with what the scene shows (called by the scene loop)
   var lastLabel = '';
-  ui.arrange = function (on) {
-    var a = app(), v = a.view && a.view.sc;
-    if (on && v && (v.indoor || A.isRoom(v))) { ui.snack('Arrange works on the yard. Tap Go outside first.'); return; }
-    A.arrangeUI = on ? { sel: null, pt: null } : null;
-    if (els.arrBar) els.arrBar.hidden = !on; if (els.arrBtn) els.arrBtn.classList.toggle('on', !!on);
-  };
-  function arrDown(e) {
-    var U0 = A.arrangeUI; if (!U0) return; e.preventDefault(); e.stopImmediatePropagation();
-    var pt = ui.worldPt(e), L = pt && A.landmarkAt(pt), b = L && A.ARRANGE.indexOf(L.id) >= 0 ? L.id : null;
-    if (U0.sel && b && b !== U0.sel && !U0.drag) { swap(U0.sel, b); U0.sel = null; return; } // tap one, then the other
-    U0.sel = b; U0.pt = null; U0.drag = !!b; U0.moved = false;
-    try { els.canvas.setPointerCapture(e.pointerId); } catch (x) {}
-  }
-  function arrMove(e) { var U0 = A.arrangeUI; if (!U0 || !U0.drag) return; e.preventDefault(); e.stopImmediatePropagation(); U0.pt = ui.worldPt(e); U0.moved = true; }
-  function arrUp(e) {
-    var U0 = A.arrangeUI; if (!U0) return; e.preventDefault(); e.stopImmediatePropagation();
-    if (U0.drag && U0.moved) { var pt = ui.worldPt(e), L = pt && A.landmarkAt(pt); if (L && A.ARRANGE.indexOf(L.id) >= 0 && L.id !== U0.sel) swap(U0.sel, L.id); U0.sel = null; }
-    U0.drag = false; U0.pt = null;
-  }
-  function swap(b1, b2) {
-    var a = app(), map = A.layoutOf(C.setting(a.S, 'layout', null)), t = map[b1]; map[b1] = map[b2]; map[b2] = t;
-    a.setSetting('layout', map); a.beep('ping');
-  }
-  ui._arr = { down: arrDown, move: arrMove, up: arrUp };
   ui.statusTick = function (sc) {
     if (els.doorBtn && sc) { var inn = !!(sc.indoor || (A.isRoom && A.isRoom(sc))), tr = app().trip; els.doorBtn.textContent = tr && tr.dir === 'go' ? (tr.indoor ? 'Heading out...' : 'Heading in...') : inn ? 'Go outside' : 'Go inside'; els.doorBtn.hidden = !app().S.hatched || sc.act === 'sleep' || sc.mode === 'sleepy' || sc.place === 'library'; }
     if (!ui.onMain || !els.status || !app().S || !app().S.hatched || app().hatching) return;
@@ -1093,12 +1064,13 @@
   function section(title, kids) { return h('section', { cls: 'sset' }, h('h3', { text: title }), kids); }
 
   ui.reloginSheet = function () {
-    var a = app(), pw = inp({ type: 'password', placeholder: 'password' }), m = h('p', { cls: 'formmsg' }), s;
+    var a = app(), un = inp({ value: a.prof.disp || a.prof.u, autocomplete: 'username', 'aria-label': 'Username' }), pw = inp({ type: 'password', placeholder: 'password' }), m = h('p', { cls: 'formmsg' }), s;
     var go = btn('Log in', function () {
       busy(go, true, '...');
-      a.login(a.prof.u, pw.value).then(function () { a.prof = a.profiles[a.pid]; s.remove(); a.syncNow('relogin').catch(function () {}); }, function (e) { busy(go, false, 'Log in'); msg(m, e.message, true); });
+      var pid0 = a.pid; // 2.8.0: the username may have changed on another device; the same account keeps this device's copy
+      a.login(un.value.trim().toLowerCase(), pw.value, un.value.trim(), { same: pid0 }).then(function () { a.prof = a.profiles[a.pid]; s.remove(); a.syncNow('relogin').catch(function () {}); }, function (e) { busy(go, false, 'Log in'); msg(m, e.message, true); });
     }, 'primary');
-    s = sheet('Log in again', [h('p', { text: 'Your password changed or this device was logged out. Nothing is lost: your changes are waiting on this device.' }), field('Password for ' + a.prof.u, pw), m, go]);
+    s = sheet('Log in again', [h('p', { text: (a.sync.err && /private/.test(a.sync.err) ? a.sync.err + ' ' : 'Your password or username changed, or this device was logged out. ') + 'Nothing is lost: your changes are waiting on this device.' }), field('Username', un), field('Password', pw), m, go]);
   };
 
   ui.settings = function () {
@@ -1112,10 +1084,20 @@
     } else {
       acct.push(h('p', null, 'Username: ', h('b', { text: S.callMe }), h('span', { cls: 'small', text: ' (' + S.totemName + ' calls you this. It\'s yours alone: no one else can have it.)' })));
       acct.push(h('p', { cls: 'small', text: 'Keep your password safe: it can\'t be reset, by anyone. A lost password means starting a new account.' })); // 2.7.0
+      acct.push(h('p', { cls: 'small' }, h('b', { text: a.prof.dk ? 'Private sync is on. ' : 'Private sync needs your password once. ' }), a.prof.dk ? 'Everything is scrambled on your devices before it goes to the server, with a key only your password opens. The server can\'t read your Totem, your journal or your tiles.' : 'Log out and in again on this device to turn it on.')); // 2.8.0
       acct.push(btn('Log out', function () { if (S.unsent && !confirm(S.unsent + ' changes have not synced yet. They stay safe on this device and sync next time you log in here. Log out?')) return; s.remove(); a.logout(); }, 'primary'));
       var oldp = inp({ type: 'password', placeholder: 'current' }), newp = inp({ type: 'password', placeholder: 'new, 8+ characters' }), pm = h('p', { cls: 'formmsg' });
       acct.push(h('details', null, h('summary', { text: 'Change password' }), field('Current password', oldp), field('New password', newp), pm,
-        btn('Change', function () { var np = newp.value; a.api('password', { u: a.prof.u, token: a.prof.token, old: oldp.value, pw: np }).then(function () { msg(pm, 'Changed. Other devices will ask to log in again.'); a.vaultRekey(np).catch(function () {}); }, function (e) { msg(pm, e.message, true); }); }, 'primary')));
+        btn('Change', function () { var np = newp.value; if (np.length < 8) return msg(pm, 'Passwords need at least 8 characters.', true); a.changePassword(oldp.value, np).then(function () { msg(pm, 'Changed. Other devices will ask to log in again.'); }, function (e) { msg(pm, e.message, true); }); }, 'primary')));
+      // 2.8.0: a new username (the old one becomes free for anyone)
+      var nun = inp({ placeholder: 'new username', maxLength: 24, autocapitalize: 'words', autocomplete: 'off' }), unp = inp({ type: 'password', placeholder: 'your password' }), um = h('p', { cls: 'formmsg' });
+      acct.push(h('details', null, h('summary', { text: 'Change username' }), h('p', { cls: 'small', text: 'Pick any username nobody has. Your old one becomes free for someone else right away. Your other devices will ask you to log in with the new one.' }),
+        field('New username', nun, 'Letters, numbers, - or _ (3-24).'), field('Password', unp), um,
+        btn('Change', function () {
+          var v = nun.value.trim(), lc = v.toLowerCase();
+          if (!/^[a-z0-9_-]{3,24}$/.test(lc)) return msg(um, 'Usernames are 3-24 letters, numbers, - or _.', true);
+          a.renameAccount(lc, unp.value, v).then(function (nu) { msg(um, 'Done. You are ' + nu + ' now.'); ui.refresh(true); }, function (e) { msg(um, /taken/i.test(e.message) ? 'That name is taken. Try another.' : e.message, true); });
+        }, 'primary')));
     }
     // totem
     var tn = inp({ value: S.totemName, maxLength: 24, enterkeyhint: 'done', autocapitalize: 'words' }), cm = inp({ value: S.callMe, maxLength: 30, enterkeyhint: 'done', autocapitalize: 'words' }), nmsg = h('span', { cls: 'small', 'aria-live': 'polite' });

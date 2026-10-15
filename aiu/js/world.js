@@ -10,12 +10,12 @@
    The canvas is drawn 4x bigger than the art so things can be drawn at 3/4 or 5/4 size and stay crisp (the house is 3/4
    size, the horse is bigger than the cat). Rooms (the house, the kitchen, the bathroom) are the same 192x108 pictures as
    before, under a strip of wall with a regulator clock.
-   Coordinates: property = 192x144. The old "yard" pictures (Aiu's activities, the pet) are drawn shifted by A.YARD. */
+   Coordinates: property = 192x270 (2.8.0; it was 192x144, and everything above y 144 kept its place). The old "yard" pictures (Aiu's activities, the pet) are drawn shifted by A.YARD. */
 (function () {
   'use strict';
   var U = AIU.util, A = AIU.art, P = A.P, K = A.prim, R = K.R, px = K.px, spr = K.spr, disc = K.disc, ell = K.ell, tri = K.tri, line = K.line, dith = K.dith, IN = A._in;
-  var W = 192, H = 144, OFF = 36, SC = 4;
-  A.H = H; A.SCALE = SC; A.ROOM_OFF = OFF;
+  var W = 192, H = 270, OFF = 36, SC = 4; // 2.8.0: the yard is 270 tall, the same as the house (it was 144)
+  A.H = H; A.YARD_H = H; A.SCALE = SC; A.ROOM_OFF = OFF;
   A.YARD = { x: -8, y: 31 }; // where the old yard's coordinates land in the property (Aiu's spot 136,97 -> 128,128)
   var SKYOFF = { x: -54, y: -28 }; // 2.4.0: the drone hovers in the sky right above the house (it used to drift off the top)
   function app() { return AIU.app; }
@@ -42,24 +42,19 @@
   A.AIU_SPOT = { x: 128, y: 128 };
   A.landmarkAt = function (pt) { for (var i = 0; i < A.LANDMARKS.length; i++) { var L = A.LANDMARKS[i], r = L.r; if (pt.x >= r.x && pt.x <= r.x + r.w && pt.y >= r.y && pt.y <= r.y + r.h) return L; } return null; };
   A.landmark = function (id) { return A.LANDMARKS.filter(function (L) { return L.id === id; })[0]; };
-  /* 2.7.0: arrange the buildings. Each building has a spot (a lot); dragging one onto another swaps their spots. The house,
-     the stream, the pond and the board stay put, so Aiu's paths always work. The layout is the setting 'layout'. */
+  /* 2.8.0: every building has a fixed spot (Arrange is gone). The yard is as tall as the house now (192x270), so it has room:
+     behind the stream, the back row (the barn, the well, the house, the outhouse and the lab); in front of the field, the front
+     yard: the greenhouse and the garage, drawn at 5/4 size (they're closer), and the tool shed by the vegetable garden.
+     A moved building is drawn by its own code at its old place, then shifted (and scaled) to its spot; its tap area and door
+     move with it. HOME = where each building's code draws it (its center and its base line). */
   var HOME = { barn: { cx: 19, b: 62 }, lab: { cx: 177, b: 62 }, greenhouse: { cx: 48, b: 82 }, garage: { cx: 158, b: 82 }, shed: { cx: 72, b: 85 }, well: { cx: 66, b: 54 }, outhouse: { cx: 115, b: 50 } };
-  A.ARRANGE = Object.keys(HOME);
-  var BASE_LM = {}; A.LANDMARKS.forEach(function (L) { if (HOME[L.id]) BASE_LM[L.id] = { r: Object.assign({}, L.r), door: Object.assign({}, L.door) }; });
-  var OFFS = {}, layKey = '';
-  A.layoutOf = function (v) { // a clean building -> spot map (a proper swap list, or the default)
-    var out = {}, used = {}; A.ARRANGE.forEach(function (b) { var l = v && v[b]; if (HOME[l] && !used[l]) { out[b] = l; used[l] = 1; } });
-    A.ARRANGE.forEach(function (b) { if (!out[b]) { if (!used[b]) { out[b] = b; used[b] = 1; } else { var free = A.ARRANGE.filter(function (l) { return !used[l]; })[0]; out[b] = free; used[free] = 1; } } });
-    return out;
-  };
-  A.applyLayout = function (v) {
-    var map = A.layoutOf(v), k = JSON.stringify(map); if (k === layKey) return map; layKey = k;
-    A.ARRANGE.forEach(function (b) { var l = map[b], o = { x: HOME[l].cx - HOME[b].cx, y: HOME[l].b - HOME[b].b }, L = A.landmark(b), B0 = BASE_LM[b]; OFFS[b] = o; if (L && B0) { L.r = { x: B0.r.x + o.x, y: B0.r.y + o.y, w: B0.r.w, h: B0.r.h }; L.door = { x: B0.door.x + o.x, y: B0.door.y + o.y }; } });
-    return map;
-  };
-  A.bOff = function (b) { return OFFS[b] || { x: 0, y: 0 }; };
-  A.applyLayout(null);
+  var SPOTS = { greenhouse: { cx: 44, b: 186, s: 1.25 }, garage: { cx: 150, b: 186, s: 1.25 }, shed: { cx: 30, b: 236, s: 1.25 } };
+  A.BUILDINGS = Object.keys(HOME);
+  function spotOf(b) { var h0 = HOME[b], sp = SPOTS[b]; return sp ? sp : { cx: h0.cx, b: h0.b, s: 1 }; }
+  function moveR(b, r) { var h0 = HOME[b], sp = spotOf(b); return { x: Math.round(sp.cx + (r.x - h0.cx) * sp.s), y: Math.round(sp.b + (r.y - h0.b) * sp.s), w: Math.round(r.w * sp.s), h: Math.round(r.h * sp.s) }; }
+  function moveP(b, p) { var h0 = HOME[b], sp = spotOf(b); return { x: Math.round(sp.cx + (p.x - h0.cx) * sp.s), y: Math.round(sp.b + (p.y - h0.b) * sp.s) }; }
+  A.LANDMARKS.forEach(function (L) { if (SPOTS[L.id]) { L.r = moveR(L.id, L.r); L.door = moveP(L.id, L.door); } });
+  function atSpot(c, b, fn) { var h0 = HOME[b], sp = spotOf(b); c.save(); c.translate(sp.cx, sp.b); c.scale(sp.s, sp.s); c.translate(-h0.cx, -h0.b); fn(); c.restore(); }
 
   /* ---------- the static picture (cached) ---------- */
   var stat = { key: null, cv: null, houseCv: null, houseLit: null, mask: null };
@@ -99,15 +94,53 @@
     if ((sc.season === 'spring' || sc.season === 'summer') && sc.biome !== 'desert' && sc.biome !== 'tundra') for (var fl = 0; fl < 22; fl++) { var fx = Math.floor(r() * W), fy = 98 + Math.floor(r() * 44); px(c, fx, fy, U.pick(r, [P.pink, P.yellow, P.white])); px(c, fx, fy + 1, P.green); }
     biomeDecor(c, sc, r); // 2.4.0: each land has its own little details
     // the buildings
-    // 2.7.0: each building at its spot (see A.applyLayout), back to front
+    // 2.8.0: each building at its spot, back to front (the front yard ones come after the house, below)
     var DRAW = { outhouse: function () { outhouse(c, sc); }, well: function () { well(c, 60, 54, sc); }, barn: function () { barn(c, 6, 62, sc); }, lab: function () { lab(c, 162, 62, sc); }, greenhouse: function () { greenhouse(c, 35, 82, sc); }, garage: function () { garage(c, 143, 82, sc); }, shed: function () { shed(c, 65, 85, sc); } };
-    A.ARRANGE.slice().sort(function (a0, b0) { return (HOME[a0].b + A.bOff(a0).y) - (HOME[b0].b + A.bOff(b0).y); }).forEach(function (b) { var o = A.bOff(b); c.save(); c.translate(o.x, o.y); DRAW[b](); c.restore(); }); // 2.3.1: every building behind the stream; the food cart stands where the well was
+    var back = A.BUILDINGS.filter(function (b) { return !SPOTS[b]; }), front = A.BUILDINGS.filter(function (b) { return SPOTS[b]; });
+    back.sort(function (a0, b0) { return HOME[a0].b - HOME[b0].b; }).forEach(function (b) { atSpot(c, b, DRAW[b]); });
     // the house, 3/4 size (drawn from the same house pictures as always)
     var hv = houseSprites(sc); stat.houseCv = hv.unlit; stat.houseLit = hv.lit;
     c.drawImage(hv.unlit, HOUSE_DOOR.x - 33 * HS, HOUSE_DOOR.y - 72 * HS, hv.unlit.width * HS / SC, hv.unlit.height * HS / SC);
+    frontYard(c, sc, r, C0, tk); // 2.8.0: the front yard: a path, the vegetable garden, a fence, trees
+    front.sort(function (a0, b0) { return spotOf(a0).b - spotOf(b0).b; }).forEach(function (b) { atSpot(c, b, DRAW[b]); });
     // tall grass and flowers along the front edge
     for (var gx = 40; gx < 150; gx += 7) { var gh = 3 + ((gx * 7) % 4); R(c, gx, H - gh, 1, gh, P.green); R(c, gx + 2, H - gh + 1, 1, gh - 1, P.teal); if (gx % 3 === 0 && sc.season !== 'winter') spr(c, gx - 1, H - gh - 3, ['.P.', 'PyP', '.P.']); }
     return cv;
+  }
+  /* 2.8.0: the front yard (below the old picture's edge at y 144): the path goes on from the field down to the gate, past the
+     vegetable garden (rows that change with the seasons), a low fence along the bottom, a tree in each corner, flowers. */
+  function frontYard(c, sc, r, C0, tk) {
+    var win = sc.season === 'winter' || sc.biome === 'tundra', dry = sc.biome === 'desert' || sc.biome === 'beach', pathCol = dry ? P.wood : P.sand;
+    for (var py = 138; py < H - 6; py++) { var hw = 3 + Math.floor((py - 138) / 40); dith(c, 96 - hw, py, hw * 2 + 1, 1, pathCol, py % 2); } // the path to the gate
+    for (var bx = 0; bx < 30; bx++) { var t0 = bx / 29; dith(c, Math.round(96 - t0 * 52), Math.round(176 + t0 * 4), 3, 1, pathCol, bx % 2); dith(c, Math.round(96 + t0 * 54), Math.round(176 + t0 * 4), 3, 1, pathCol, bx % 2); } // side paths to the greenhouse and the garage
+    // the vegetable garden: a fenced plot right of the path
+    var gx = 108, gy = 206, gw = 52, gh = 30;
+    R(c, gx, gy, gw, gh, P.ink); R(c, gx + 1, gy + 1, gw - 2, gh - 2, dry ? P.sand : P.bark); dith(c, gx + 1, gy + 1, gw - 2, gh - 2, dry ? P.wood : P.dark, 1);
+    for (var row = 0; row < 4; row++) { var ry = gy + 5 + row * 7; R(c, gx + 3, ry + 2, gw - 6, 1, dry ? P.wood : P.dark);
+      for (var px0 = gx + 5; px0 < gx + gw - 4; px0 += 5) {
+        if (win) { ell(c, px0, ry + 1, 2, 1, P.white); continue; }
+        if (sc.season === 'fall') { disc(c, px0, ry, 2, row % 2 ? P.orange : P.wood); px(c, px0, ry - 3, P.green); continue; } // pumpkins and squash
+        px(c, px0, ry - 2, P.green); px(c, px0 - 1, ry - 1, P.green); px(c, px0 + 1, ry - 1, P.lime); px(c, px0, ry, P.green);
+        if (sc.season === 'summer' && (px0 + row) % 3 === 0) px(c, px0, ry - 1, row % 2 ? P.red : P.yellow); // tomatoes and peppers
+      } }
+    for (var fx = gx - 1; fx <= gx + gw; fx += 4) { R(c, fx, gy - 3, 1, 4, P.white); R(c, fx, gy + gh - 1, 1, 4, P.white); } R(c, gx - 1, gy - 2, gw + 2, 1, P.white); R(c, gx - 1, gy + gh, gw + 2, 1, P.white); // a little picket fence
+    R(c, gx + gw - 6, gy - 12, 1, 10, P.bark); R(c, gx + gw - 9, gy - 13, 7, 4, P.white); R(c, gx + gw - 8, gy - 12, 5, 2, P.green); // the garden sign
+    // a scarecrow in the garden (not in winter)
+    if (!win) { var sx = gx + 12, sy = gy + 4; R(c, sx, sy - 14, 1, 16, P.bark); R(c, sx - 5, sy - 10, 11, 1, P.bark); R(c, sx - 3, sy - 11, 7, 6, P.blue); disc(c, sx, sy - 15, 2, P.sand); R(c, sx - 3, sy - 18, 7, 1, P.yellow); R(c, sx - 2, sy - 20, 5, 2, P.yellow); }
+    // a bench by the path, and a bird bath
+    R(c, 62, 214, 16, 2, P.wood); R(c, 62, 216, 16, 1, P.bark); R(c, 63, 217, 1, 4, P.bark); R(c, 76, 217, 1, 4, P.bark); R(c, 62, 209, 16, 2, P.wood); R(c, 63, 211, 1, 3, P.bark); R(c, 76, 211, 1, 3, P.bark);
+    R(c, 67, 156, 15, 1, P.ink); R(c, 66, 157, 17, 2, P.silver); R(c, 68, 157, 13, 1, win ? P.white : P.sky); R(c, 67, 159, 15, 1, P.slate); // a stone bird bath
+    R(c, 72, 160, 5, 7, P.ink); R(c, 73, 160, 3, 7, P.silver); R(c, 69, 167, 11, 2, P.ink); R(c, 70, 167, 9, 1, P.silver);
+    if (!win) { R(c, 78, 153, 3, 2, P.red); px(c, 81, 153, P.orange); px(c, 79, 152, P.red); px(c, 79, 155, P.ink); } // a robin on the rim
+    // trees in the corners and along the sides
+    [[8, 206], [184, 214], [176, 262], [10, 262], [186, 160]].forEach(function (q) { IN.tree(c, tk, q[0], q[1], sc.season); });
+    // the fence along the bottom, with an open gate where the path ends
+    for (var x = 0; x < W; x += 5) { if (x > 86 && x < 106) continue; R(c, x, H - 14, 1, 7, P.wood); px(c, x, H - 15, P.bark); }
+    R(c, 0, H - 12, 87, 1, P.wood); R(c, 106, H - 12, W - 106, 1, P.wood); R(c, 0, H - 9, 87, 1, P.wood); R(c, 106, H - 9, W - 106, 1, P.wood);
+    R(c, 85, H - 18, 2, 12, P.bark); R(c, 106, H - 18, 2, 12, P.bark); px(c, 85, H - 19, P.yellow); px(c, 107, H - 19, P.yellow); // the gate posts
+    // flowers and grass flecks in the front yard
+    if (!win && !dry) for (var fl = 0; fl < 26; fl++) { var fx2 = Math.floor(r() * W), fy2 = 150 + Math.floor(r() * 100); if (fx2 > gx - 4 && fx2 < gx + gw + 4 && fy2 > gy - 14 && fy2 < gy + gh + 4) continue; if (Math.abs(fx2 - 96) < 8) continue; px(c, fx2, fy2, U.pick(r, [P.pink, P.yellow, P.white, P.red])); px(c, fx2, fy2 + 1, P.green); }
+    if (sc.biome === 'desert') [[150, 248], [60, 250]].forEach(function (q) { R(c, q[0], q[1] - 10, 3, 10, P.green); R(c, q[0] - 3, q[1] - 7, 3, 2, P.green); R(c, q[0] + 3, q[1] - 6, 3, 2, P.green); });
   }
   // the house pictures (unlit and lit), at full size on their own canvases; the lit one supplies the glowing windows at night
   function biomeDecor(c, sc, r) { // small things along the edges of the field and the far rise, different in each land
@@ -181,8 +214,9 @@
     R(c, cx - door - 2, base - door - 4, door * 2 + 4, door + 4, P.ink); R(c, cx - door - 1, base - door - 3, door * 2 + 2, door + 3, P.white); R(c, cx - door + 1, base - door - 1, door * 2 - 2, door + 1, P.blue);
   }
   function hexdome(c, x, base) { // a geodesic greenhouse dome
-    var cx = x + 13, r = 14; ell(c, cx, base, r + 1, r, P.ink); ell(c, cx, base, r, r - 1, P.cyan);
-    c.save(); c.beginPath(); c.rect(cx - r - 2, base - r - 2, r * 2 + 4, r + 2); c.clip();
+    var cx = x + 13, r = 14;
+    c.save(); c.beginPath(); c.rect(cx - r - 2, base - r - 2, r * 2 + 4, r + 2); c.clip(); // 2.8.0: only the top half (it sits on open ground now)
+    ell(c, cx, base, r + 1, r, P.ink); ell(c, cx, base, r, r - 1, P.cyan);
     for (var k = -3; k <= 3; k++) { line(c, cx + k * 5, base, cx + k * 2, base - r, P.white); }
     for (var y = base - 4; y > base - r; y -= 4) R(c, cx - r, y, r * 2, 1, P.white);
     for (var p = 0; p < 4; p++) { px(c, cx - 8 + p * 5, base - 3, P.lime); px(c, cx - 8 + p * 5, base - 4, p % 2 ? P.red : P.green); }
@@ -329,7 +363,7 @@
     if (u < 0.65) { var k2 = (u - 0.5) / 0.15; return { x: lerp(mid.x, bridge.x, k2), y: lerp(mid.y, bridge.y, k2) }; }
     var k3 = (u - 0.65) / 0.35; return { x: lerp(bridge.x, to.x, k3), y: lerp(bridge.y, to.y, k3) };
   }
-  function depthScale(y) { var t = Math.max(0, Math.min(1, (128 - y) / 60)); return Math.max(0.5, Math.round((1 - t * 0.5) * 4) / 4); } // 1, 3/4 or 1/2
+  function depthScale(y) { if (y >= 172) return 1.25; var t = Math.max(0, Math.min(1, (128 - y) / 60)); return Math.max(0.5, Math.round((1 - t * 0.5) * 4) / 4); } // 1, 3/4 or 1/2 (2.8.0: 5/4 in the front yard)
   function drawWalker(L, sc, p, left, s0, climb) {
     var form = sc.skin || sc.form; if (!form) return;
     var cr = A.creature(form.seed, form.stage, sc.soul), s = s0 || depthScale(p.y), fr = cr.frames[sc.f % 23 === 0 ? 'blink' : 'open'] || cr.frames.open, bob = sc.f % 2 ? 0 : -1 * s;
@@ -627,12 +661,6 @@
     if (sc.stage) { ctx.save(); ctx.translate(DRONE_IN.x, DRONE_IN.y); IN.drone(ctx, sc); ctx.restore(); }
     if (A.toyDraw) A.toyDraw(ctx, sc);
   }
-  function arrangeOverlay(ctx) { // 2.7.0: arrange mode: every building outlined, the one you hold follows your finger
-    var U0 = A.arrangeUI, t = Date.now() / 300;
-    A.ARRANGE.forEach(function (b) { var L = A.landmark(b); if (!L) return; var r = L.r; ctx.globalAlpha = b === U0.sel ? 0.9 : 0.55; ctx.strokeStyle = b === U0.sel ? P.yellow : P.white; ctx.lineWidth = 1; ctx.setLineDash([2, 2]); ctx.lineDashOffset = Math.floor(t) % 4; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); });
-    ctx.setLineDash([]); ctx.globalAlpha = 1;
-    if (U0.sel && U0.pt) { var Ls = A.landmark(U0.sel); if (Ls) { ctx.globalAlpha = 0.5; R(ctx, U0.pt.x - Ls.r.w / 2, U0.pt.y - Ls.r.h / 2, Ls.r.w, Ls.r.h, P.yellow); ctx.globalAlpha = 1; } }
-  }
   function regulatorSmall(c, x, y, sc) { // a regulator wall clock: the real time, a swinging brass pendulum
     var now = new Date(app().trueNow ? app().trueNow() : Date.now()), wn = U.wall ? U.wall(now) : now, hr = wn.getHours() % 12, mi = wn.getMinutes();
     R(c, x + 1, y - 2, 9, 2, P.bark); px(c, x + 5, y - 3, P.yellow);
@@ -660,7 +688,7 @@
     if (A.toyDraw) A.toyDraw(ctx, sc);
   }
   function renderProperty(ctx, sc) {
-    A.applyLayout(sc.layout); var key = [sc.biome, sc.season, sc.house, sc.accent, layKey].join('|'); // 2.7.0: and where the buildings stand
+    var key = [sc.biome, sc.season, sc.house, sc.accent].join('|');
     if (stat.key !== key) { stat.cv = drawStatic(sc); stat.key = key; }
     if (!layer) layer = big(W, H);
     var L = layer.getContext('2d'); L.setTransform(SC, 0, 0, SC, 0, 0); L.imageSmoothingEnabled = false; L.clearRect(0, 0, W, H);
@@ -703,7 +731,6 @@
     IN.weather(ctx, sc, [0, 0, W, H]);
     if (sc.flash) { var ap0 = A.actorPosP(sc), rr = Math.round(10 + (1 - Math.min(1, sc.flash)) * 18); for (var sp0 = 0; sp0 < 12; sp0++) { var an0 = sp0 / 12 * Math.PI * 2; px(ctx, Math.round(ap0.x + Math.cos(an0) * rr), Math.round(ap0.y - 14 + Math.sin(an0) * rr * 0.7), sp0 % 2 ? P.yellow : P.white); } }
     if (A.toyDraw) A.toyDraw(ctx, sc);
-    if (A.arrangeUI) arrangeOverlay(ctx);
   }
 
   // 2.3.1: Aiu's food cart stands behind the stream (where the well was), at 3/4 size. When he cooks, he's the chef inside it.

@@ -1,0 +1,70 @@
+Removed in 2.8.0: Arrange (drag a building onto another to swap them). The yard got fixed spots with more room instead
+(see js/world.js, SPOTS). Also removed: the server's plain journal copy (mirror_journal), since 2.8.0 keeps data scrambled.
+
+=== js/world.js (2.7.0) ===
+  /* 2.7.0: arrange the buildings. Each building has a spot (a lot); dragging one onto another swaps their spots. The house,
+     the stream, the pond and the board stay put, so Aiu's paths always work. The layout is the setting 'layout'. */
+  var HOME = { barn: { cx: 19, b: 62 }, lab: { cx: 177, b: 62 }, greenhouse: { cx: 48, b: 82 }, garage: { cx: 158, b: 82 }, shed: { cx: 72, b: 85 }, well: { cx: 66, b: 54 }, outhouse: { cx: 115, b: 50 } };
+  A.ARRANGE = Object.keys(HOME);
+  var BASE_LM = {}; A.LANDMARKS.forEach(function (L) { if (HOME[L.id]) BASE_LM[L.id] = { r: Object.assign({}, L.r), door: Object.assign({}, L.door) }; });
+  var OFFS = {}, layKey = '';
+  A.layoutOf = function (v) { // a clean building -> spot map (a proper swap list, or the default)
+    var out = {}, used = {}; A.ARRANGE.forEach(function (b) { var l = v && v[b]; if (HOME[l] && !used[l]) { out[b] = l; used[l] = 1; } });
+    A.ARRANGE.forEach(function (b) { if (!out[b]) { if (!used[b]) { out[b] = b; used[b] = 1; } else { var free = A.ARRANGE.filter(function (l) { return !used[l]; })[0]; out[b] = free; used[free] = 1; } } });
+    return out;
+  };
+  A.applyLayout = function (v) {
+    var map = A.layoutOf(v), k = JSON.stringify(map); if (k === layKey) return map; layKey = k;
+    A.ARRANGE.forEach(function (b) { var l = map[b], o = { x: HOME[l].cx - HOME[b].cx, y: HOME[l].b - HOME[b].b }, L = A.landmark(b), B0 = BASE_LM[b]; OFFS[b] = o; if (L && B0) { L.r = { x: B0.r.x + o.x, y: B0.r.y + o.y, w: B0.r.w, h: B0.r.h }; L.door = { x: B0.door.x + o.x, y: B0.door.y + o.y }; } });
+    return map;
+  };
+  A.bOff = function (b) { return OFFS[b] || { x: 0, y: 0 }; };
+  A.applyLayout(null);
+  function arrangeOverlay(ctx) { // 2.7.0: arrange mode: every building outlined, the one you hold follows your finger
+    var U0 = A.arrangeUI, t = Date.now() / 300;
+    A.ARRANGE.forEach(function (b) { var L = A.landmark(b); if (!L) return; var r = L.r; ctx.globalAlpha = b === U0.sel ? 0.9 : 0.55; ctx.strokeStyle = b === U0.sel ? P.yellow : P.white; ctx.lineWidth = 1; ctx.setLineDash([2, 2]); ctx.lineDashOffset = Math.floor(t) % 4; ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1); });
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+    if (U0.sel && U0.pt) { var Ls = A.landmark(U0.sel); if (Ls) { ctx.globalAlpha = 0.5; R(ctx, U0.pt.x - Ls.r.w / 2, U0.pt.y - Ls.r.h / 2, Ls.r.w, Ls.r.h, P.yellow); ctx.globalAlpha = 1; } }
+  }
+  function regulatorSmall(c, x, y, sc) { // a regulator wall clock: the real time, a swinging brass pendulum
+
+=== js/ui.js (2.7.0) ===
+    ['pointerdown', 'pointermove', 'pointerup'].forEach(function (ev, n) { els.canvas.addEventListener(ev, function (e) { if (A.arrangeUI) ui._arr[['down', 'move', 'up'][n]](e); }, true); }); // 2.7.0: Arrange mode takes the taps first
+    els.canvas.addEventListener('click', function (e) { if (A.arrangeUI) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+    els.arrBtn = h('button', { type: 'button', cls: 'doorbtn arrbtn', text: 'Arrange', onclick: function () { ui.arrange(!A.arrangeUI); } });
+    els.arrBar = h('div', { cls: 'arrbar', hidden: true }, h('span', { text: 'Drag a building onto another to swap them.' }), btn('Reset', function () { app().setSetting('layout', null); ui.snack('Back to the first layout.'); }, 'mini ghost'), btn('Done', function () { ui.arrange(false); }, 'mini primary'));
+      h('div', { cls: 'doorrow' }, els.arrBtn, els.doorBtn), els.arrBar, els.wbar, els.care, /* 2.7.0: the door button sits just under the picture (it covered things on it); 2.5.0: the world first, right under the menu; growth, vitals and tokens under it */ els.status, els.nudge, els.banner);
+    A.arrangeUI = on ? { sel: null, pt: null } : null;
+  ui.arrange = function (on) {
+    var a = app(), v = a.view && a.view.sc;
+    if (on && v && (v.indoor || A.isRoom(v))) { ui.snack('Arrange works on the yard. Tap Go outside first.'); return; }
+    A.arrangeUI = on ? { sel: null, pt: null } : null;
+    if (els.arrBar) els.arrBar.hidden = !on; if (els.arrBtn) els.arrBtn.classList.toggle('on', !!on);
+  };
+  function arrDown(e) {
+    var U0 = A.arrangeUI; if (!U0) return; e.preventDefault(); e.stopImmediatePropagation();
+    var pt = ui.worldPt(e), L = pt && A.landmarkAt(pt), b = L && A.ARRANGE.indexOf(L.id) >= 0 ? L.id : null;
+    if (U0.sel && b && b !== U0.sel && !U0.drag) { swap(U0.sel, b); U0.sel = null; return; } // tap one, then the other
+    U0.sel = b; U0.pt = null; U0.drag = !!b; U0.moved = false;
+    try { els.canvas.setPointerCapture(e.pointerId); } catch (x) {}
+  }
+  function arrMove(e) { var U0 = A.arrangeUI; if (!U0 || !U0.drag) return; e.preventDefault(); e.stopImmediatePropagation(); U0.pt = ui.worldPt(e); U0.moved = true; }
+  function arrUp(e) {
+    var U0 = A.arrangeUI; if (!U0) return; e.preventDefault(); e.stopImmediatePropagation();
+    if (U0.drag && U0.moved) { var pt = ui.worldPt(e), L = pt && A.landmarkAt(pt); if (L && A.ARRANGE.indexOf(L.id) >= 0 && L.id !== U0.sel) swap(U0.sel, L.id); U0.sel = null; }
+    U0.drag = false; U0.pt = null;
+  }
+  function swap(b1, b2) {
+    var a = app(), map = A.layoutOf(C.setting(a.S, 'layout', null)), t = map[b1]; map[b1] = map[b2]; map[b2] = t;
+    a.setSetting('layout', map); a.beep('ping');
+  }
+  ui._arr = { down: arrDown, move: arrMove, up: arrUp };
+
+=== api.php (2.7.0) ===
+function mirror_journal($dir, $ev) {
+  if (!($ev['type'] === 'journal' || $ev['type'] === 'journal_edit') || !isset($ev['data']->text) || !is_string($ev['data']->text)) return;
+  $day = isset($ev['d']) ? $ev['d'] : date('Y-m-d', (int) floor($ev['t'] / 1000));
+  $jdir = $dir . '/journal'; if (!is_dir($jdir)) @mkdir($jdir, 0700, true);
+  $label = $ev['type'] === 'journal_edit' ? ' (edited an earlier page)' : '';
+  @file_put_contents($jdir . '/' . substr($day, 0, 7) . '.md', '## ' . $day . ' ' . (isset($ev['h']) ? $ev['h'] : '') . ' (' . (isset($ev['dn']) ? $ev['dn'] : 'device') . ')' . $label . "\n\n" . trim($ev['data']->text) . "\n\n", FILE_APPEND);
+}

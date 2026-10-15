@@ -1,4 +1,4 @@
-AIU TOTEM 2.7.0 - install guide
+AIU TOTEM 2.8.0 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -13,6 +13,35 @@ the zip is made by KODNA or is public domain (see CREDITS at the bottom).
 ACCOUNTS
   Anyone can sign up with a username and a password (no invite code). To stop new sign-ups, set SIGNUPS_OPEN to '0'.
   There is no admin login and no way to recover an account (2.7.0). A lost password means starting over.
+  Change username: Settings > Account & data > Change username (2.8.0). The old name is free for anyone right away.
+  Deleting accounts as the server owner: there is no admin screen. Either delete the folder
+    aiu_data/accounts/<username> in DirectAdmin > File Manager (that account is gone for good), or set
+    DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
+  Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
+
+WHAT'S NEW IN 2.8.0
+  Upload: the whole aiu folder, INCLUDING api.php and api.cgi (both changed).
+  - Private data on the server. Every synced Totem is scrambled (AES-GCM) on your device before it leaves:
+    each event's contents (journal, tiles, plans, names, everything), the device names, the profile names and the
+    Totem summary. Each account has one data key; the server keeps it only locked with your password, so the
+    server (and KODNA) can't open it. The old journal/ copy on the server is gone.
+    What the server still sees: usernames, when things were saved and what kind they were (say, "a journal entry",
+    not what it says), and how big the files are.
+    After this update each device asks for your password once (it needs it to get the key). The first device that
+    syncs scrambles the older events already on the server, once. An old 2.7.0 page can't sync to a private account:
+    it says "Reload Aiu"; reloading gets 2.8.0.
+  - Change username (Settings > Account & data). Pick any free name; the old one is free for others right away.
+    Your other devices ask you to log in with the new name (nothing is lost).
+  - DELETE_INACTIVE_DAYS (server setting, off by default): deletes accounts nobody has used for that many days.
+  - Tiles: "Go" is now "Do" (green = Do, yellow = Doing, red = Done).
+  - Tile labels: sort tiles into groups you name (Home, Exercise, Errands, Work, Health, Fun to start). A new tile
+    guesses its label from its name (Fix fence: Home; Walk dog: Exercise). Each label is a filter on the board, in
+    front of Archived and the Discard pile. Labels... renames them, recolors them, adds or deletes them. Change a
+    tile's label at the top of the tile. The Plan shows each tile's label.
+  - Duplicate: a copy of a tile with the same steps, label and when (boxes unchecked).
+  - World: the yard is as tall as the house now. Arrange is gone; instead everything has more room: the barn,
+    the well, the house, the outhouse and the lab behind the stream, and a new front yard with the greenhouse,
+    the garage, the tool shed, a vegetable garden that changes with the seasons, a bench, a bird bath and a gate.
 
 WHAT'S NEW IN 2.7.0
   Upload: the whole aiu folder, INCLUDING api.php and api.cgi.
@@ -438,7 +467,7 @@ WHAT'S NEW IN 2.0.7
     and Done on a ringing tile reminder finishes the tile.
 
 WHAT'S NEW IN 2.0.6
-  - Tile status is a traffic light: green = Go, yellow = Doing (start it, or check off a step),
+  - Tile status is a traffic light: green = Go (2.8.0: Do), yellow = Doing (start it, or check off a step),
     red = Done (stop, finished). Tap a light to change it. Each tile card shows its light.
   - Points can't be farmed: a finish or a step counts once. Start it again, Not done after all,
     flipping the light or unchecking a step and checking it again earns nothing more.
@@ -913,6 +942,8 @@ SERVER SETTINGS (top of api.php and api.cgi, the same names in both, optional)
   FILES_MAX_MB            space for Files, per account, all profiles together (default 250 MB; env AIU_FILES_MAX_MB)
   FILES_TOTAL_MB          space for Files on the whole server (default 5000 MB; env AIU_FILES_TOTAL_MB)
   ALLOW_DEV               '1' only on a test server: lets the test growth button work (env AIU_ALLOW_DEV)
+  DELETE_INACTIVE_DAYS    2.8.0: delete accounts nobody has used (no log in, no sync) for this many days, checked once a
+                          day when someone signs up or logs in (default 0 = never; env AIU_DELETE_INACTIVE_DAYS)
   SHOP_DIR                where the shop folders were (not used by 1.1.0)
 
 

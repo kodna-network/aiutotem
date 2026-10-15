@@ -768,18 +768,27 @@
   app.syncNow = function (why) {
     if (!app.prof || !app.prof.token) return Promise.resolve();
     if (syncing) return syncing;
-    var prof = app.prof, st = app.store, before = noticeSnapshot(), hadTotem = !!(app.S && app.S.egg), gotRemote = 0, since = 0, remoteSaid = [];
+    var prof = app.prof, st = app.store, before = noticeSnapshot(), hadTotem = !!(app.S && app.S.egg), gotRemote = 0, since = 0, remoteSaid = [], key = null, plain = false;
     setSync('syncing');
-    syncing = st.get('lastSeq').then(function (ls) {
+    // 2.8.0: everything leaves this device scrambled with the account's data key, made or opened when you log in
+    syncing = app.dataKey().then(function (k) {
+      if (!k) { var e0 = new Error(AIU.vault && AIU.vault.supported ? 'Log in once more: from 2.8.0 your Totem is kept private (scrambled) on the server, and this device needs your password once to get its key.' : 'This browser can\'t scramble your data, so it can\'t sync. Open Aiu with https in a newer browser.'); e0.code = 'login'; throw e0; }
+      key = k; return st.get('lastSeq');
+    }).then(function (ls) {
       since = ls || 0;
       var toSend = app.unsent.slice().sort(C.cmpT);
       function round() {
-        var batch = toSend.splice(0, 500).map(function (e) { var o = { id: e.id, t: e.t, d: e.d, h: e.h, dev: e.dev, dn: e.dn, type: e.type, data: e.data }; if (e.off) o.off = 1; if (e.imp) o.imp = 1; return o; });
-        var body = { u: prof.u, token: prof.token, since: since, events: batch, dn: app.dev.deviceName, tid: prof.tid || '' };
-        if (prof.pname) body.pname = prof.pname; if (prof.pkind) body.pkind = prof.pkind; // 2.2.0: which profile, and its name
-        if (!toSend.length && app.S && app.S.egg) body.snapshot = C.snapshot(app.S);
-        return app.api('sync', body).then(function (res) {
-          app.clockOffset = res.now - Date.now();
+        var part = toSend.splice(0, 500);
+        return Promise.all(part.map(function (e) { return app.sealEvent(key, e); })).then(function (batch) {
+          var body = { u: prof.u, token: prof.token, since: since, events: batch, dn: app.dev.deviceName, tid: prof.tid || '' }, wait = [];
+          if (prof.pkind) body.pkind = prof.pkind; // 2.2.0: which profile, and its name (2.8.0: scrambled)
+          if (prof.pname) wait.push(AIU.vault.sealText(key, prof.pname, 'pname').then(function (x) { body.pname = x; }));
+          if (!toSend.length && app.S && app.S.egg) wait.push(AIU.vault.sealText(key, JSON.stringify(C.snapshot(app.S)), 'snap').then(function (x) { body.snapshot = { $x: x }; }));
+          return Promise.all(wait).then(function () { return app.api('sync', body); });
+        }).then(function (res) {
+          app.clockOffset = res.now - Date.now(); if (res.plain) plain = true;
+          return app.openEvents(key, res.events).then(function () { return res; });
+        }).then(function (res) {
           var known = res.known || {}, ids = res.events.map(function (e) { return e.id; }).concat(Object.keys(known));
           return st.getMany(ids).then(function (have) {
             var changed = [];
@@ -814,6 +823,7 @@
       app.saveCheckpoint(true);
       if (gotRemote && hadTotem) announceChanges(before);
       if (loginPw) setTimeout(app.vaultAfterLogin, 0);
+      if (plain) setTimeout(function () { app.reseal(); }, 2000); // 2.8.0: older plain events on the server get scrambled
       if (app.dev.hearOthers && hadTotem && remoteSaid.length && why !== 'open') app.speak(remoteSaid.slice(-2).join(' ')); // e.g. the Pi says what Aiu told you on your phone
       app.sync.clockWarn = Math.abs(app.clockOffset) > 5 * 60000 ? Math.round(app.clockOffset / 60000) : 0;
       syncing = null;
@@ -825,6 +835,44 @@
       throw err;
     });
     return syncing;
+  };
+  /* 2.8.0: private sync. An event goes up as { id, t, d, h, dev, type, data: { $x: "x1:..." } }: its contents and the
+     device name are scrambled together (tied to its id). Coming down, they're opened again before anything else sees them. */
+  app.sealEvent = function (key, e) {
+    return AIU.vault.sealText(key, JSON.stringify({ data: e.data || {}, dn: e.dn || '' }), e.id).then(function (x) {
+      var o = { id: e.id, t: e.t, d: e.d, h: e.h, dev: e.dev, type: e.type, data: { $x: x } }; if (e.off) o.off = 1; if (e.imp) o.imp = 1; return o;
+    });
+  };
+  app.openEvents = function (key, list) {
+    return Promise.all((list || []).map(function (se) {
+      if (!se.data || typeof se.data.$x !== 'string') return null; // an older plain event (scrambled later, see app.reseal)
+      return AIU.vault.openText(key, se.data.$x, se.id).then(function (t) { var o = JSON.parse(t); se.data = o.data || {}; if (o.dn) se.dn = o.dn; else delete se.dn; });
+    })).catch(function () { var e = new Error('This device can\'t open your Totem\'s data (its key doesn\'t fit). Log in again.'); e.code = 'login'; throw e; });
+  };
+  var dkey = null, dkeyFor = null;
+  app.dataKey = function (raw) { // the account's data key (raw: from a profile record), or null on a device-only Totem / before log in
+    raw = raw || (app.prof && !app.prof.local ? app.prof.dk : null);
+    if (!raw || !AIU.vault || !AIU.vault.supported) return Promise.resolve(null);
+    if (dkey && dkeyFor === raw) return Promise.resolve(dkey);
+    return AIU.vault.importKey(raw).then(function (k) { dkey = k; dkeyFor = raw; return k; }, function () { return null; });
+  };
+  // older plain events on the server: this device sends each one scrambled, the server swaps them in place (once)
+  var resealing = {};
+  app.reseal = function () {
+    var prof = app.prof, pid = app.pid, st = app.store, key;
+    if (!prof || prof.local || !prof.token || resealing[pid]) return Promise.resolve();
+    resealing[pid] = 1;
+    return Promise.all([app.dataKey(), st.all()]).then(function (r) {
+      key = r[0]; if (!key) throw new Error('no key');
+      var evs = r[1].filter(function (e) { return e.seq > 0; }).sort(function (a, b) { return a.seq - b.seq; }), i = 0;
+      function next() {
+        var part = [], size = 0; while (i < evs.length && part.length < 800 && size < 2000000) { var e = evs[i++]; part.push(e); size += JSON.stringify(e.data || {}).length * 1.4 + 200; }
+        return Promise.all(part.map(function (e) { return app.sealEvent(key, e).then(function (o) { return { id: o.id, data: o.data }; }); }))
+          .then(function (list) { return app.api('reseal', { u: prof.u, token: prof.token, tid: prof.tid || '', events: list }); })
+          .then(function (res) { return i < evs.length ? next() : res; });
+      }
+      return next();
+    }).then(function (res) { resealing[pid] = res && res.left === 0 ? 'done' : 0; }, function () { resealing[pid] = 0; });
   };
   function setSync(state, msg) { app.sync.state = state; app.sync.err = msg || ''; if (state === 'ok') app.sync.last = Date.now(); AIU.ui.refreshSync(); }
   app.oldestUnsent = function () { return app.unsent.reduce(function (m, e) { return Math.min(m, e.t); }, Infinity); };
@@ -1262,7 +1310,7 @@
     if (AIU.ui.tab && AIU.ui.tab !== 'world' && !document.documentElement.classList.contains('worldfull')) return; // 2.4.0: the world only draws on the World tab
     var sc = app.sceneState(), ctx = cv.getContext('2d');
     if (app.f % 8 === 0 && AIU.ui.statusTick) AIU.ui.statusTick(sc);
-    { var SC = A.SCALE || 1; A.H = A.HOUSE_H && A.isRoom(sc) && sc.place !== 'library' ? A.HOUSE_H : 144; // 2.4.0: the dollhouse is taller than the yard
+    { var SC = A.SCALE || 1; A.H = sc.place === 'library' && A.isRoom(sc) ? 144 : A.isRoom(sc) ? (A.HOUSE_H || 270) : (A.YARD_H || 144); // 2.8.0: the yard is as tall as the house (the library page keeps its own size)
       if (cv.width !== A.W * SC || cv.height !== A.H * SC) { cv.width = A.W * SC; cv.height = A.H * SC; cv.style.aspectRatio = A.W + ' / ' + A.H; ctx = cv.getContext('2d'); } // 2.3.0: the property (drawn 4x for crisp in-between sizes)
       app.view = { sx: 0, sy: 0, z: 1, sc: sc }; if (A.renderWorld) A.renderWorld(ctx, sc); else A.render(ctx, sc);
       if (PLY) { var fo = A.frameOff ? A.frameOff(sc) : { x: 0, y: 0 }; ctx.save(); ctx.setTransform(SC, 0, 0, SC, SC * fo.x, SC * fo.y); PLY.draw(ctx, sc); ctx.restore(); }
@@ -1341,7 +1389,6 @@
       bplay: AIU.play ? AIU.play.buddyState() : null, // 2.1.7: the pet eating, drinking or doing a trick
       stressed: !!(AIU.vitals && AIU.vitals.distressed(S)), // 2.1.6: Vitals worn down: Aiu looks tired (and doesn't grow)
       shop: {}, // 2.6.0: the old server-folder shop is retired (was hat, toy, backdrop, house, decor from app.assets)
-      layout: C.setting(S, 'layout', null), // 2.7.0: where you arranged the buildings
       cos: AIU.shop ? AIU.shop.sceneBits(S) : {} // 2.5.0: what you bought in the Corner Mart and put on
     };
   };
@@ -1379,11 +1426,31 @@
   }
 
   /* ---------- accounts ---------- */
-  app.login = function (u, pw, disp) {
-    return app.api('login', { u: u, pw: pw, dn: app.dev.deviceName }).then(function (r) {
-      var pid = 'u:' + r.u, old = app.profiles[pid] || {}, dn = disp && String(disp).trim().toLowerCase() === r.u ? String(disp).trim() : (old.disp || ''); // 2.5.0: your username the way you typed it (Henry, not henry)
-      app.profiles[pid] = Object.assign(old, { u: r.u, email: r.email, token: r.token, created: old.created || Date.now(), local: false, tid: '' });
-      Object.keys(app.profiles).forEach(function (k) { var p = app.profiles[k]; if (!p.local && p.u === r.u) { p.token = r.token; p.email = r.email; if (dn) p.disp = dn; } }); // 2.2.0: one log in for every profile in the account
+  // 2.8.0: the profile id for an account's profile on this device (it keeps its id when the username changes)
+  app.pidFor = function (u, tid) {
+    var hit = Object.keys(app.profiles).filter(function (k) { var p = app.profiles[k]; return p && !p.local && p.u === u && (p.tid || '') === (tid || ''); })[0];
+    if (hit) return hit;
+    var base = 'u:' + u + (tid ? '#' + tid : ''), pid = base, n = 2; while (app.profiles[pid]) pid = base + '~' + (n++); return pid;
+  };
+  app.renameLocal = function (oldU, newU, disp) { Object.keys(app.profiles).forEach(function (k) { var p = app.profiles[k]; if (p && !p.local && p.u === oldU) { p.u = newU; p.disp = disp || ''; } }); };
+  // 2.8.0: the account's data key: opened with your password, or made (and locked with it) the first time
+  function dataKeyAtLogin(r, pw) {
+    var V = AIU.vault;
+    if (!V || !V.supported) return Promise.reject(new Error('This browser can\'t keep your data private (Aiu needs https and a newer browser to sync).'));
+    var opened = function (k) { return crypto.subtle.exportKey('raw', k).then(function (raw) { var s0 = '', u8 = new Uint8Array(raw); for (var i = 0; i < u8.length; i++) s0 += String.fromCharCode(u8[i]); return btoa(s0); }); };
+    if (r.dk) return V.openDataKey(pw, r.dk).then(opened);
+    return V.newDataKey().then(function (k) {
+      return V.lockDataKey(pw, k).then(function (lk) { return app.api('dkey_set', { u: r.u, token: r.token, dk: lk }).then(function (res) { return res.dk && res.dk.ct !== lk.ct ? V.openDataKey(pw, res.dk) : k; }); });
+    }).then(opened);
+  }
+  app.login = function (u, pw, disp, opt) {
+    var r;
+    return app.api('login', { u: u, pw: pw, dn: app.dev.deviceName }).then(function (r0) { r = r0; return dataKeyAtLogin(r, pw); }).then(function (raw) {
+      var same = opt && opt.same && app.profiles[opt.same]; // relogging in after the username changed on another device: same key = same account
+      if (same && same.u !== r.u && same.dk && same.dk === raw) app.renameLocal(same.u, r.u, '');
+      var pid = app.pidFor(r.u, ''), old = app.profiles[pid] || {}, dn = disp && String(disp).trim().toLowerCase() === r.u ? String(disp).trim() : (old.disp || ''); // 2.5.0: your username the way you typed it (Henry, not henry)
+      app.profiles[pid] = Object.assign(old, { u: r.u, email: r.email, token: r.token, created: old.created || Date.now(), local: false, tid: '', dk: raw });
+      Object.keys(app.profiles).forEach(function (k) { var p = app.profiles[k]; if (!p.local && p.u === r.u) { p.token = r.token; p.email = r.email; p.dk = raw; if (dn) p.disp = dn; } }); // 2.2.0: one log in for every profile in the account
       loginPw = pw; // used once after the first sync to open your account cards (never saved)
       delete app.profiles[pid].admin;
       return app.saveProfiles().then(function () { return app.fetchProfiles(r.u).catch(function () {}); }).then(function () {
@@ -1409,11 +1476,20 @@
   app.fetchProfiles = function (u) {
     var any = Object.keys(app.profiles).map(function (k) { return app.profiles[k]; }).filter(function (p) { return !p.local && p.u === u && p.token; })[0];
     if (!any) return Promise.resolve([]);
-    return app.api('profiles', { u: u, token: any.token }).then(function (r) {
+    var key = null;
+    return app.dataKey(any.dk).then(function (k) { key = k; return app.api('profiles', { u: u, token: any.token }); }).then(function (r) {
+      return Promise.all((r.profiles || []).map(function (x) { // 2.8.0: names and summaries come scrambled
+        var V = AIU.vault, w = [];
+        if (key && V.isSealed(x.name)) w.push(V.openText(key, x.name, 'pname').then(function (t) { x.name = t; }, function () { x.name = ''; }));
+        if (key && V.isSealed(x.snap)) w.push(V.openText(key, x.snap, 'snap').then(function (t) { var o = JSON.parse(t); x.totem = o.name || ''; x.stage = o.stage_name || ''; }, function () {}));
+        if (V.isSealed(x.name) && !key) x.name = '';
+        return Promise.all(w);
+      })).then(function () { return r; });
+    }).then(function (r) {
       var seen = {};
       (r.profiles || []).forEach(function (x) {
-        var pid = 'u:' + u + (x.tid ? '#' + x.tid : ''), p = app.profiles[pid] || (app.profiles[pid] = { u: u, email: any.email, created: x.created || Date.now(), local: false, tid: x.tid });
-        p.token = any.token; p.tid = x.tid || ''; p.synced = 1; seen[pid] = 1; delete p.gone;
+        var pid = app.pidFor(u, x.tid || ''), p = app.profiles[pid] || (app.profiles[pid] = { u: u, email: any.email, created: x.created || Date.now(), local: false, tid: x.tid });
+        p.token = any.token; p.dk = any.dk; p.tid = x.tid || ''; p.synced = 1; seen[pid] = 1; delete p.gone;
         if (x.name && !p.pnameLocal) p.pname = x.name; if (x.kind) p.pkind = x.kind;
         if (x.totem) p.label = x.totem + (x.stage ? ' (' + x.stage + ')' : '');
       });
@@ -1429,20 +1505,43 @@
       if (!cur.grp && app.pid) cur.grp = app.pid;
       pid = 'local:' + rid(10); p = { u: null, local: true, created: now, grp: cur.grp || null, pname: name, pkind: kind, pnameLocal: 1 };
     } else {
-      var tid = 't' + rid(11); pid = 'u:' + cur.u + '#' + tid;
-      p = { u: cur.u, email: cur.email, token: cur.token, created: now, local: false, tid: tid, pname: name, pkind: kind };
+      var tid = 't' + rid(11); pid = app.pidFor(cur.u, tid);
+      p = { u: cur.u, email: cur.email, token: cur.token, dk: cur.dk, created: now, local: false, tid: tid, pname: name, pkind: kind };
     }
     app.profiles[pid] = p;
     return app.saveProfiles().then(function () {
-      if (p.token) app.api('profile_set', { u: p.u, token: p.token, tid: p.tid, pname: name, pkind: kind }).then(function () { p.synced = 1; app.saveProfiles(); }, function () {});
+      if (p.token) app.profileSet(p).then(function () { p.synced = 1; app.saveProfiles(); }, function () {});
       return app.openProfile(pid);
     }).then(function () { return pid; });
+  };
+  // tells the server a profile's name and kind (2.8.0: the name scrambled)
+  app.profileSet = function (p) {
+    return app.dataKey(p.dk).then(function (k) {
+      if (!k) { var e = new Error('Log in again first.'); e.code = 'login'; throw e; }
+      return p.pname ? AIU.vault.sealText(k, p.pname, 'pname') : null;
+    }).then(function (pn) { var b = { u: p.u, token: p.token, tid: p.tid || '', pkind: p.pkind }; if (pn) b.pname = pn; return app.api('profile_set', b); });
+  };
+  // 2.8.0: a new password: the data key is locked again with it (the server keeps only the locked copy), then the cards move to it
+  app.changePassword = function (oldPw, newPw) {
+    var p = app.prof;
+    return app.dataKey().then(function (k) {
+      if (!k) throw new Error('Log in again on this device first.');
+      return AIU.vault.lockDataKey(newPw, k);
+    }).then(function (lk) { return app.api('password', { u: p.u, token: p.token, old: oldPw, pw: newPw, dk: lk }); }).then(function () { return app.vaultRekey(newPw).catch(function () {}); });
+  };
+  // 2.8.0: a new username (the old one is free for anyone again). This device keeps going; the others ask you to log in.
+  app.renameAccount = function (newU, pw, disp) {
+    var p = app.prof, oldU = p.u;
+    return app.api('rename', { u: oldU, token: p.token, pw: pw, nu: newU }).then(function (r) {
+      app.renameLocal(oldU, r.u, disp && String(disp).trim().toLowerCase() === r.u ? String(disp).trim() : '');
+      return app.saveProfiles().then(function () { app.rebuild(); return r.u; });
+    });
   };
   app.renameProfile = function (pid, name, kind) {
     var p = app.profiles[pid]; if (!p) return Promise.resolve();
     if (name) p.pname = String(name).trim().slice(0, 40); if (kind) p.pkind = kind === 'business' ? 'business' : 'personal';
     if (p.local) p.pnameLocal = 1;
-    return app.saveProfiles().then(function () { if (p.token) return app.api('profile_set', { u: p.u, token: p.token, tid: p.tid || '', pname: p.pname, pkind: p.pkind }).catch(function () {}); });
+    return app.saveProfiles().then(function () { if (p.token) return app.profileSet(p).catch(function () {}); });
   };
   // deleting a profile: from the server (password + phrase) and from this device. The first profile is the account itself.
   app.deleteProfile = function (pid, pw, phrase) {
@@ -1787,7 +1886,7 @@
           if (eg0 && eggs[eg0.id]) { merges.push({ pid: eggs[eg0.id], part: part }); return; }
           var name = String(part.profile.name || '').slice(0, 40), kind = part.profile.kind === 'business' ? 'business' : 'personal', pid, p, now = Date.now() + i;
           if (!name) { var eg = part.events.filter(function (e) { return e.type === 'egg'; })[0]; name = eg && eg.data && eg.data.name ? eg.data.name : 'Imported'; }
-          if (into) { var tid = 't' + rid(11); pid = 'u:' + into.u + '#' + tid; p = { u: into.u, email: into.email, token: into.token, created: now, local: false, tid: tid, pname: name, pkind: kind }; }
+          if (into) { var tid = 't' + rid(11); pid = app.pidFor(into.u, tid); p = { u: into.u, email: into.email, token: into.token, dk: into.dk, created: now, local: false, tid: tid, pname: name, pkind: kind }; }
           else { pid = 'local:' + rid(10); if (!grp) grp = pid; p = { u: null, local: true, created: now, grp: grp, pname: name, pkind: kind, pnameLocal: 1 }; }
           app.profiles[pid] = p; made.push(pid);
           var evs = part.events.filter(function (e) { return e.type !== 'vault' && !(e.type === 'set' && e.data && e.data.k === 'vaultLock'); }).sort(C.cmpT);
@@ -1800,7 +1899,7 @@
         });
       }, Promise.resolve());
     }).then(function () { return app.saveProfiles(); }).then(function () {
-      if (into && into.token) made.forEach(function (pid) { var p = app.profiles[pid]; app.api('profile_set', { u: p.u, token: p.token, tid: p.tid, pname: p.pname, pkind: p.pkind }).then(function () { p.synced = 1; app.saveProfiles(); }, function () {}); });
+      if (into && into.token) made.forEach(function (pid) { var p = app.profiles[pid]; app.profileSet(p).then(function () { p.synced = 1; app.saveProfiles(); }, function () {}); });
       return merges.reduce(function (pr, m) { return pr.then(function () { return app.mergeInto(m.pid, m.part); }).then(function () { if (made.indexOf(m.pid) < 0) made.push(m.pid); }); }, Promise.resolve());
     }).then(function () { made.merged = merges.length; return made; });
   };

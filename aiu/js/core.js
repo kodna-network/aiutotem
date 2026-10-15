@@ -257,11 +257,11 @@
         if (newer(m, rec.editM)) { rec.editM = m; rec.editText = d.removed ? rec.text : String(d.text || '').slice(0, 2000); if (!d.removed) rec.text = rec.editText; rec.removed = !!d.removed; }
         break;
       case 'quest_step': if (d.key && d.step && newer(m, S.qsteps[d.key + '|' + d.step])) S.qsteps[d.key + '|' + d.step] = Object.assign({ done: d.done !== false }, m); break;
-      case 'tile': // 2.0: a quest is a tile on the board. Its pieces (status, when, who, how long, account, calm) merge one field at a time; newest wins per field
+      case 'tile': // 2.0: a quest is a tile on the board. Its pieces (status, when, who, how long, account, calm; 2.8.0: label) merge one field at a time; newest wins per field
         if (!d.key || !d.set || typeof d.set !== 'object') break;
         rec = S.quests[d.key] || (S.quests[d.key] = { key: d.key, state: 'active', first: e.t });
         rec.tile = rec.tile || {}; rec.tileM = rec.tileM || {};
-        Object.keys(d.set).forEach(function (f) { if (!/^(status|when|who|dur|acct|calm|rule|kind)$/.test(f)) return; if (newer(m, rec.tileM[f])) { rec.tile[f] = d.set[f]; rec.tileM[f] = m; } });
+        Object.keys(d.set).forEach(function (f) { if (!/^(status|when|who|dur|acct|calm|rule|kind|label)$/.test(f)) return; if (newer(m, rec.tileM[f])) { rec.tile[f] = d.set[f]; rec.tileM[f] = m; } });
         break;
       case 'vitals': if (d.day) { var VT = S.vitals || (S.vitals = {}); if (!VT[d.day]) VT[d.day] = { t: e.t }; } break; // 2.1.5: the day's Vitals hit 100%
       case 'tile_done': // 2.0: one finish of a tile (a repeating tile has one per day, week, month or year); undone:true takes it back

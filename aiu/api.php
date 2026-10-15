@@ -12,7 +12,13 @@
  *
  * 2.2.0: one account can hold several Aiu profiles (one Totem each). The first profile is the account folder
  * itself (exactly as before, so nothing moves). Every other profile is its own folder: accounts/<user>/totems/<id>/
- * with the same files (events.jsonl, meta.json, totem.json, journal/). profiles.json lists their names.
+ * with the same files (events.jsonl, meta.json, totem.json). profiles.json lists their names.
+ *
+ * 2.8.0: private. Each account has a data key, made on a device and kept in account.json only locked with the
+ * password (the 'dk' record: the server can't open it). Every event's contents, each profile's name and the Totem
+ * summary arrive already scrambled with it ("x1:..." text), so these files hold nothing readable. What the server
+ * still sees: usernames, each event's id, time and type, and file sizes. Older plain events are scrambled in place
+ * by the first 2.8.0 device that syncs (act_reseal). The journal copy in journal/ is gone.
  */
 
 // ------------------------------------------------------------------ SETTINGS (same names as api.cgi)
@@ -28,6 +34,7 @@ define('SHOP_DIR',  envv('AIU_SHOP_DIR', __DIR__ . '/shop'));
 define('MAX_ACCOUNT_MB', (int) envv('AIU_MAX_ACCOUNT_MB', '50'));
 define('FILES_MAX_MB', (int) envv('AIU_FILES_MAX_MB', '250'));              // 2.5.0: Files space for one account (all its profiles); 2.6.0: 250 MB
 define('FILES_TOTAL_MB', (int) envv('AIU_FILES_TOTAL_MB', '5000'));         // 2.6.0: Files space for the whole server, every account together
+define('DELETE_INACTIVE_DAYS', (int) envv('AIU_DELETE_INACTIVE_DAYS', '0'));  // 2.8.0: delete accounts nobody has used for this many days (0 = never)
 // ---------------------------------------------------------------------------
 
 define('API_VERSION', 1);
@@ -231,10 +238,45 @@ function send_confirm($u, &$acct) {
   return send_mail($acct['email'], 'Confirm your Aiu Totem account', "Hi $u,\n\nYour egg is waiting! Confirm your email by opening this link:\n\n$link\n\nIf you did not sign up for Aiu Totem, you can ignore this message.\n");
 }
 function g($o, $k, $d = null) { return is_object($o) && isset($o->$k) ? $o->$k : $d; }
+// 2.8.0: scrambled text from the app: "x1:" + base64 (the server never opens it)
+function is_sealed($v, $max = 60000) { return is_string($v) && strlen($v) <= $max && preg_match('/\Ax1:[A-Za-z0-9+\/]+=*\z/', $v); }
+function sealed_obj($o, $max = 60000) { if (!is_object($o)) return false; $a = get_object_vars($o); return count($a) === 1 && isset($a['$x']) && is_sealed($a['$x'], $max); }
+// a profile name: scrambled (2.8.0) or plain (older apps)
+function clean_pname($pn) { return is_sealed($pn, 600) ? $pn : short_str($pn, 40); }
+// the locked data key: { salt, rounds, iv, ct } (base64), made and opened only on devices
+function clean_dk($dk) {
+  if (!is_object($dk)) return null;
+  $out = array();
+  foreach (array('salt' => 64, 'iv' => 64, 'ct' => 200) as $k => $max) { $v = g($dk, $k); if (!is_string($v) || strlen($v) > $max || !preg_match('/\A[A-Za-z0-9+\/]+=*\z/', $v)) return null; $out[$k] = $v; }
+  $r = g($dk, 'rounds'); if (!is_int($r) || $r < 100000 || $r > 5000000) return null; $out['rounds'] = $r;
+  return $out;
+}
+function account_sealed($acct) { return is_array($acct) && !empty($acct['dk']); }
+function need_update() { fail(426, 'update_app', 'This account keeps its data private (scrambled). Reload Aiu to get the newest version, then sync again.'); }
+// 2.8.0: the last time anyone used an account (a log in or a sync from any device)
+function last_used($u, $acct) {
+  $t = isset($acct['created']) ? (int) $acct['created'] : 0;
+  foreach (read_json(tokens_path($u), array()) as $r) if (is_array($r) && isset($r['last']) && (int) $r['last'] > $t) $t = (int) $r['last'];
+  if (isset($acct['last']) && (int) $acct['last'] > $t) $t = (int) $acct['last'];
+  return $t;
+}
+// 2.8.0: with DELETE_INACTIVE_DAYS set, accounts nobody used for that long are deleted (checked at most once a day)
+function sweep_inactive() {
+  if (DELETE_INACTIVE_DAYS <= 0) return;
+  $mark = data_dir() . '/.last_sweep'; $now = now_ms();
+  if (is_file($mark) && (int) @file_get_contents($mark) > $now - 86400000) return;
+  @file_put_contents($mark, (string) $now);
+  $cut = $now - DELETE_INACTIVE_DAYS * 86400000;
+  foreach (glob(data_dir() . '/accounts/*', GLOB_ONLYDIR) ?: array() as $d) {
+    $u = basename($d); if (!preg_match('/\A[a-z0-9_-]{3,24}\z/', $u)) continue;
+    $acct = load_account($u); if (!$acct) continue;
+    if (last_used($u, $acct) < $cut) with_lock(data_dir() . '/accounts/.signup.lock', function () use ($u) { rm_rf(acct_dir($u)); });
+  }
+}
 
 // ------------------------------------------------------------------ events (the same lines as api.cgi writes)
 define('LINE_RE', '/\A\{"seq":(\d+),"rt":\d+,"id":"([A-Za-z0-9_-]+)"/');
-function clean_event($e, $now) {
+function clean_event($e, $now, $sealed = false) {
   if (!is_object($e)) return null;
   $id = (string) g($e, 'id', ''); if (!preg_match('/\A[A-Za-z0-9_-]{8,64}\z/', $id)) return null;
   $type = (string) g($e, 'type', ''); if (!preg_match('/\A[a-z_]{2,24}\z/', $type)) return null;
@@ -247,18 +289,11 @@ function clean_event($e, $now) {
   $d = (string) g($e, 'd', ''); if (preg_match('/\A\d{4}-\d{2}-\d{2}\z/', $d)) $ev['d'] = $d;
   $h = (string) g($e, 'h', ''); if (preg_match('/\A\d{2}:\d{2}\z/', $h)) $ev['h'] = $h;
   $dev = (string) g($e, 'dev', ''); if (preg_match('/\A[A-Za-z0-9_-]{4,64}\z/', $dev)) $ev['dev'] = $dev;
-  if (g($e, 'dn')) $ev['dn'] = short_str(g($e, 'dn'), 40);
+  if (g($e, 'dn') && !$sealed) $ev['dn'] = short_str(g($e, 'dn'), 40); // 2.8.0: on a private account the device name travels inside the scrambled part
   if (g($e, 'off') === 1) $ev['off'] = 1;
   if (g($e, 'imp') === 1) $ev['imp'] = 1; // 2.2.0: brought in from a capsule or a device-only Totem (its growth isn't an offline trip)
   $ev['data'] = $data;
   return $ev;
-}
-function mirror_journal($dir, $ev) {
-  if (!($ev['type'] === 'journal' || $ev['type'] === 'journal_edit') || !isset($ev['data']->text) || !is_string($ev['data']->text)) return;
-  $day = isset($ev['d']) ? $ev['d'] : date('Y-m-d', (int) floor($ev['t'] / 1000));
-  $jdir = $dir . '/journal'; if (!is_dir($jdir)) @mkdir($jdir, 0700, true);
-  $label = $ev['type'] === 'journal_edit' ? ' (edited an earlier page)' : '';
-  @file_put_contents($jdir . '/' . substr($day, 0, 7) . '.md', '## ' . $day . ' ' . (isset($ev['h']) ? $ev['h'] : '') . ' (' . (isset($ev['dn']) ? $ev['dn'] : 'device') . ')' . $label . "\n\n" . trim($ev['data']->text) . "\n\n", FILE_APPEND);
 }
 
 // ------------------------------------------------------------------ actions
@@ -267,14 +302,15 @@ function act_ping() {
   try { setup_data_dir(); $t = data_dir() . '/.write_test'; $ok = @file_put_contents($t, 'ok') !== false; @unlink($t); } catch (Throwable $e) { $ok = false; }
   $inside = strpos(realpath(data_dir()) ?: data_dir(), realpath(__DIR__) . '/') === 0;
   $shop = 0; foreach (glob(SHOP_DIR . '/packs/*/item.json') ?: array() as $f) if (substr(basename(dirname($f)), 0, 1) !== '_') $shop++;
-  return array('ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'php', 'version' => '2.7.0', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'php' => PHP_VERSION, 'openssl' => function_exists('hash_pbkdf2'),
+  return array('ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'php', 'version' => '2.8.0', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'php' => PHP_VERSION, 'openssl' => function_exists('hash_pbkdf2'),
     'data_folder_ok' => $ok, 'data_folder_private' => !$inside, 'mail_program_found' => @is_executable(SENDMAIL) || function_exists('mail'),
-    'shop_items' => $shop, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'now' => now_ms());
+    'shop_items' => $shop, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'private' => true, 'rename' => true, 'inactive_days' => DELETE_INACTIVE_DAYS, 'now' => now_ms());
 }
 function act_signup($req) {
   if (!SIGNUPS_OPEN) fail(403, 'closed', 'New sign-ups are closed.');
   $u = clean_user(g($req, 'u')); $em0 = trim((string) g($req, 'email', '')); $email = $em0 === '' ? '' : clean_email($em0); $pw = clean_pw(g($req, 'pw')); // 2.4.0: email is optional
   rate_limit('signup', 6, 3600);
+  sweep_inactive();
   $acct = with_lock(data_dir() . '/accounts/.signup.lock', function () use ($u, $email, $pw) {
     if (file_exists(acct_dir($u)) || file_exists(acct_dir($u) . '.reserved')) fail(409, 'taken', 'That username is taken. Try another.');
     mkdir(acct_dir($u), 0700, true);
@@ -318,7 +354,9 @@ function act_login($req) {
   }
   // 2.4.0: no email confirm (older accounts that never confirmed can log in now)
   if ((int) $acct['fails'] > 0) { $acct['fails'] = 0; save_account($u, $acct); }
-  return array('ok' => true, 'u' => $u, 'email' => $acct['email'], 'token' => new_token($u, g($req, 'dn', '')));
+  $acct['last'] = now_ms(); save_account($u, $acct);
+  sweep_inactive();
+  return array('ok' => true, 'u' => $u, 'email' => $acct['email'], 'token' => new_token($u, g($req, 'dn', '')), 'dk' => isset($acct['dk']) ? $acct['dk'] : null, 'private' => true);
 }
 function act_forgot($req) { fail(410, 'no_recovery', 'Passwords can\'t be reset: no one can get into an account without its password. Start a new account.'); } // 2.7.0
 function act_reset($req) { fail(410, 'no_recovery', 'Passwords can\'t be reset: no one can get into an account without its password. Start a new account.'); } // 2.7.0
@@ -326,12 +364,17 @@ function act_sync($req) {
   list($u, $acct, $th) = auth($req);
   $tid = clean_tid(g($req, 'tid', ''));
   $pn = g($req, 'pname'); $pk = g($req, 'pkind');
-  ensure_profile($u, $tid, $pn === null ? null : short_str($pn, 40), $pk === null ? null : clean_kind((string) $pk));
-  $dir = totem_dir($u, $tid); $now = now_ms();
+  $sealed = account_sealed($acct);
   $since = is_int(g($req, 'since')) ? g($req, 'since') : 0;
   $incoming = is_array(g($req, 'events')) ? g($req, 'events') : array();
   if (count($incoming) > MAX_EVENTS_PER_PUSH) fail(413, 'too_many', 'Too many events at once.');
-  $raw = with_lock($dir . '/.events.lock', function () use ($dir, $now, $since, $incoming) {
+  if ($sealed) { // 2.8.0: a private account takes only scrambled events, names and summaries
+    foreach ($incoming as $r) if (!sealed_obj(g($r, 'data'))) need_update();
+    if ($pn !== null && !is_sealed($pn, 600)) $pn = null;
+  }
+  ensure_profile($u, $tid, $pn === null ? null : clean_pname($pn), $pk === null ? null : clean_kind((string) $pk));
+  $dir = totem_dir($u, $tid); $now = now_ms();
+  $raw = with_lock($dir . '/.events.lock', function () use ($dir, $now, $since, $incoming, $sealed) {
     $meta = read_json($dir . '/meta.json', array('last_seq' => 0, 'count' => 0));
     $path = $dir . '/events.jsonl';
     if ($incoming && is_file($path) && filesize($path) > MAX_ACCOUNT_MB * 1024 * 1024) fail(413, 'full', 'This Totem reached the ' . MAX_ACCOUNT_MB . ' MB limit on the server. Ask the server owner to raise MAX_ACCOUNT_MB.');
@@ -339,13 +382,12 @@ function act_sync($req) {
     if ($incoming && is_file($path)) { $fh = fopen($path, 'r'); while (($line = fgets($fh)) !== false) if (preg_match(LINE_RE, $line, $m)) $seen[$m[2]] = (int) $m[1]; fclose($fh); }
     $rejected = 0; $known = new stdClass(); $accepted = 0; $out = '';
     foreach ($incoming as $r) {
-      $ev = clean_event($r, $now);
+      $ev = clean_event($r, $now, $sealed);
       if ($ev === null) { $rejected++; continue; }
       if (isset($seen[$ev['id']])) { $known->{$ev['id']} = $seen[$ev['id']]; continue; }
       $meta['last_seq'] = (int) $meta['last_seq'] + 1; $meta['count'] = (int) $meta['count'] + 1;
       $ev['seq'] = $meta['last_seq']; $seen[$ev['id']] = $ev['seq'];
       $out .= json_encode($ev, JF) . "\n"; $accepted++;
-      mirror_journal($dir, $ev);
     }
     if ($out !== '') { file_put_contents($path, $out, FILE_APPEND | LOCK_EX); @chmod($path, 0600); }
     write_json($dir . '/meta.json', $meta);
@@ -361,10 +403,11 @@ function act_sync($req) {
       fclose($fh);
     }
     return '{"ok":true,"events":[' . implode(',', $lines) . '],"last_seq":' . $last . ',"server_last_seq":' . (int) $meta['last_seq']
-      . ',"more":' . ($more ? 'true' : 'false') . ',"accepted":' . $accepted . ',"rejected":' . $rejected . ',"known":' . json_encode($known, JF) . ',"now":' . $now . '}';
+      . ',"more":' . ($more ? 'true' : 'false') . ',"accepted":' . $accepted . ',"rejected":' . $rejected . ',"known":' . json_encode($known, JF)
+      . ',"plain":' . (empty($meta['sealed']) && (int) $meta['count'] > 0 ? 'true' : 'false') . ',"now":' . $now . '}';
   });
   $snap = g($req, 'snapshot');
-  if (is_object($snap) && strlen(json_encode($snap, JF)) < 200000) { $snap->saved_at = $now; write_json($dir . '/totem.json', $snap); }
+  if (is_object($snap) && strlen(json_encode($snap, JF)) < 200000 && (!$sealed || sealed_obj($snap, 200000))) { $snap->saved_at = $now; write_json($dir . '/totem.json', $snap); }
   touch_token($u, $th);
   return array('__raw' => $raw);
 }
@@ -376,7 +419,9 @@ function act_me($req) {
 function act_password($req) {
   list($u, $acct, $th) = auth($req);
   if (!check_pw($acct['pw'], g($req, 'old', ''))) fail(401, 'bad_password', 'Your current password is wrong.');
-  $acct['pw'] = make_pw(clean_pw(g($req, 'pw'))); save_account($u, $acct);
+  $dk = clean_dk(g($req, 'dk'));
+  if (account_sealed($acct) && !$dk) need_update(); // 2.8.0: the data key is locked again with the new password, or nothing changes
+  $acct['pw'] = make_pw(clean_pw(g($req, 'pw'))); if ($dk) $acct['dk'] = $dk; save_account($u, $acct);
   with_lock(acct_dir($u) . '/.tokens.lock', function () use ($u, $th) { $t = read_json(tokens_path($u), array()); write_json(tokens_path($u), isset($t[$th]) ? array($th => $t[$th]) : array(), true); });
   return array('ok' => true);
 }
@@ -393,6 +438,63 @@ function act_delete_account($req) {
   with_lock(data_dir() . '/accounts/.signup.lock', function () use ($u) { rm_rf(acct_dir($u)); });
   return array('ok' => true);
 }
+// 2.8.0: the account's locked data key, set once by the first 2.8.0 device (whoever is first wins; the others use that one)
+function act_dkey_set($req) {
+  list($u, $acct, $th) = auth($req);
+  $dk = clean_dk(g($req, 'dk')); if (!$dk) fail(400, 'bad_key', 'That data key does not look right.');
+  $acct = with_lock(acct_dir($u) . '/.account.lock', function () use ($u, $dk) {
+    $a = load_account($u); if (empty($a['dk'])) { $a['dk'] = $dk; save_account($u, $a); }
+    return $a;
+  });
+  return array('ok' => true, 'dk' => $acct['dk']);
+}
+// 2.8.0: scramble older plain events in place. The app sends each event's scrambled contents by id; a line that is already
+// scrambled is left alone. When no plain line is left, the profile is marked private and its old plain copies go.
+function act_reseal($req) {
+  list($u, $acct, $th) = auth($req);
+  if (!account_sealed($acct)) fail(409, 'no_key', 'This account has no data key yet.');
+  $tid = clean_tid(g($req, 'tid', '')); $dir = totem_dir($u, $tid);
+  if (!is_dir($dir)) fail(404, 'no_profile', 'That profile is not on the server.');
+  $list = g($req, 'events'); if (!is_array($list) || count($list) > MAX_EVENTS_PER_PUSH) fail(400, 'bad_request', 'Bad request.');
+  $by = array(); foreach ($list as $r) { $id = (string) g($r, 'id', ''); $d = g($r, 'data'); if (preg_match('/\A[A-Za-z0-9_-]{8,64}\z/', $id) && sealed_obj($d)) $by[$id] = $d; }
+  return with_lock($dir . '/.events.lock', function () use ($dir, $by) {
+    $path = $dir . '/events.jsonl'; $tmp = $path . '.reseal' . getmypid(); $done = 0; $left = 0;
+    if (is_file($path)) {
+      $in = fopen($path, 'r'); $out = fopen($tmp, 'w');
+      while (($line = fgets($in)) !== false) {
+        $t = rtrim($line, "\r\n"); if ($t === '') continue;
+        $ev = json_decode($t, false);
+        if (!is_object($ev)) { fwrite($out, $t . "\n"); continue; }
+        if (sealed_obj(g($ev, 'data'))) { fwrite($out, $t . "\n"); continue; }
+        $id = (string) g($ev, 'id', '');
+        if (isset($by[$id])) { $ev->data = $by[$id]; unset($ev->dn); fwrite($out, json_encode($ev, JF) . "\n"); $done++; }
+        else { fwrite($out, $t . "\n"); $left++; }
+      }
+      fclose($in); fclose($out); @chmod($tmp, 0600); rename($tmp, $path);
+    }
+    $meta = read_json($dir . '/meta.json', array('last_seq' => 0, 'count' => 0));
+    if ($left === 0) {
+      $meta['sealed'] = true; write_json($dir . '/meta.json', $meta);
+      rm_rf($dir . '/journal'); // the old plain journal copy
+      $snap = read_json($dir . '/totem.json', null); if (is_array($snap) && !isset($snap['$x'])) @unlink($dir . '/totem.json');
+    }
+    return array('ok' => true, 'done' => $done, 'left' => $left);
+  });
+}
+// 2.8.0: a new username. The old one is free again right away. Needs the password. Other devices log in again with the new name.
+function act_rename($req) {
+  list($u, $acct, $th) = auth($req);
+  if (!check_pw($acct['pw'], g($req, 'pw', ''))) fail(401, 'bad_password', 'Your password is wrong.');
+  $nu = clean_user(g($req, 'nu'));
+  if ($nu === $u) fail(400, 'same', 'That is already your username.');
+  rate_limit('rename', 10, 3600);
+  with_lock(data_dir() . '/accounts/.signup.lock', function () use ($u, $nu) {
+    if (file_exists(acct_dir($nu)) || file_exists(acct_dir($nu) . '.reserved')) fail(409, 'taken', 'That username is taken. Try another.');
+    if (!@rename(acct_dir($u), acct_dir($nu))) fail(500, 'disk', 'The server could not rename the account.');
+    $a = load_account($nu); $a['u'] = $nu; save_account($nu, $a);
+  });
+  return array('ok' => true, 'u' => $nu);
+}
 // 2.2.0: the account's profiles (name, kind, how far its Totem has grown)
 function act_profiles($req) {
   list($u, $acct, $th) = auth($req);
@@ -405,7 +507,7 @@ function act_profiles($req) {
     $dir = totem_dir($u, $tid); if (!is_dir($dir)) continue;
     $snap = read_json($dir . '/totem.json', array()); $meta = read_json($dir . '/meta.json', array('count' => 0));
     $out[] = array('tid' => $tid, 'name' => isset($v['name']) ? $v['name'] : '', 'kind' => isset($v['kind']) ? $v['kind'] : 'personal', 'created' => isset($v['created']) ? $v['created'] : 0,
-      'totem' => isset($snap['name']) ? $snap['name'] : '', 'stage' => isset($snap['stage_name']) ? $snap['stage_name'] : '', 'events' => isset($meta['count']) ? (int) $meta['count'] : 0);
+      'totem' => isset($snap['name']) ? $snap['name'] : '', 'stage' => isset($snap['stage_name']) ? $snap['stage_name'] : '', 'snap' => isset($snap['$x']) ? $snap['$x'] : null, 'events' => isset($meta['count']) ? (int) $meta['count'] : 0);
   }
   return array('ok' => true, 'profiles' => $out);
 }
@@ -413,7 +515,8 @@ function act_profile_set($req) {
   list($u, $acct, $th) = auth($req);
   $tid = clean_tid(g($req, 'tid', ''));
   $pn = g($req, 'pname'); $pk = g($req, 'pkind');
-  $rec = ensure_profile($u, $tid, $pn === null ? null : short_str($pn, 40), $pk === null ? null : clean_kind((string) $pk));
+  if ($pn !== null && account_sealed($acct) && !is_sealed($pn, 600)) need_update();
+  $rec = ensure_profile($u, $tid, $pn === null ? null : clean_pname($pn), $pk === null ? null : clean_kind((string) $pk));
   return array('ok' => true, 'profile' => $rec);
 }
 // deleting one profile (not the first one: that is the account itself) needs the password and a typed phrase
@@ -532,7 +635,7 @@ try {
     $req = $body === '' ? new stdClass() : json_decode($body, false, 64, JSON_BIGINT_AS_STRING);
     if (!is_object($req)) fail(400, 'bad_json', 'Bad request.');
     $acts = array('ping' => 'act_ping', 'signup' => 'act_signup', 'resend' => 'act_resend', 'login' => 'act_login', 'forgot' => 'act_forgot', 'reset' => 'act_reset',
-      'sync' => 'act_sync', 'me' => 'act_me', 'profiles' => 'act_profiles', 'profile_set' => 'act_profile_set', 'profile_delete' => 'act_profile_delete', 'blob_put' => 'act_blob_put', 'blob_get' => 'act_blob_get', 'blob_del' => 'act_blob_del', 'blob_usage' => 'act_blob_usage', 'blob_list' => 'act_blob_list', 'password' => 'act_password', 'logout' => 'act_logout', 'delete_account' => 'act_delete_account', 'shop' => 'act_shop');
+      'sync' => 'act_sync', 'me' => 'act_me', 'profiles' => 'act_profiles', 'profile_set' => 'act_profile_set', 'profile_delete' => 'act_profile_delete', 'blob_put' => 'act_blob_put', 'blob_get' => 'act_blob_get', 'blob_del' => 'act_blob_del', 'blob_usage' => 'act_blob_usage', 'blob_list' => 'act_blob_list', 'dkey_set' => 'act_dkey_set', 'reseal' => 'act_reseal', 'rename' => 'act_rename', 'password' => 'act_password', 'logout' => 'act_logout', 'delete_account' => 'act_delete_account', 'shop' => 'act_shop');
     $an = (string) g($req, 'a', '');
     if (!isset($acts[$an])) fail(404, 'unknown', 'Unknown action.');
     $res = call_user_func($acts[$an], $req);

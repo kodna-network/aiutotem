@@ -11,9 +11,9 @@
     ]],
     ['The screen', [
       'Along the top of the page: six icons (they stay there while you scroll). World (Aiu\'s place), Quest (your plan and your tiles), Log (today and your book), Accounts (your cards, you, your files and your finance), Shop (the Corner Mart) and Settings. A small dot on Settings shows sync: green = synced, yellow = syncing, orange = waiting or offline, red = log in again, grey = this device only.',
-      'World is where the app opens. The picture of his world is at the top, right under the menu. Under it: Arrange and Go inside / Go outside, then three buttons with their bars: the heart (how much Aiu has grown; tap for what helps), the leaf (Aiu Vitals; tap to check in) and the token (your wallet). Then a ticker says what Aiu is doing, with a tip. After 10 minutes without a tap, the app comes back to World by itself.',
+      'World is where the app opens. The picture of his world is at the top, right under the menu. Under it: Go inside / Go outside, then three buttons with their bars: the heart (how much Aiu has grown; tap for what helps), the leaf (Aiu Vitals; tap to check in) and the token (your wallet). Then a ticker says what Aiu is doing, with a tip. After 10 minutes without a tap, the app comes back to World by itself.',
       'Aiu walks everywhere: from room to room, up and down the stairs, climbing the ladders to the attic and the basement, out the front door and across the yard (and back in). Go inside / Go outside sends him through the door.',
-      'Arrange: tap it, then drag a building onto another and they swap places (or tap one, then the other). Reset puts them all back. Done when you\'re finished. The house, the stream, the pond and the board stay where they are.',
+      'The yard is as tall as the house. Behind the stream: the barn, the well, the house, the outhouse and the lab. In front of the field: the greenhouse, the garage, the tool shed and the vegetable garden. Tap a building and Aiu walks there.',
       'The speaker icon at the top of a page reads that page to you in Aiu\'s voice, as a short summary. Tap it again to stop.',
       'The world is Aiu\'s whole place in one picture: the house in the middle, the well and the outhouse behind it, the barn, the greenhouse, Aiu\'s food cart, the garage and the lab, a stream with a little bridge (and a lantern that lights his way at night), the field with the pond, and the bounty board. The buildings match your house and your land: log cabins, stone, adobe in the desert, igloos on the tundra.',
       'Now and then a strange, friendly creature wanders through, two animals in one: an owl-cat, a giraffe-turtle, a koala-snail, a camel-snail, a jackalope, a walrus-mammoth, a fox-snake, a frog-duck, a crab-dog, a fish on bird legs, and the big shy forest walker, depending on your land. Tap one and it says hello.',
@@ -33,15 +33,16 @@
       'Aiu then asks for the missing pieces, one tap at a time: When (today, tomorrow, every day, every week, a part of every year...), Who and How long (for walks, pets, visits), and the Steps. Pieces turn green when they\'re filled. Tap any piece to change it.',
       'When: pick On a date (tap the box for the calendar, or type it like 01/02/2027), Repeat (tap the days of the week: M T W T F S S, or Every day / Weekdays / Weekends; every week, every other week or once a month, from a start date) or Any time. Add a time for a reminder.',
       'More than once a day: add another time (brush teeth at 8am and 9pm). Each time is its own finish and its own reminder: finish it in the morning and it hides until the evening time comes.',
-      'Status is a traffic light: green = Go (ready to do), yellow = Doing (it turns yellow by itself when you check off a box), red = Done (it turns red by itself when the last box is checked). Tap a light to change it. Repeating tiles turn green again on their own: daily ones tomorrow, weekly ones next week, season ones next year.',
+      'Status is a traffic light: green = Do (ready to do), yellow = Doing (it turns yellow by itself when you check off a box), red = Done (it turns red by itself when the last box is checked). Tap a light to change it. Repeating tiles turn green again on their own: daily ones tomorrow, weekly ones next week, season ones next year.',
       'Finishing a tile: +5 growth, plus +2 for each step. Calm tiles (a walk, a bath, reading, music...) also feed your Aiu Vitals.',
-      'Search and the filters (All, Go, Doing, Done, Repeats) find any tile (Archived shows the ones you archived). Each tile card shows its light in the corner.',
+      'Search and the filters (All, Do, Doing, Done, Repeats) find any tile (Archived shows the ones you archived). Each tile card shows its light in the corner.',
       'Aiu keeps every tile in one order: overdue, today, in season, missing pieces, then the rest of the green ones.'
     ]],
     ['Task lists and shopping lists', [
       '+ New tile asks which kind. A task list has to-do boxes: it turns yellow when you check the first one and finishes by itself (red, +5) when you check the last one. The red light stays locked until every box is checked. A tile with no boxes has a Done button.',
       'A shopping list: add the things to get (with commas: "milk, bread, apples"; put the store in brackets: "Bread (Corner store)"). Check them off as you get them, then tap Done shopping: the tile is finished (find it under Done).',
       'Made a mistake? Right after finishing there\'s an Undo for a few seconds, and a finished tile always has Undo complete: the boxes come back the way they were, minus the last one. Tapping the green light on a red tile does the same. Undoing and redoing never earns points twice.',
+      'Labels sort your tiles into groups you name yourself (Home, Exercise, Work...). A new tile guesses its label from its name (Fix fence: Home; Walk dog: Exercise); change it with Label at the top of the tile. Each label is a filter on the board, in front of the Discard pile. Labels... (at the end of the filters) renames them, changes their colors, adds your own or deletes them.',
       'Rename and Discard are at the bottom of each tile. A discarded tile goes to the Discard pile (a filter on the board): open it to Restore it, or Delete forever (type DELETE to confirm).'
     ]],
     ['Plan (the top of Quest)', [
@@ -78,7 +79,8 @@
     ]],
     ['Signing in', [
       'An account is just a username and a password. Your username is also your name: it\'s what Aiu calls you, and each username belongs to one account only (if a name is taken, try another name). Write your password down somewhere safe. You can also use Aiu on one device only, with no account at all, and sign up later (Settings > Account & data > Sign up to sync).',
-      'Settings > Account & data has three parts: User info (your username, Log out, Change password), Profiles (the drop-down) and Capsules.',
+      'Settings > Account & data has three parts: User info (your username, Log out, Change password, Change username), Profiles (the drop-down) and Capsules. Change username: pick any name nobody has; your old one is free for others right away, and your other devices ask you to log in with the new one.',
+      'Private sync: a synced Aiu is scrambled on your device before it goes to the server, with a key only your password opens. The server keeps it but can\'t read it (your journal, tiles, plans and names). After the 2.8.0 update each device asks for your password once.',
       'Your password can\'t be reset, by anyone: there\'s no email, no admin and no recovery code. No one can get into your Aiu without it, not even KODNA. Write it down somewhere safe. A lost password means starting a new account (a capsule you exported can be opened in it, with the capsule\'s own password).'
     ]],
     ['Accounts', [

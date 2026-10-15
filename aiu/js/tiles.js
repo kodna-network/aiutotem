@@ -10,7 +10,7 @@
   'use strict';
   var U = AIU.util, C = AIU.core;
   var T = AIU.tiles = {};
-  T.STATUS = [['next', 'Go'], ['doing', 'Doing'], ['done', 'Done']]; // 2.0.6: a traffic light. green = go, yellow = doing, red = stop (finished)
+  T.STATUS = [['next', 'Do'], ['doing', 'Doing'], ['done', 'Done']]; // 2.0.6: a traffic light. green = do, yellow = doing, red = stop (finished). 2.8.0: Go is now Do
   T.LIGHT = { next: 'green', doing: 'yellow', done: 'red' };
   T.EVERY = { day: 'Every day', days: 'On certain days', week: 'Every week', '2weeks': 'Every 2 weeks', month: 'Every month' };
   // 2.1.12: repeat on any days of the week ({ every: 'days', days: [1, 3, 5] } with 0 = Sunday), every week or every other week (step 2)
@@ -35,6 +35,28 @@
     { id: 'meet', re: /\b(meet|meeting|interview|appointment|call|visit|tea|party|dinner|lunch|date|class|lesson)\b/i, pieces: ['who'], steps: ['Put it on the calendar', 'Get ready', 'Go'] },
     { id: 'calm', re: /\b(walk|shower|bath|yoga|stretch|nap|meditat\w*|breath\w*|read|reading|music|draw|drawing|paint|painting|tea|nature|sunlight|journal\w*)\b/i, pieces: ['dur'], calm: true, steps: [] }
   ];
+  /* 2.8.0: labels. A tile can carry one label (Home, Exercise...): a category you name yourself. The list is the setting
+     'tileLabels' ([{ id, name, c }], c = its color 0-7); until you edit it, the starting list below is used. Deleting a label
+     only takes it off the tiles (they show no label). A new tile guesses its label from its words. */
+  T.LABELS0 = [{ id: 'home', name: 'Home', c: 0 }, { id: 'exercise', name: 'Exercise', c: 1 }, { id: 'errands', name: 'Errands', c: 2 }, { id: 'work', name: 'Work', c: 3 }, { id: 'health', name: 'Health', c: 4 }, { id: 'fun', name: 'Fun', c: 5 }];
+  T.LABEL_MAX = 16;
+  T.LABEL_WORDS = {
+    home: /\b(fix|fence|clean|wash|laundry|dishes|vacuum|mop|dust|mow|lawn|yard|garden|repair|paint|trash|garbage|tidy|room|house|roof|gutters?|kitchen|bathroom|bed|sheets|plants?|water the|sweep|organi[sz]e|closet|garage|furnace|filter)\b/i,
+    exercise: /\b(walk|run|running|jog|gym|yoga|stretch|swim|bike|biking|cycle|hike|workout|work out|exercise|push-?ups?|sit-?ups?|squats?|lift|weights|steps|dance|sports?|tennis|soccer|basketball)\b/i,
+    errands: /\b(buy|pick up|drop off|post office|mail|bank|store|shop|shopping|groceries|grocery|return|pharmacy|gas|car wash|errands?|library)\b/i,
+    work: /\b(work|email|e-mail|report|meeting|client|invoice|boss|project|deadline|presentation|resume|interview|office|taxes|bills?|budget|homework|study)\b/i,
+    health: /\b(doctor|dentist|meds?|medicine|pills?|vitamins?|therapy|therapist|checkup|check-up|appointment|sleep|brush|teeth|floss|shower|bath|eye drops|blood|nap)\b/i,
+    fun: /\b(play|game|games|movie|party|music|read|book|draw|paint|craft|friends?|visit|trip|vacation|picnic|beach|concert|hobby)\b/i
+  };
+  T.labels = function (S) { var v = C.setting(S, 'tileLabels', null); return Array.isArray(v) ? v.filter(function (x) { return x && x.id && x.name; }).slice(0, T.LABEL_MAX) : T.LABELS0.slice(); };
+  T.labelOf = function (S, q) { var id = T.tile(q).label; return id ? T.labels(S).filter(function (x) { return x.id === id; })[0] || null : null; };
+  T.guessLabel = function (S, title, kind) {
+    var t = String(title || ''), ls = T.labels(S), hit = null;
+    ls.forEach(function (L) { if (!hit && new RegExp('\\b' + L.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(t)) hit = L.id; }); // a label's own name in the title wins (a "Bailey" label for "Walk Bailey")
+    if (!hit) ls.forEach(function (L) { var re = T.LABEL_WORDS[L.id]; if (!hit && re && re.test(t)) hit = L.id; });
+    if (!hit && kind === 'shop' && ls.some(function (L) { return L.id === 'errands'; })) hit = 'errands';
+    return hit || '';
+  };
   T.rulesFor = function (title) { return T.RULES.filter(function (r) { return r.re.test(String(title || '')); }); };
   T.isStarter = function (q) { return /^starter-/.test(q.key); };
   // 2.1.1: you pick the kind when you make a tile: a task list (finishes when every box is checked) or a shopping list
@@ -248,6 +270,7 @@
     var M = AIU.mind, key = M.slug(title); if (S.quests[key] && S.quests[key].state !== 'deleted') key = key + '-' + U.id().slice(-3).toLowerCase();
     var ev = [{ type: 'quest_set', data: Object.assign({ key: key, title: title, steps: [] }, extra && extra.quest || {}) }, { type: 'quest_state', data: { key: key, state: 'active' } }];
     var set = Object.assign({ status: 'next' }, (extra && extra.set) || {});
+    if (set.label === undefined) { var lb = T.guessLabel(S, title, set.kind); if (lb) set.label = lb; } // 2.8.0
     if (T.rulesFor(title).some(function (r) { return r.calm; }) && set.calm === undefined) set.calm = true;
     ev.push(T.setEv(key, set));
     return { key: key, events: ev };

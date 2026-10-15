@@ -691,6 +691,18 @@ html.page3 body { padding-bottom: 0; }
 .tpcs i.ok { border-style: solid; background: #38b764; }
 .thint { font-size: 0.9rem; color: var(--muted); }
 .thint.ask { color: #b13e53; font-weight: bold; }
+/* 2.8.0: tile labels (a colored dot + the name) */
+.ldot { display: inline-block; width: 0.7em; height: 0.7em; border: 2px solid var(--ink); border-radius: 50%; margin-right: 0.35em; vertical-align: -0.05em; flex: none; }
+.ldot.c0 { background: #ef7d57; } .ldot.c1 { background: #38b764; } .ldot.c2 { background: #41a6f6; } .ldot.c3 { background: #5d275d; }
+.ldot.c4 { background: #b13e53; } .ldot.c5 { background: #ffcd75; } .ldot.c6 { background: #73eff7; } .ldot.c7 { background: #94b0c2; }
+.ldot.big { width: 2.2rem; height: 2.2rem; min-width: 44px; min-height: 44px; margin: 0; padding: 0; cursor: pointer; }
+.tcard .tlabel { display: inline-flex; align-items: center; font-size: 0.85rem; color: var(--muted); }
+.tlabrow .tlabel { display: inline-flex; align-items: center; }
+.labedit { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.labedit .labrow { align-items: center; gap: 8px; flex-wrap: nowrap; }
+.labedit .labrow input { flex: 1; min-width: 0; }
+.chips.lpick { margin: 4px 0 10px; }
+.muted { color: var(--muted); }
 .tdonewk { margin-top: 14px; display: flex; align-items: center; gap: 6px; }
 :root[data-theme="dark"] .tcard.hot { background: #3a3020; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tcard.hot { background: #3a3020; } }
@@ -1342,7 +1354,3 @@ html.page3 .app2 .bubble { font-size: 1.0625rem; }
 .doorbtn { position: static; min-height: 44px; padding: 6px 12px; font: inherit; font-size: 1rem; font-weight: bold; color: #1a1c2c; background: #f4f4f4; border: 3px solid #1a1c2c; border-radius: 12px; box-shadow: 0 3px 0 #1a1c2c; cursor: pointer; opacity: .92; }
 .doorbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 #1a1c2c; }
 .doorrow { gap: 8px; }
-.arrbtn.on { background: #ffcd75; }
-.arrbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; padding: 8px 10px; background: #fff6dc; color: #1a1c2c; border: 3px solid #1a1c2c; border-radius: 12px; font-size: 1rem; }
-.arrbar[hidden] { display: none; }
-.arrbar span { flex: 1 1 12rem; }

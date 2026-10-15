@@ -14,6 +14,11 @@
 # (as before, so nothing moves). Every other profile is accounts/<user>/totems/<id>/ with the same files.
 # profiles.json lists their names. Same files and answers as api.php, so either server can take over.
 #
+# 2.8.0: private. Each account has a data key, made on a device and kept in account.json only locked with the password
+# (the 'dk' record: the server can't open it). Every event's contents, each profile's name and the Totem summary arrive
+# already scrambled with it ("x1:..." text). What the server still sees: usernames, each event's id, time and type, and
+# file sizes. Older plain events are scrambled in place by the first 2.8.0 device that syncs (act_reseal).
+#
 # ------------------------------------------------------------------ SETTINGS
 # Change these if your server is different. Leave the ENV parts alone.
 APP_URL   = ENV['AIU_APP_URL']   || 'https://kodna.net/aiu/'          # where index.html lives (used in emails)
@@ -28,6 +33,7 @@ SHOP_DIR  = ENV['AIU_SHOP_DIR']  || File.expand_path('shop', __dir__) # shop fol
 MAX_ACCOUNT_MB = (ENV['AIU_MAX_ACCOUNT_MB'] || '50').to_i             # size limit for one Totem's event log
 FILES_MAX_MB = (ENV['AIU_FILES_MAX_MB'] || '250').to_i               # 2.5.0: Files space for one account (all its profiles); 2.6.0: 250 MB
 FILES_TOTAL_MB = (ENV['AIU_FILES_TOTAL_MB'] || '5000').to_i          # 2.6.0: Files space for the whole server, every account together
+DELETE_INACTIVE_DAYS = (ENV['AIU_DELETE_INACTIVE_DAYS'] || '0').to_i  # 2.8.0: delete accounts nobody has used for this many days (0 = never)
 # ---------------------------------------------------------------------------
 
 require 'json'
@@ -64,7 +70,7 @@ def now_ms
 end
 
 STATUS_TEXT = { 200 => 'OK', 400 => 'Bad Request', 401 => 'Unauthorized', 403 => 'Forbidden', 404 => 'Not Found',
-                405 => 'Method Not Allowed', 409 => 'Conflict', 410 => 'Gone', 413 => 'Payload Too Large', 429 => 'Too Many Requests',
+                405 => 'Method Not Allowed', 409 => 'Conflict', 410 => 'Gone', 413 => 'Payload Too Large', 426 => 'Upgrade Required', 429 => 'Too Many Requests',
                 500 => 'Internal Server Error' }.freeze
 
 def status_line(status)
@@ -351,7 +357,71 @@ HM_RE  = /\A\d{2}:\d{2}\z/
 LINE_RE = /\A\{"seq":(\d+),"rt":\d+,"id":"([A-Za-z0-9_-]+)"/
 MIN_T = 1_577_836_800_000 # 2020-01-01
 
-def clean_event(e, now)
+# 2.8.0: scrambled text from the app: "x1:" + base64 (the server never opens it)
+SEALED_RE = %r{\Ax1:[A-Za-z0-9+/]+=*\z}
+B64_RE = %r{\A[A-Za-z0-9+/]+=*\z}
+def sealed?(v, max = 60_000)
+  v.is_a?(String) && v.bytesize <= max && !!(v =~ SEALED_RE)
+end
+
+def sealed_obj?(o, max = 60_000)
+  o.is_a?(Hash) && o.keys == ['$x'] && sealed?(o['$x'], max)
+end
+
+def clean_pname(pn) # a profile name: scrambled (2.8.0) or plain (older apps)
+  sealed?(pn, 600) ? pn : short_str(pn, 40)
+end
+
+def clean_dk(dk) # the locked data key: { salt, rounds, iv, ct } (base64), made and opened only on devices
+  return nil unless dk.is_a?(Hash)
+  out = {}
+  { 'salt' => 64, 'iv' => 64, 'ct' => 200 }.each do |k, max|
+    v = dk[k]
+    return nil unless v.is_a?(String) && v.bytesize <= max && v =~ B64_RE
+    out[k] = v
+  end
+  r = dk['rounds']
+  return nil unless r.is_a?(Integer) && r >= 100_000 && r <= 5_000_000
+  out['rounds'] = r
+  out
+end
+
+def account_sealed?(acct)
+  acct.is_a?(Hash) && !acct['dk'].nil?
+end
+
+def need_update!
+  fail!(426, 'update_app', 'This account keeps its data private (scrambled). Reload Aiu to get the newest version, then sync again.')
+end
+
+def last_used(u, acct) # 2.8.0: the last time anyone used an account (a log in or a sync from any device)
+  t = acct['created'].to_i
+  read_json(tokens_path(u), {}).each_value { |r| t = r['last'].to_i if r.is_a?(Hash) && r['last'].to_i > t }
+  t = acct['last'].to_i if acct['last'].to_i > t
+  t
+end
+
+def sweep_inactive # 2.8.0: with DELETE_INACTIVE_DAYS set, accounts nobody used for that long are deleted (checked at most once a day)
+  return if DELETE_INACTIVE_DAYS <= 0
+  mark = File.join(DATA_DIR, '.last_sweep')
+  now = now_ms
+  return if File.exist?(mark) && File.read(mark).to_i > now - 86_400_000
+  File.write(mark, now.to_s)
+  cut = now - DELETE_INACTIVE_DAYS * 86_400_000
+  Dir.glob(File.join(DATA_DIR, 'accounts', '*')).each do |d|
+    next unless File.directory?(d)
+    u = File.basename(d)
+    next unless u =~ /\A[a-z0-9_-]{3,24}\z/
+    acct = load_account(u)
+    next unless acct
+    next unless last_used(u, acct) < cut
+    with_lock(File.join(DATA_DIR, 'accounts', '.signup.lock')) { FileUtils.rm_rf(acct_dir(u)) }
+  end
+rescue StandardError
+  nil
+end
+
+def clean_event(e, now, sealed = false)
   return nil unless e.is_a?(Hash)
   id = e['id'].to_s
   return nil unless id =~ ID_RE
@@ -370,24 +440,11 @@ def clean_event(e, now)
   ev['d'] = e['d'].to_s if e['d'].to_s =~ DAY_RE
   ev['h'] = e['h'].to_s if e['h'].to_s =~ HM_RE
   ev['dev'] = e['dev'].to_s if e['dev'].to_s =~ DEV_RE
-  ev['dn'] = short_str(e['dn'], 40) if e['dn']
+  ev['dn'] = short_str(e['dn'], 40) if e['dn'] && !sealed # 2.8.0: on a private account the device name travels inside the scrambled part
   ev['off'] = 1 if e['off'] == 1 # made while the device was offline
   ev['imp'] = 1 if e['imp'] == 1 # 2.2.0: brought in from a capsule or a device-only Totem
   ev['data'] = data
   ev
-end
-
-def mirror_journal(dir, ev)
-  return unless (ev['type'] == 'journal' || ev['type'] == 'journal_edit') && ev['data']['text'].is_a?(String)
-  day = ev['d'] || Time.at(ev['t'] / 1000).strftime('%Y-%m-%d')
-  jdir = File.join(dir, 'journal')
-  FileUtils.mkdir_p(jdir, :mode => 0o700)
-  File.open(File.join(jdir, day[0, 7] + '.md'), 'a', 0o600) do |f|
-    label = ev['type'] == 'journal_edit' ? ' (edited an earlier page)' : ''
-    f.write("## #{day} #{ev['h']} (#{ev['dn'] || 'device'})#{label}\n\n#{ev['data']['text'].to_s.strip}\n\n")
-  end
-rescue StandardError
-  nil
 end
 
 # ------------------------------------------------------------------ actions
@@ -403,10 +460,10 @@ def act_ping(_req)
   end
   inside_web = File.expand_path(DATA_DIR).start_with?(File.expand_path(__dir__) + '/')
   shop_items = Dir.glob(File.join(SHOP_DIR, 'packs', '*', 'item.json')).reject { |f| File.basename(File.dirname(f)).start_with?('_') }.length
-  { 'ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'ruby', 'version' => '2.7.0', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'ruby' => RUBY_VERSION,
+  { 'ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'ruby', 'version' => '2.8.0', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'ruby' => RUBY_VERSION,
     'openssl' => defined?(OpenSSL) ? true : false, 'data_folder_ok' => ok_dir,
     'data_folder_private' => !inside_web, 'mail_program_found' => File.executable?(SENDMAIL),
-    'shop_items' => shop_items, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'now' => now_ms }
+    'shop_items' => shop_items, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'private' => true, 'rename' => true, 'inactive_days' => DELETE_INACTIVE_DAYS, 'now' => now_ms }
 end
 
 def act_signup(req)
@@ -415,6 +472,7 @@ def act_signup(req)
   email = req['email'].to_s.strip.empty? ? '' : clean_email(req['email'])  # 2.4.0: email is optional
   pw = clean_pw(req['pw'])
   rate_limit!('signup', 6, 3600)
+  sweep_inactive
   acct = nil
   with_lock(File.join(DATA_DIR, 'accounts', '.signup.lock')) do
     fail!(409, 'taken', 'That username is taken. Try another.') if File.exist?(acct_dir(u)) || File.exist?(acct_dir(u) + '.reserved')
@@ -481,8 +539,11 @@ def act_login(req)
     acct['fails'] = 0
     save_account(u, acct)
   end
+  acct['last'] = now_ms
+  save_account(u, acct)
+  sweep_inactive
   tok = new_token(u, req['dn'])
-  { 'ok' => true, 'u' => u, 'email' => acct['email'], 'token' => tok }
+  { 'ok' => true, 'u' => u, 'email' => acct['email'], 'token' => tok, 'dk' => acct['dk'], 'private' => true }
 end
 
 def act_forgot(_req) # 2.7.0: no way back into an account without its password
@@ -494,14 +555,20 @@ def act_reset(_req) # 2.7.0: no way back into an account without its password
 end
 
 def act_sync(req)
-  u, _acct, th = auth!(req)
+  u, acct, th = auth!(req)
   tid = clean_tid(req['tid'])
-  ensure_profile(u, tid, req['pname'].nil? ? nil : short_str(req['pname'], 40), req['pkind'].nil? ? nil : clean_kind(req['pkind']))
-  dir = totem_dir(u, tid)
-  now = now_ms
+  sealed = account_sealed?(acct)
   since = req['since'].is_a?(Integer) ? req['since'] : 0
   incoming = req['events'].is_a?(Array) ? req['events'] : []
   fail!(413, 'too_many', 'Too many events at once.') if incoming.length > MAX_EVENTS_PER_PUSH
+  pn = req['pname']
+  if sealed # 2.8.0: a private account takes only scrambled events, names and summaries
+    incoming.each { |r| need_update! unless r.is_a?(Hash) && sealed_obj?(r['data']) }
+    pn = nil unless pn.nil? || sealed?(pn, 600)
+  end
+  ensure_profile(u, tid, pn.nil? ? nil : clean_pname(pn), req['pkind'].nil? ? nil : clean_kind(req['pkind']))
+  dir = totem_dir(u, tid)
+  now = now_ms
   accepted = []
   result = nil
   with_lock(File.join(dir, '.events.lock')) do
@@ -518,7 +585,7 @@ def act_sync(req)
     known = {}
     File.open(path, 'a', 0o600) do |f|
       incoming.each do |raw|
-        ev = clean_event(raw, now)
+        ev = clean_event(raw, now, sealed)
         if ev.nil?
           rejected += 1
           next
@@ -534,7 +601,6 @@ def act_sync(req)
         seen[ev['id']] = ev['seq']
         f.write(JSON.generate(ev) + "\n")
         accepted << ev['id']
-        mirror_journal(dir, ev)
       end
     end
     write_json(File.join(dir, 'meta.json'), meta)
@@ -551,9 +617,10 @@ def act_sync(req)
     end
     last = out.empty? ? since : out.last['seq']
     result = { 'ok' => true, 'events' => out, 'last_seq' => last, 'server_last_seq' => meta['last_seq'],
-               'more' => more, 'accepted' => accepted.length, 'rejected' => rejected, 'known' => known, 'now' => now }
+               'more' => more, 'accepted' => accepted.length, 'rejected' => rejected, 'known' => known,
+               'plain' => !meta['sealed'] && meta['count'].to_i > 0, 'now' => now }
   end
-  if req['snapshot'].is_a?(Hash) && JSON.generate(req['snapshot']).bytesize < 200_000
+  if req['snapshot'].is_a?(Hash) && JSON.generate(req['snapshot']).bytesize < 200_000 && (!sealed || sealed_obj?(req['snapshot'], 200_000))
     write_json(File.join(dir, 'totem.json'), req['snapshot'].merge('saved_at' => now))
   end
   touch_token(u, th)
@@ -571,7 +638,10 @@ end
 def act_password(req)
   u, acct, th = auth!(req)
   fail!(401, 'bad_password', 'Your current password is wrong.') unless check_pw(acct['pw'], req['old'])
+  dk = clean_dk(req['dk'])
+  need_update! if account_sealed?(acct) && !dk # 2.8.0: the data key is locked again with the new password, or nothing changes
   acct['pw'] = make_pw(clean_pw(req['pw']))
+  acct['dk'] = dk if dk
   save_account(u, acct)
   with_lock(File.join(acct_dir(u), '.tokens.lock')) do
     tokens = read_json(tokens_path(u), {})
@@ -600,6 +670,93 @@ def act_delete_account(req)
   { 'ok' => true }
 end
 
+# 2.8.0: the account's locked data key, set once by the first 2.8.0 device (whoever is first wins; the others use that one)
+def act_dkey_set(req)
+  u, _acct, _th = auth!(req)
+  dk = clean_dk(req['dk'])
+  fail!(400, 'bad_key', 'That data key does not look right.') unless dk
+  acct = nil
+  with_lock(File.join(acct_dir(u), '.account.lock')) do
+    acct = load_account(u)
+    if acct['dk'].nil?
+      acct['dk'] = dk
+      save_account(u, acct)
+    end
+  end
+  { 'ok' => true, 'dk' => acct['dk'] }
+end
+
+# 2.8.0: scramble older plain events in place. The app sends each event's scrambled contents by id; a line that is already
+# scrambled is left alone. When no plain line is left, the profile is marked private and its old plain copies go.
+def act_reseal(req)
+  u, acct, _th = auth!(req)
+  fail!(409, 'no_key', 'This account has no data key yet.') unless account_sealed?(acct)
+  tid = clean_tid(req['tid'])
+  dir = totem_dir(u, tid)
+  fail!(404, 'no_profile', 'That profile is not on the server.') unless File.directory?(dir)
+  list = req['events']
+  fail!(400, 'bad_request', 'Bad request.') unless list.is_a?(Array) && list.length <= MAX_EVENTS_PER_PUSH
+  by = {}
+  list.each { |r| by[r['id'].to_s] = r['data'] if r.is_a?(Hash) && r['id'].to_s =~ ID_RE && sealed_obj?(r['data']) }
+  done = 0
+  left = 0
+  with_lock(File.join(dir, '.events.lock')) do
+    path = File.join(dir, 'events.jsonl')
+    if File.exist?(path)
+      tmp = "#{path}.reseal#{Process.pid}"
+      File.open(tmp, 'w', 0o600) do |out|
+        File.foreach(path, :encoding => 'UTF-8') do |line|
+          t = line.chomp
+          next if t.empty?
+          ev = begin
+            JSON.parse(t)
+          rescue JSON::ParserError
+            nil
+          end
+          if !ev.is_a?(Hash) || sealed_obj?(ev['data'])
+            out.write(t + "\n")
+          elsif by[ev['id'].to_s]
+            ev['data'] = by[ev['id'].to_s]
+            ev.delete('dn')
+            out.write(JSON.generate(ev) + "\n")
+            done += 1
+          else
+            out.write(t + "\n")
+            left += 1
+          end
+        end
+      end
+      File.rename(tmp, path)
+    end
+    if left.zero?
+      meta = read_json(File.join(dir, 'meta.json'), { 'last_seq' => 0, 'count' => 0 })
+      meta['sealed'] = true
+      write_json(File.join(dir, 'meta.json'), meta)
+      FileUtils.rm_rf(File.join(dir, 'journal')) # the old plain journal copy
+      snap = read_json(File.join(dir, 'totem.json'), nil)
+      File.delete(File.join(dir, 'totem.json')) if snap.is_a?(Hash) && !snap.key?('$x')
+    end
+  end
+  { 'ok' => true, 'done' => done, 'left' => left }
+end
+
+# 2.8.0: a new username. The old one is free again right away. Needs the password. Other devices log in again with the new name.
+def act_rename(req)
+  u, acct, _th = auth!(req)
+  fail!(401, 'bad_password', 'Your password is wrong.') unless check_pw(acct['pw'], req['pw'])
+  nu = clean_user(req['nu'])
+  fail!(400, 'same', 'That is already your username.') if nu == u
+  rate_limit!('rename', 10, 3600)
+  with_lock(File.join(DATA_DIR, 'accounts', '.signup.lock')) do
+    fail!(409, 'taken', 'That username is taken. Try another.') if File.exist?(acct_dir(nu)) || File.exist?(acct_dir(nu) + '.reserved')
+    File.rename(acct_dir(u), acct_dir(nu))
+    a = load_account(nu)
+    a['u'] = nu
+    save_account(nu, a)
+  end
+  { 'ok' => true, 'u' => nu }
+end
+
 # 2.2.0: the account's profiles (name, kind, how far its Totem has grown)
 def act_profiles(req)
   u, acct, _th = auth!(req)
@@ -615,15 +772,16 @@ def act_profiles(req)
     snap = read_json(File.join(dir, 'totem.json'), {})
     meta = read_json(File.join(dir, 'meta.json'), { 'count' => 0 })
     out << { 'tid' => tid, 'name' => v['name'] || '', 'kind' => v['kind'] || 'personal', 'created' => v['created'] || 0,
-             'totem' => snap['name'] || '', 'stage' => snap['stage_name'] || '', 'events' => meta['count'].to_i }
+             'totem' => snap['name'] || '', 'stage' => snap['stage_name'] || '', 'snap' => snap['$x'], 'events' => meta['count'].to_i }
   end
   { 'ok' => true, 'profiles' => out }
 end
 
 def act_profile_set(req)
-  u, _acct, _th = auth!(req)
+  u, acct, _th = auth!(req)
   tid = clean_tid(req['tid'])
-  rec = ensure_profile(u, tid, req['pname'].nil? ? nil : short_str(req['pname'], 40), req['pkind'].nil? ? nil : clean_kind(req['pkind']))
+  need_update! if !req['pname'].nil? && account_sealed?(acct) && !sealed?(req['pname'], 600)
+  rec = ensure_profile(u, tid, req['pname'].nil? ? nil : clean_pname(req['pname']), req['pkind'].nil? ? nil : clean_kind(req['pkind']))
   { 'ok' => true, 'profile' => rec }
 end
 
@@ -796,6 +954,7 @@ ACTIONS = {
   'password' => :act_password, 'logout' => :act_logout, 'delete_account' => :act_delete_account,
   'profiles' => :act_profiles, 'profile_set' => :act_profile_set, 'profile_delete' => :act_profile_delete,
   'blob_put' => :act_blob_put, 'blob_get' => :act_blob_get, 'blob_del' => :act_blob_del, 'blob_usage' => :act_blob_usage, 'blob_list' => :act_blob_list,
+  'dkey_set' => :act_dkey_set, 'reseal' => :act_reseal, 'rename' => :act_rename,
   'shop' => :act_shop
 }.freeze
 

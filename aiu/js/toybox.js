@@ -32,7 +32,7 @@
       return a.houseTap && a.houseTap(false);
     }
     if (!PL || !PL[id]) return;
-    if (!sc || sc.aiuIn || A.isRoom(sc) || instant || a.busyNow()) { a.visit = { id: id, phase: 'in' }; PL.open(id); return; } // he's busy inside: you go on your own (he's in the building picture anyway)
+    if (!sc || sc.aiuIn || A.isRoom(sc) || instant || a.busyNow() || a.trip) { a.visit = { id: id, phase: 'in' }; PL.open(id); return; } // 2.9.0: (and not while he's walking in or out: two walks at once made him jump) // he's busy inside: you go on your own (he's in the building picture anyway)
     a.visit = { id: id, dir: 'go', phase: 'walk', start: Date.now(), dur: 2000 };
     a.react('quest');
   };
@@ -51,7 +51,7 @@
   // the little places: he walks over and does something silly there, then comes back
   function fun(id) {
     var a = app(), L = A.landmark(id); if (!L) return;
-    var sc = a.view && a.view.sc; if (!sc || sc.aiuIn || A.isRoom(sc)) { ui().k.snack(SAY[id] || (id === 'well' ? 'The well. Splash!' : id === 'shed' ? 'The tool shed.' : 'The outhouse. Occupied? No, empty.')); return; }
+    var sc = a.view && a.view.sc; if (!sc || sc.aiuIn || A.isRoom(sc) || a.trip || a.visit) { ui().k.snack(SAY[id] || (id === 'well' ? 'The well. Splash!' : id === 'shed' ? 'The tool shed.' : 'The outhouse. Occupied? No, empty.')); return; }
     a.visit = { id: id, dir: 'go', phase: 'walk', start: Date.now(), dur: 1800, fun: true };
     setTimeout(function () {
       if (!a.visit || a.visit.id !== id) return;

@@ -29,6 +29,16 @@ WHAT'S NEW IN 2.9.0
     day (open that day in the Book instead).
   - Accounts: Cards, Person and Finance (the Files tab is gone; files already saved still go into capsules).
   - Shop: Buy asks "OK?" in a pop-up with YES and NO.
+  Smoother moves (from a check of every walk and tap):
+  - Send Aiu inside while today's I Ching toss is due: he stays in (the toss waits) instead of walking right back out.
+  - A kitchen or bathroom job walks him in through the front door and through the house (it used to cut straight to
+    the room while he was still in the yard, then pop him to the door); leaving the house walks him out the same way.
+  - In a room he walks all the way to where he works (no more popping to the sink at the end of a walk).
+  - Tap the door while he's still walking away from it: he turns around where he is (no pop to his spot and back).
+  - Tap the door while he's already heading that way by himself: he keeps going and stays there a while (it used to
+    turn him around and flip the picture).
+  - Tap the door or a building during a visit or a walk: he finishes the first thing, then does the next (two walks at
+    once made him jump across the yard). The bounty board's stand-up never starts in the middle of a walk.
 WHAT'S NEW IN 2.8.0
   Upload: the whole aiu folder, INCLUDING api.php and api.cgi (both changed).
   - Private data on the server. Every synced Totem is scrambled (AES-GCM) on your device before it leaves:

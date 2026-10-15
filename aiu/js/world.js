@@ -446,13 +446,19 @@
   function route(from, to) { var q = [[from]], seen = {}; seen[from] = 1; while (q.length) { var pth = q.shift(), last = pth[pth.length - 1]; if (last === to) return pth.map(function (k) { return NODE[k]; }); EDGE[last].forEach(function (n) { if (!seen[n]) { seen[n] = 1; q.push(pth.concat([n])); } }); } return [NODE[to]]; }
   function routeLen(pts) { var len = 0; for (var i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); return len; }
   A.houseRouteMs = function (from, to) { return Math.max(900, routeLen(route(from || 'living', to || 'living')) / 38 * 1000); }; // 2.7.0: how long a walk through the house takes
-  var hwalk = null, lastArea = null, arriveTok = 0;
+  var hwalk = null, lastArea = null, arriveTok = 0, lastSpot = null;
+  function spotIn(sc, ar) { var p = A.actorPos(sc); return { x: Math.round(p.x + ar.px - ar.sx), y: Math.round(p.y + ar.py - ar.sy) }; } // where he stands in a room (house pixels)
   function houseWalk(sc) { // -> {p, left, climb} while Aiu walks between rooms (or to and from the front door), else null
     var ar = A.aiuArea(sc), now = Date.now();
     if (sc.hArrive && sc.hArrive !== arriveTok) { arriveTok = sc.hArrive; lastArea = 'door'; hwalk = null; } // 2.7.0: he just came in the front door
     if (sc.hLeave) ar = { id: 'door' }; // 2.7.0: he's heading out the front door
-    if (lastArea && lastArea !== ar.id) { var pts = hwalk ? [houseWalkPeek()].concat(route(lastArea, ar.id)) : route(lastArea, ar.id), len = 0; /* changed his mind mid-walk: he carries on from where he is */ for (var i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); if (pts.length > 1) hwalk = { pts: pts, start: now, dur: Math.max(900, len / 38 * 1000), len: len }; }
+    if (lastArea && lastArea !== ar.id) { var pts = hwalk ? [houseWalkPeek()].concat(route(lastArea, ar.id)) : route(lastArea, ar.id), len = 0; /* changed his mind mid-walk: he carries on from where he is */
+      // 2.9.0: start where he stood and end where he'll stand (a room's spot isn't always its waypoint: he used to pop to the sink)
+      if (!hwalk && lastSpot && lastSpot.area === lastArea && Math.abs(lastSpot.x - pts[0].x) > 2) pts.unshift({ x: lastSpot.x, y: pts[0].y });
+      var end = AREAS[ar.id] ? spotIn(sc, ar) : null; if (end && Math.abs(end.x - pts[pts.length - 1].x) > 2) pts.push({ x: end.x, y: pts[pts.length - 1].y });
+      for (var i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); if (pts.length > 1) hwalk = { pts: pts, start: now, dur: Math.max(900, len / 38 * 1000), len: len }; }
     lastArea = ar.id;
+    if (!hwalk && AREAS[ar.id] && !sc.hLeave) { var sp = spotIn(sc, ar); lastSpot = { area: ar.id, x: sp.x }; }
     if (!hwalk) return sc.hLeave ? { p: NODE.door, left: false } : null;
     var d = (now - hwalk.start) / hwalk.dur * hwalk.len; if (d >= hwalk.len) { hwalk = null; return sc.hLeave ? { p: NODE.door, left: false } : null; }
     for (var j = 1; j < hwalk.pts.length; j++) { var A0 = hwalk.pts[j - 1], B0 = hwalk.pts[j], sl = Math.hypot(B0.x - A0.x, B0.y - A0.y); if (d <= sl) { var k = sl ? d / sl : 1; return { p: { x: A0.x + (B0.x - A0.x) * k, y: A0.y + (B0.y - A0.y) * k }, left: B0.x < A0.x, climb: Math.abs(B0.x - A0.x) < 2 && Math.abs(B0.y - A0.y) > 6 }; } d -= sl; }

@@ -432,7 +432,12 @@
     if (sc.act === 'sleep' || sc.mode === 'sleepy') { app.react('sleepy'); return true; } // bedtime: he stays in bed
     var t = app.trip;
     if (t && t.indoor !== !!fromInside) t = app.trip = null;
+    if (t && t.dir === 'arrive' && t.phase === 'walk') { // 2.9.0: called back while he's still coming from the door (he used to pop to his spot, then back)
+      if (!t.indoor) { app.trip = walk({ dir: 'go', indoor: false }, tripX(t), DOOR_X); app.react('goin'); return true; } // in the yard: he turns around where he is
+      t.then = true; app.react('goout'); return true; // in the house: he finishes coming in, then heads straight back out
+    }
     if (t && t.phase === 'wait') { app.trip = null; app.react('stay'); return true; } // changed your mind before he set off
+    if (t && t.dir === 'go' && t.auto) { app.placeReq = { indoor: !t.indoor, until: Date.now() + 30 * 60000 }; app.react(fromInside ? 'goout' : 'goin'); return true; } // 2.9.0: he was already on his way there by himself: your tap says "yes, stay there a while" (it used to turn him around and flip the picture)
     if (t && t.dir === 'go') { app.trip = walk({ dir: 'back', indoor: t.indoor }, tripX(t), homeX(t.indoor)); app.react('stay'); return true; } // caught him on the way
     var x0 = t ? tripX(t) : homeX(!!fromInside);
     app.trip = { dir: 'go', indoor: !!fromInside, x0: x0, phase: 'wait', asked: Date.now() };
@@ -445,7 +450,7 @@
     var sc = app.view && app.view.sc;
     if (sc && !!sc.indoor !== t.indoor && t.phase === 'walk' && !t.auto && Date.now() - t.start > 600) { app.trip = null; return; } // 2.7.0: (an automatic walk owns the scene) // the scene changed under him (bedtime, a new place)
     if (t.phase === 'wait') {
-      if (app.busyNow() || Date.now() - t.asked < 900) return; // let the bubble show, and let him finish what's queued
+      if (app.busyNow() || app.visit || Date.now() - t.asked < 900) return; // let the bubble show, and let him finish what's queued (2.9.0: a visit to a building too)
       if (Date.now() - t.asked > 5 * 60000) { app.trip = null; return; }
       walk(t, t.x0, t.indoor ? ROOM_EXIT : DOOR_X); if (t.indoor && A.houseRouteMs) t.dur = A.houseRouteMs(sc && A.aiuArea ? A.aiuArea(sc).id : 'living', 'door'); return;
     }
@@ -461,6 +466,7 @@
     }
     app.trip = null; // back at his spot: he picks up where he left off
     if (t.dir === 'arrive') app.shownIn = t.indoor;
+    if (t.then) app.houseTap(t.indoor); // 2.9.0: you asked him to head back while he was coming in
   }
   app.tickTrip = tickTrip;
   app.tripWalk = function (indoor) { var t = app.trip; if (!t || t.phase !== 'walk' || t.indoor !== !!indoor) return null; var x = tripX(t); var p = Math.min(1, (Date.now() - t.start) / t.dur); return { x: x, left: t.x1 < t.x0, p: p, door: (t.dir === 'go' && p > 0.8) || (t.dir === 'arrive' && p < 0.2) }; };
@@ -1350,7 +1356,7 @@
       var ad = act && A.ACTIVITIES[act.id];
       if (ad && ((indoor && ad.where === 'out') || (!indoor && ad.where === 'in'))) act = { id: indoor ? 'bubbles' : (Math.floor(Date.now() / 600000) % 2 ? 'butterfly' : 'workout'), indoor: indoor }; // 2.1.7 fix: pick one for 10 minutes (it used to flip every frame, so Aiu twitched between two activities)
     }
-    if (place === 'home' && indoor && roomDef && roomDef.room && A.ROOMS && A.ROOMS[roomDef.room] && !app.tripWalk(true) && mode !== 'sleepy') { place = roomDef.room; pa = { id: act.id, label: roomDef.label, spotX: (A.ROOMSPOT || {})[act.id] || 0, room: true }; }
+    if (place === 'home' && indoor && roomDef && roomDef.room && A.ROOMS && A.ROOMS[roomDef.room] && !app.tripWalk(true) && mode !== 'sleepy' && !app.trip && app.shownIn !== false) { /* 2.9.0: only once he's inside (it used to cut to the kitchen while he was still in the yard) */ place = roomDef.room; pa = { id: act.id, label: roomDef.label, spotX: (A.ROOMSPOT || {})[act.id] || 0, room: true }; }
     A.kindPref = C.setting(S, 'ckind', 'auto'); // 1.1.0 creature type (Settings > Totem)
     var form = S.form, skin = app.evolve ? null : S.skinForm;
     var hatchP = app.hatching ? Math.min(1, (Date.now() - app.hatching.start) / app.hatching.dur) : null;

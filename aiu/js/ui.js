@@ -262,6 +262,7 @@
     bone: ['.......', 'ww...ww', '.wwwww.', 'ww...ww', '.......'],
     drop: ['...i...', '..iii..', '.iiiii.', '.iicii.', '..iii..'],
     pad: ['.......', '.kkkkk.', 'kwkkkrk', 'wwwkkkk', 'kwkkrkk', '.kk.kk.'],
+    hammer: ['.SSSSS.', 'SSSSSSS', '.SS.WW.', '....W..', '....W..', '....W..', '....W..'],
     tree: ['..ggg..', '.ggggg.', 'gglgggg', 'ggggglg', '.ggggg.', '...W...', '..WWW..'],
     home: ['...r...', '..rrr..', '.rrrrr.', 'rrrrrrr', '.WWWWW.', '.WWkWW.', '.WWkWW.'],
     note: ['...bb.', '...bbb', '...b.b', '...b..', '.bbb..', 'bbbb..', '.bb...'],
@@ -387,8 +388,9 @@
     els.toast = h('div', { cls: 'toast', role: 'alert' });
     // 2.9.0: one section under the picture: what Aiu is doing (the status line), then four icon buttons: in / out, growth,
     // Vitals and tokens (each with its bar or number, no words). The full screen button shows only in full screen.
-    els.doorIco = h('span', { cls: 'sico' }, ui.pix('home'));
-    els.doorBtn = h('button', { type: 'button', cls: 'wicon door', 'aria-label': 'Go inside', title: 'Go inside', onclick: function () { if (els.doorBtn.getAttribute('aria-disabled') === 'true') return ui.snack(app().S.totemName + ' is resting. He\'ll come and go when he wakes up.'); var v = app().view && app().view.sc; if (v) app().houseTap(!!(v.indoor || A.isRoom(v))); if (ui.statusTick) ui.statusTick(v); } }, els.doorIco, h('span', { cls: 'wdot', 'aria-hidden': 'true' })); // 2.7.0: in or out, without hunting for the door
+    els.doorIco = h('span', { cls: 'sico' }, ui.pix('hammer'));
+    // 3.0: the castle: the hammer opens build mode (add rooms and things outside, move them). It replaced the in / out button.
+    els.doorBtn = h('button', { type: 'button', cls: 'wicon door build', 'aria-label': 'Build', title: 'Build', 'aria-pressed': 'false', onclick: function () { if (!app().S.hatched) return ui.snack('Hatch your egg first. Then you can build.'); var CS = AIU.castle; if (!CS) return; CS.setBuilding(!CS.building); if (CS.building) { ui.go('world'); ui.snack('Build: tap a + to add a room or something outside. Tap a room to move it. Tap the hammer when you\'re done.'); } if (ui.statusTick) ui.statusTick(app().view && app().view.sc); } }, els.doorIco, h('span', { cls: 'wdot', 'aria-hidden': 'true' }));
     var tok = AIU.life ? AIU.life.chip() : null; if (tok) tok.classList.add('wicon');
     els.wbar = h('div', { cls: 'wpanel' }, els.status, h('div', { cls: 'wicons', role: 'group', 'aria-label': 'Go in or out, growth, Vitals and tokens' }, els.doorBtn, mGrow, mGaba, tok), h('div', { cls: 'wbtns' }, els.full));
     els.world = h('section', { cls: 'world', 'aria-label': a.S.totemName }, h('div', { cls: 'stage' }, els.canvas, els.fx, els.bubble, h('button', { type: 'button', cls: 'sr', text: 'Play a game (the dice pick one)', onclick: function () { AIU.games.roll(); } }), els.boardSr = h('button', { type: 'button', cls: 'sr', text: 'Bounty board: today\'s list', onclick: function () { ui.todaySheet(); } })),
@@ -459,12 +461,10 @@
   // keep the status line in step with what the scene shows (called by the scene loop)
   var lastLabel = '';
   ui.statusTick = function (sc) {
-    if (els.doorBtn && sc) { // 2.9.0: an icon: the house to go in, a tree to go out; it pulses while he's on his way and dims while he sleeps
-      var inn = !!(sc.indoor || (A.isRoom && A.isRoom(sc))), tr = app().trip, going = !!(tr && tr.dir === 'go'), lab = going ? (tr.indoor ? 'Heading out' : 'Heading in') : inn ? 'Go outside' : 'Go inside', ico = (going ? !tr.indoor : !inn) ? 'home' : 'tree';
-      if (els.doorBtn.getAttribute('aria-label') !== lab) { els.doorBtn.setAttribute('aria-label', lab); els.doorBtn.title = lab; }
-      if (els.doorIco.getAttribute('data-ico') !== ico) { els.doorIco.setAttribute('data-ico', ico); els.doorIco.innerHTML = ''; els.doorIco.appendChild(ui.pix(ico)); }
-      els.doorBtn.classList.toggle('going', going);
-      var off = !app().S.hatched || sc.act === 'sleep' || sc.mode === 'sleepy' || sc.place === 'library'; els.doorBtn.setAttribute('aria-disabled', off ? 'true' : 'false');
+    if (els.doorBtn && sc) { // 3.0: the hammer: build mode on or off
+      var bon = !!(AIU.castle && AIU.castle.building), lab = bon ? 'Done building' : 'Build';
+      if (els.doorBtn.getAttribute('aria-label') !== lab) { els.doorBtn.setAttribute('aria-label', lab); els.doorBtn.title = lab; els.doorBtn.setAttribute('aria-pressed', bon ? 'true' : 'false'); }
+      els.doorBtn.classList.toggle('on', bon); els.doorBtn.setAttribute('aria-disabled', app().S.hatched ? 'false' : 'true');
     }
     if (!ui.onMain || !els.status || !app().S || !app().S.hatched || app().hatching) return;
     if (sc.actLabel !== lastLabel) { lastLabel = sc.actLabel; ui.refresh(); }
@@ -583,6 +583,7 @@
     if (Date.now() < swallow) return; // that was a rub, not a tap
     if (AIU.toy && (AIU.toy.holding() || Date.now() - AIU.toy.justDropped < 400)) return; // you were carrying something
     var hit = ui.hitAt(e), sc = a.view && a.view.sc;
+    if (AIU.castle && AIU.castle.building && a.S && a.S.hatched) return AIU.castle.buildTap(hit); // 3.0: build mode
     if (!a.S || !a.S.hatched || a.hatching) { if (!hit || hit.kind === 'aiu') return a.pet(); if (hit.kind === 'landmark') return AIU.toy.visit(hit.id); return; } // 2.1.10: still an egg (or hatching): just a wobble
     if (!hit) return;
     if (hit.kind === 'drone') return ui.vitalsPop(); // the Vitals drone in the sky
@@ -595,6 +596,10 @@
     if (hit.kind === 'cart') { var cs = a.view && a.view.sc; if (cs && cs.act === 'hibachi') { a.react('happy'); a.beep('chirp'); return; } a.beep('knock'); ui.k.snack(a.S.totemName + '\'s food cart. He cooks here at lunch and dinner when the weather is nice.'); return; } // 2.4.0: it's part of his routine (a tap doesn't drag him out of bed)
     if (hit.kind === 'landmark') return AIU.toy.visit(hit.id);
     if (hit.kind === 'pond') { a.beep('splash'); return; }
+    if (hit.kind === 'room') { a.beep('knock'); ui.k.snack(AIU.castle.roomInfo(hit.type)); return; } // 3.0: the castle's rooms and grounds
+    if (hit.kind === 'orn') { var od0 = AIU.castle.ORN[hit.id]; a.beep(hit.id === 'pond' ? 'splash' : 'knock'); ui.k.snack(od0.name + ': ' + od0.desc); return; }
+    if (hit.kind === 'gate') { a.beep('door'); ui.k.snack('The gate to ' + a.S.totemName + '\'s castle. Tap the hammer to build rooms and things outside.'); return; }
+    if (hit.kind === 'rock') { ui.k.snack('Solid ground. Tap the hammer to dig a new room next to the others.'); return; }
     if (hit.kind === 'oddity') { a.beep('chirp'); ui.k.snack('Look! ' + hit.odd.name.charAt(0).toUpperCase() + hit.odd.name.slice(1) + '.'); a.react('happy'); return; }
   }
   function unlockSoon() { try { app().unlock(); } catch (x) {} }

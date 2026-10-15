@@ -557,7 +557,11 @@
     if (e.type === 'tspend' && !e.imp) { // 2.6.0: a treat (used up): fireworks, a party, a fancy snack
       var ts = e.data || {}, tpr = Math.max(0, +ts.price || 0), hv = C.TOK_START + (S.tok || 0) - (S.tokSpent || 0);
       S.treats = S.treats || [];
-      if (ts.what && hv >= tpr) { S.tokSpent = (S.tokSpent || 0) + tpr; S.treats.push({ t: e.t, what: String(ts.what).slice(0, 30), price: tpr, day: day }); if (S.treats.length > 200) S.treats.shift(); }
+      if (ts.what && hv >= tpr) { S.tokSpent = (S.tokSpent || 0) + tpr; S.treats.push({ t: e.t, what: String(ts.what).slice(0, 30), price: tpr, day: day }); if (S.treats.length > 200) S.treats.shift(); if (/^castle:/.test(ts.what)) S.castleSpent = (S.castleSpent || 0) + tpr; }
+    }
+    if (e.type === 'trefund' && !e.imp) { // 3.0: half back when you take down something you built (never more than the castle cost)
+      var rf = e.data || {}, ramt = Math.min(Math.max(0, +rf.price || 0), (S.castleSpent || 0) - (S.castleRef || 0));
+      if (ramt > 0) { S.tokSpent = Math.max(0, (S.tokSpent || 0) - ramt); S.castleRef = (S.castleRef || 0) + ramt; }
     }
     if (e.type === 'tbuy' && !e.imp) { // 2.5.0 (2.6.0: a purchase inside an imported capsule doesn't spend here): something from the token shop (only if the wallet holds enough when the server sees it)
       var tb = e.data || {}, tp = Math.max(0, +tb.price || 0), have = C.TOK_START + (S.tok || 0) - (S.tokSpent || 0);
@@ -623,6 +627,7 @@
     V.tokens = C.TOK_START + (S.tok || 0) - (S.tokSpent || 0) - pendT.reduce(function (n, e) { return n + Math.max(0, +e.data.price || 0); }, 0);
     V.tokOwned = Object.assign({}, S.tokOwned || {}); pendT.forEach(function (e) { V.tokOwned[e.data.item] = { t: e.t, price: +e.data.price || 0, pending: 1 }; });
     var pendS = unsent.filter(function (e) { return e.type === 'tspend' && e.data; }); V.tokens -= pendS.reduce(function (n, e) { return n + Math.max(0, +e.data.price || 0); }, 0);
+    V.tokens += unsent.filter(function (e) { return e.type === 'trefund' && e.data; }).reduce(function (n, e) { return n + Math.max(0, +e.data.price || 0); }, 0); // 3.0: a refund waiting for sync
     var stv = S.stars || { lv: 0, last: '' }, tday = U.dayStr(new Date(opts.now || Date.now())), lv0 = stv.lv;
     if (stv.last && tday > stv.last) { var dd = stv.last, nn = 0; while (dd < tday && nn++ < 60) { lv0 = (S.g.days[dd] || 0) >= C.STAR_NEED ? Math.min(4, lv0 + 1) : Math.max(0, lv0 - 1); dd = U.addDays(dd, 1); } }
     V.stars = { lv: lv0, mult: C.STAR_MULT[lv0], today: S.g.days[tday] || 0, need: C.STAR_NEED, earned: (S.tokEarn || {})[tday] || 0, cap: C.TOK_EARN_CAP, allowed: !!(S.allowDays || {})[tday] || unsent.some(function (e) { return e.type === 'allow' && e.data && e.data.day === tday; }) };

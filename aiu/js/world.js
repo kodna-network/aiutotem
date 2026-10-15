@@ -21,8 +21,8 @@
   function app() { return AIU.app; }
   function mk(w, h) { var cv = document.createElement('canvas'); cv.width = w; cv.height = h; return cv; }
   function big(w, h) { var cv = mk(w * SC, h * SC), c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.setTransform(SC, 0, 0, SC, 0, 0); return cv; }
-  A.isRoom = function (sc) { return !!(sc && (sc.indoor || (sc.place && sc.place !== 'home'))); };
-  A.frameOff = function (sc) { if (!A.isRoom(sc)) return A.YARD; if (sc.place === 'library') return { x: 0, y: OFF }; var ar = A.aiuArea(sc); return { x: ar.px - ar.sx, y: ar.py - ar.sy }; };
+  A.isRoom = function (sc) { if (A.CASTLE) return !!(sc && sc.place && sc.place !== 'home'); return !!(sc && (sc.indoor || (sc.place && sc.place !== 'home'))); }; // 3.0: in the castle, only the library is a separate room
+  A.frameOff = function (sc) { if (A.CASTLE && AIU.castle && !A.isRoom(sc)) return AIU.castle.frameOff(); if (!A.isRoom(sc)) return A.YARD; if (sc.place === 'library') return { x: 0, y: OFF }; var ar = A.aiuArea(sc); return { x: ar.px - ar.sx, y: ar.py - ar.sy }; };
   A.toOld = function (pt, sc) { var o = A.frameOff(sc); return pt ? { x: pt.x - o.x, y: pt.y - o.y } : null; };
 
   /* ---------- the layout ---------- */
@@ -340,15 +340,17 @@
     return tp ? { dx: Math.round(tp.x - hx), dy: Math.round(tp.y - hy) } : r;
   };
   var bcv = null;
-  function drawBuddyP(L, sc) { // the pet at its size, wherever it has wandered
+  function drawBuddyP(L, sc, at, off) { // the pet at its size, wherever it has wandered (3.0: or at a given spot, for the castle)
     if (A.toyHide && A.toyHide('buddy')) return;
-    var b = A.buddyOf(sc.soul, sc.buddy), s = A.buddySize(b), ro = A.buddyRoam(sc), BX = A.BUDDY_OUT.x, BY = A.BUDDY_OUT.fy;
+    var b = A.buddyOf(sc.soul, sc.buddy), s = A.buddySize(b), ro = at ? null : A.buddyRoam(sc), BX = A.BUDDY_OUT.x, BY = A.BUDDY_OUT.fy, YO = off || A.YARD;
     if (!bcv) bcv = big(120, 80);
     var c = bcv.getContext('2d'); c.setTransform(SC, 0, 0, SC, 0, 0); c.clearRect(0, 0, 120, 80);
     c.save(); c.translate(60 - BX - 11, 70 - BY); var saveHead = A.buddyHead; IN.drawBuddy(c, sc); c.restore(); // drawn around its feet at (60,70)
-    var hd = A.buddyHead, feetX = BX + 11 + A.YARD.x + ro.dx, feetY = BY + A.YARD.y + ro.dy;
+    var hd = A.buddyHead, feetX = at ? at.x : BX + 11 + A.YARD.x + ro.dx, feetY = at ? at.y : BY + A.YARD.y + ro.dy;
+    if (at && at.left) { L.save(); L.translate(feetX * 2, 0); L.scale(-1, 1); }
     L.drawImage(bcv, feetX - 60 * s, feetY - 70 * s, 120 * s, 80 * s);
-    if (hd && hd !== saveHead) A.buddyHead = { x: (feetX + (hd.x - (BX + 11)) * s) - A.YARD.x, y: (feetY + (hd.y - BY) * s) - A.YARD.y, mx: hd.mx }; // in old yard pixels, for the treats
+    if (at && at.left) L.restore();
+    if (hd && hd !== saveHead) A.buddyHead = { x: (feetX + (hd.x - (BX + 11)) * s) - YO.x, y: (feetY + (hd.y - BY) * s) - YO.y, mx: hd.mx }; // in old yard pixels, for the treats
     A.buddyFeetP = { x: feetX, y: feetY, s: s, b: b };
   }
   A.buddyRectP = function (sc) { var f0 = A.buddyFeetP; if (!f0) return null; var s = f0.s, tall = A.POSTED[f0.b] ? 12 : 0; return { x: f0.x - 20 * s, y: f0.y - (38 + tall) * s, w: 40 * s, h: (42 + tall) * s }; };
@@ -682,6 +684,7 @@
   A.renderWorld = function (ctx, sc) {
     ctx.setTransform(SC, 0, 0, SC, 0, 0); ctx.imageSmoothingEnabled = false;
     if (A.isRoom(sc)) return sc.place === 'library' ? renderRoom(ctx, sc) : renderHouse(ctx, sc);
+    if (A.CASTLE && AIU.castle) return AIU.castle.render(ctx, sc); // 3.0: one picture: the castle
     renderProperty(ctx, sc);
   };
   function renderRoom(ctx, sc) {
@@ -751,6 +754,7 @@
 
   /* ---------- where things are, in property pixels ---------- */
   A.actorPosP = function (sc) {
+    if (A.CASTLE && AIU.castle && !A.isRoom(sc)) { var cp = AIU.castle.aiuPos(); return cp || { x: 112, y: 64, s: 1 }; }
     var wk = A.walkerPos(sc); if (wk) return { x: wk.p.x, y: wk.p.y, s: depthScale(wk.p.y) };
     if (A.isRoom(sc) && sc.place !== 'library' && hwalk) { var hp = houseWalkPeek(); return { x: hp.x, y: hp.y, s: 1 }; } // walking between rooms
     if (sc.act === 'hibachi' && !A.isRoom(sc)) return { x: A.CART_AT.x, y: A.CART_AT.y - 4, s: 0.5 };
@@ -762,6 +766,7 @@
   // drone, then the buildings. Something walking past never blocks a building for long: only a tap right on it counts.
   A.hitAt = function (pt, sc) {
     if (!pt || !sc) return null;
+    if (A.CASTLE && AIU.castle && !A.isRoom(sc)) return AIU.castle.hitAt(pt, sc);
     var room = A.isRoom(sc), op = A.toOld(pt, sc);
     if (inR(pt, A.droneRectP(sc))) return { kind: 'drone' };
     var ap = A.actorPosP(sc), s = ap.s || 1;
@@ -784,4 +789,9 @@
     if (pt.y > 108 && Math.abs(pt.x - 96) < 24 && Math.abs(pt.y - 118) < 8) return { kind: 'pond' };
     return null;
   };
+  // 3.0: the castle (castle.js) draws with the same pieces
+  A._w = { drawWalker: function () { return drawWalker.apply(null, arguments); }, drawBuddyAt: function (L, sc, at, off) { return drawBuddyP(L, sc, at, off); }, board: function (c, sc) { return board(c, sc); },
+    drawCart: function (L, sc, cooking) { return drawCart(L, sc, cooking); }, well: well, outhouse: outhouse, shed: shed, wanderAt: wanderAt, big: big, mk: mk, W: W, H: H, SC: SC, SKYOFF: SKYOFF,
+    regulatorSmall: function (c, x, y, sc) { return regulatorSmall(c, x, y, sc); }, renderRoom: function (ctx, sc) { return renderRoom(ctx, sc); }, mat: mat, bset: bset, tex: tex, igloo: igloo, hexdome: hexdome,
+    houseFallback: { renderProperty: function (ctx, sc) { return renderProperty(ctx, sc); }, renderHouse: function (ctx, sc) { return renderHouse(ctx, sc); } } };
 })();

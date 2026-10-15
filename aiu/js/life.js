@@ -93,7 +93,7 @@
     a.visit = { id: 'board', dir: 'go', phase: 'walk', start: Date.now(), dur: 1400, fun: true };
     setTimeout(function () {
       if (!a.visit || a.visit.id !== 'board') return show();
-      a.visit = { id: 'board', phase: 'in' }; if (AIU.toy.anim) AIU.toy.anim({ kind: 'reading', end: Date.now() + 6000, at: BOARD_SPOT, hides: 'aiu', until: function () { return !!document.querySelector('.sheet.tsheet'); } });
+      a.visit = { id: 'board', phase: 'in' }; if (AIU.toy.anim) AIU.toy.anim({ kind: 'reading', end: Date.now() + 6000, at: A.BOARD_SPOT_P || BOARD_SPOT, hides: 'aiu', until: function () { return !!document.querySelector('.sheet.tsheet'); } });
       a.beep('knock'); show();
       var iv = setInterval(function () { if (!document.querySelector('.sheet.tsheet')) { clearInterval(iv); if (a.visit && a.visit.id === 'board') a.visit = { id: 'board', dir: 'back', phase: 'walk', start: Date.now(), dur: 1200 }; setTimeout(function () { if (a.visit && a.visit.id === 'board') a.visit = null; }, 1300); } }, 400);
     }, 1400);

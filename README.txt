@@ -1,4 +1,4 @@
-AIU TOTEM 2.9.0 - install guide
+AIU TOTEM 3.0.0 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -18,6 +18,29 @@ ACCOUNTS
     aiu_data/accounts/<username> in DirectAdmin > File Manager (that account is gone for good), or set
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
+
+WHAT'S NEW IN 3.0.0 - THE CASTLE
+  Upload: the whole aiu folder (there's a new file, js/castle.js; api.php and api.cgi only changed their version).
+  - One picture instead of a yard and a house: Aiu's castle. On top, the sky, the drone and the grounds, with the
+    gatehouse in the middle and four spots outside. Below, rooms dug into the ground, Fallout Shelter style, joined by
+    a ladder under the gate. Aiu walks it all: along each floor, up and down the ladder, out onto the grounds.
+  - Its look comes from your land: a stone castle (meadow, forest, pond, beach), an ice castle (tundra), a desert dome
+    (desert), a cave dome (when the house is the cave).
+  - It starts as a seed: four rooms (living room, kitchen, bedroom, bathroom), with the bounty board, the food cart and
+    a well outside. As Aiu grows, more ground opens: the ends of the top floor first, then a new floor at Sprout,
+    Scout and Ranger (a 4 x 4 castle at most).
+  - Build mode: the hammer under the picture (it took the place of Go inside / Go outside). Tap a + to build a room or
+    something outside, with tokens: office 60, workshop 90, greenhouse 120, lab 150, stable 150; well 30, outhouse 30,
+    banner 25, tool shed 40, garden 60, pond 70, windmill 90, statue 200 (Ranger). New rooms go next to the ones you
+    have. Two of the same room side by side join into one big room. Tap a room to Move it (it swaps with what's there)
+    or Remove it (half its tokens back). The four first rooms, the board and the cart move but stay.
+  - Aiu goes to the room for what he's doing: the kitchen to cook, the bathroom, his bed at 10 pm, the office to play
+    or write, the workshop to work out, the greenhouse for yoga, the lab to tinker. Fishing takes him to the pond if
+    you built one; cooking at the cart puts him in it. The pet wanders the grounds on the left, out of his way.
+  - Tap a room: the workshop, greenhouse, lab and stable open their own pages (the garage, greenhouse, lab and barn);
+    the office opens the games. Hold Aiu and drop him on the bed, in the kitchen or on the board.
+  - The layout is saved with the Totem (the setting 'castle'), so it's the same on every device.
+  - The old yard and house pictures are still in js/world.js (unused while the castle is on: A.CASTLE in castle.js).
 
 WHAT'S NEW IN 2.9.0
   Upload: the whole aiu folder (api.php and api.cgi only changed their version number).

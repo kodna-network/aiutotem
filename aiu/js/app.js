@@ -1356,7 +1356,8 @@
       var ad = act && A.ACTIVITIES[act.id];
       if (ad && ((indoor && ad.where === 'out') || (!indoor && ad.where === 'in'))) act = { id: indoor ? 'bubbles' : (Math.floor(Date.now() / 600000) % 2 ? 'butterfly' : 'workout'), indoor: indoor }; // 2.1.7 fix: pick one for 10 minutes (it used to flip every frame, so Aiu twitched between two activities)
     }
-    if (place === 'home' && indoor && roomDef && roomDef.room && A.ROOMS && A.ROOMS[roomDef.room] && !app.tripWalk(true) && mode !== 'sleepy' && !app.trip && app.shownIn !== false) { /* 2.9.0: only once he's inside (it used to cut to the kitchen while he was still in the yard) */ place = roomDef.room; pa = { id: act.id, label: roomDef.label, spotX: (A.ROOMSPOT || {})[act.id] || 0, room: true }; }
+    var roomWant = roomDef && roomDef.room ? roomDef.room : null; // 3.0: in the castle he goes to that room (the scene stays the castle)
+    if (!A.CASTLE && place === 'home' && indoor && roomDef && roomDef.room && A.ROOMS && A.ROOMS[roomDef.room] && !app.tripWalk(true) && mode !== 'sleepy' && !app.trip && app.shownIn !== false) { /* 2.9.0: only once he's inside (it used to cut to the kitchen while he was still in the yard) */ place = roomDef.room; pa = { id: act.id, label: roomDef.label, spotX: (A.ROOMSPOT || {})[act.id] || 0, room: true }; }
     A.kindPref = C.setting(S, 'ckind', 'auto'); // 1.1.0 creature type (Settings > Totem)
     var form = S.form, skin = app.evolve ? null : S.skinForm;
     var hatchP = app.hatching ? Math.min(1, (Date.now() - app.hatching.start) / app.hatching.dur) : null;
@@ -1366,7 +1367,7 @@
     // 2.7.0: no cut between the house and the yard: when what he's doing moves him in or out, he walks there
     // (through the rooms to the front door, out, across the yard; or the other way round)
     var T0 = app.trip;
-    if (place === 'home' && S.hatched && !app.hatching && !app.evolve && !app.peek && !app.visit) {
+    if (!A.CASTLE && place === 'home' && S.hatched && !app.hatching && !app.evolve && !app.peek && !app.visit) { // (3.0: the castle has no in-and-out walks: castle.js walks him room to room)
       if (app.shownIn === undefined || app.shownIn === null) app.shownIn = indoor;
       if (!T0 && indoor !== app.shownIn && !(mode === 'sleepy' && app.shownIn)) {
         var from = app.shownIn, lastSc = app.view && app.view.sc;
@@ -1379,7 +1380,7 @@
     if (app.peek && Date.now() < app.peek.until && (indoor || place !== 'home') && place !== 'library' && !app.hatching) { aiuIn = true; roomPlace = place; indoor = false; place = 'home'; pa = null; }
     else if (app.peek && !(indoor || place !== 'home')) app.peek = null; // he came outside: nothing to peek at
     return {
-      aiuIn: aiuIn, roomPlace: roomPlace,
+      aiuIn: aiuIn, roomPlace: roomPlace, roomWant: roomWant,
       stage: hatchP !== null ? 0 : S.stage,
       hour: hr, phase: A.phase(hr), season: A.season(wn, C.setting(S, 'hemisphere', 'north')), weather: w.kind, biome: biome,
       house: A.HOUSES[house] ? house : 'cabin', indoor: indoor, soul: S.accentSeed, buddy: C.setting(S, 'buddy', 'auto'), gear: (AIU.shop && AIU.shop.sceneBits(S).gearPref) || C.setting(S, 'gear', 'auto'), /* 2.6.0: from the Corner Mart's Pet gear shelf */ align: app.alignment().a, accent: accent, form: form, skin: skin,

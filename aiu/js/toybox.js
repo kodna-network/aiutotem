@@ -116,6 +116,16 @@
     var a = app(), sc = a.view && a.view.sc, h = held; held = null; T.justDropped = Date.now();
     if (!sc || !p) return;
     var room = A.isRoom(sc), now = Date.now();
+    if (h.who === 'aiu' && A.CASTLE && AIU.castle && !room) { // 3.0: in the castle: the bed for a nap, the kitchen for a snack, the board for the day; anywhere else he walks back from where he lands
+      var hc = A.hitAt(p, sc), drc = A.droneRectP(sc);
+      if (drc && inR(p, { x: drc.x - 4, y: drc.y - 4, w: drc.w + 8, h: drc.h + 12 })) { anims.push({ kind: 'ride', start: now, end: now + 4200, hides: 'aiu' }); a.react('happy'); return; }
+      if (hc && hc.kind === 'buddy') { bonk('buddy', p); return; }
+      if (hc && hc.kind === 'board') { a.free = null; AIU.castle.dropAt(p); setTimeout(function () { AIU.life ? AIU.life.standup() : ui().todaySheet(); }, 300); return; }
+      if (hc && hc.kind === 'room' && hc.type === 'bedroom') { a.free = null; a.forceAct = { id: 'sleep', until: now + 2 * 60000 }; a.react('sleepy'); AIU.castle.dropAt(p); if (AIU.life) AIU.life.joy('help'); return; }
+      if (hc && hc.kind === 'room' && hc.type === 'kitchen') { a.free = null; a.forceAct = { id: 'eat', until: now + 3 * 60000 }; a.react('happy'); AIU.castle.dropAt(p); if (AIU.life) AIU.life.joy('help'); return; }
+      if (hc && hc.kind === 'landmark' && FUN[hc.id]) { a.free = null; AIU.castle.dropAt(p); if (hc.id === 'outhouse' && AIU.life) AIU.life.joy(AIU.life.needsPotty() ? 'help' : 'pet'); T.visit(hc.id, true); return; }
+      AIU.castle.dropAt(p); setTimeout(function () { a.setMode(h.flips >= 4 ? 'spin' : 'hop', 800); }, 200); return;
+    }
     if (h.who === 'aiu') {
       var dizzy = h.flips >= 4;
       if (room) { // inside: drop him on the door and he goes out

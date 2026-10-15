@@ -1662,7 +1662,7 @@
     x += pose.dx || 0;
     var bw = cr.bw, bh = cr.bottom - cr.top + 1;
     // 2.5.0: fishing outside, he stands on the pond's bank facing it, and the line lands in the real pond
-    var mirror = busy && act === 'fishing' && !sc.indoor && !A.isRoom(sc) && !sc.evolve;
+    var mirror = busy && act === 'fishing' && !sc.indoor && !A.isRoom(sc) && !sc.evolve && !sc.castle; // (3.0: the castle has no big pond to face)
     sc.pondCast = mirror ? 1 : 0;
     if (mirror) { ctx.save(); ctx.translate(2 * x, 0); ctx.scale(-1, 1); }
     if (busy && D.back) D.back(ctx, x, fy, f, bw, bh, sc);

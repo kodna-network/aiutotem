@@ -10,17 +10,15 @@ Aiu Totem is free for personal, private use in a web browser. Nothing is sold, t
 no ads, and each Totem is private to its account. No licenses are involved: everything in
 the zip is made by KODNA or is public domain (see CREDITS at the bottom).
 
-INVITE CODE
-  Invite code ......... CHANGE-ME  (placeholder in this repo: set your own before you upload)
-     New accounts need it (Sign up > Invite code; capitals don't matter). Give it to the people you invite.
-     To change it: edit INVITE_CODE near the top of aiu/api.php (and api.cgi), or set AIU_INVITE_CODE.
-     Set it to '' to let anyone sign up.
+ACCOUNTS
+  Anyone can sign up with a username and a password (no invite code). To stop new sign-ups, set SIGNUPS_OPEN to '0'.
   There is no admin login and no way to recover an account (2.7.0). A lost password means starting over.
 
 WHAT'S NEW IN 2.7.0
   Upload: the whole aiu folder, INCLUDING api.php and api.cgi.
   - Locked down: no admin, no recovery code, no email reset. No one can get into an account without its password,
     not even KODNA. A lost password means starting a new account (a capsule opens there with its own password).
+  - No invite code: sign up is a username and a password. SIGNUPS_OPEN '0' still closes sign-ups.
   - World: one phone-shaped layout on every screen. The heart, the leaf and the token are buttons with their bars and
     numbers. Go inside / Go outside under the picture. Arrange: drag a building onto another to swap them (Reset,
     Done). Each land's buildings stand out (terracotta in the desert, a dark edge on all of them).
@@ -32,7 +30,7 @@ WHAT'S NEW IN 2.7.0
 WHAT'S NEW IN 2.6.0
   Upload: the whole aiu folder, INCLUDING api.php and api.cgi.
   Safety
-  - New accounts need the invite code (above). The admin can set a temporary password for a locked-out account.
+  - New accounts needed an invite code (gone again: see 2.7.0). The admin can set a temporary password for a locked-out account.
   - Recovery code: Settings > Account & data > Make my recovery code (or the note in Accounts > Cards). Write it
     down. After a temporary password, it opens your cards and files again (Accounts > Cards > Lost your password?).
   - Capsules are locked with a capsule password (you can turn that off, with a warning). A locked capsule is a
@@ -914,7 +912,6 @@ SERVER SETTINGS (top of api.php and api.cgi, the same names in both, optional)
   MAX_ACCOUNT_MB          size limit per Totem (default 50 MB, years of heavy use)
   FILES_MAX_MB            space for Files, per account, all profiles together (default 250 MB; env AIU_FILES_MAX_MB)
   FILES_TOTAL_MB          space for Files on the whole server (default 5000 MB; env AIU_FILES_TOTAL_MB)
-  INVITE_CODE             the code new accounts need ('' = anyone; env AIU_INVITE_CODE)
   ALLOW_DEV               '1' only on a test server: lets the test growth button work (env AIU_ALLOW_DEV)
   SHOP_DIR                where the shop folders were (not used by 1.1.0)
 

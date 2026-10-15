@@ -22,7 +22,6 @@ define('MAIL_FROM', envv('AIU_MAIL_FROM', 'Aiu Totem <noreply@kodna.net>'));
 define('SENDMAIL',  envv('AIU_SENDMAIL', '/usr/sbin/sendmail'));
 define('API_URL',   envv('AIU_API_URL', rtrim(APP_URL, '/') . '/api.php'));   // this file's web address (used in emails)
 define('REQUIRE_EMAIL_CONFIRM', false); // 2.4.0: accounts are a username and a password. No email, no confirm link.
-define('INVITE_CODE', envv('AIU_INVITE_CODE', 'CHANGE-ME'));     // 2.6.0: the code a new account needs (the README has it). '' = anyone can sign up
 define('ALLOW_DEV', envv('AIU_ALLOW_DEV', '0') === '1');                      // 2.6.0: '1' only on a test server (lets the test growth button work)
 define('SIGNUPS_OPEN', envv('AIU_SIGNUPS_OPEN', '1') === '1');                // '0' = nobody new can sign up
 define('SHOP_DIR',  envv('AIU_SHOP_DIR', __DIR__ . '/shop'));
@@ -270,13 +269,12 @@ function act_ping() {
   $shop = 0; foreach (glob(SHOP_DIR . '/packs/*/item.json') ?: array() as $f) if (substr(basename(dirname($f)), 0, 1) !== '_') $shop++;
   return array('ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'php', 'version' => '2.7.0', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'php' => PHP_VERSION, 'openssl' => function_exists('hash_pbkdf2'),
     'data_folder_ok' => $ok, 'data_folder_private' => !$inside, 'mail_program_found' => @is_executable(SENDMAIL) || function_exists('mail'),
-    'shop_items' => $shop, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'invite_needed' => INVITE_CODE !== '', 'now' => now_ms());
+    'shop_items' => $shop, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'now' => now_ms());
 }
 function act_signup($req) {
   if (!SIGNUPS_OPEN) fail(403, 'closed', 'New sign-ups are closed.');
   $u = clean_user(g($req, 'u')); $em0 = trim((string) g($req, 'email', '')); $email = $em0 === '' ? '' : clean_email($em0); $pw = clean_pw(g($req, 'pw')); // 2.4.0: email is optional
   rate_limit('signup', 6, 3600);
-  if (INVITE_CODE !== '' && strtoupper(trim((string) g($req, 'invite', ''))) !== strtoupper(INVITE_CODE)) fail(403, 'invite', 'That invite code isn\'t right. Ask KODNA for the invite code.'); // 2.6.0
   $acct = with_lock(data_dir() . '/accounts/.signup.lock', function () use ($u, $email, $pw) {
     if (file_exists(acct_dir($u)) || file_exists(acct_dir($u) . '.reserved')) fail(409, 'taken', 'That username is taken. Try another.');
     mkdir(acct_dir($u), 0700, true);

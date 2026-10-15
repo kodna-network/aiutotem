@@ -126,7 +126,7 @@
   ui.signupScreen = function (opts) {
     opts = opts || {};
     var u = inp({ placeholder: 'e.g. Henry', maxLength: 24, autocapitalize: 'words', autocomplete: 'username' }); // 2.4.0: no email
-    var pw = inp({ type: 'password', placeholder: '8+ characters' }), pw2 = inp({ type: 'password', placeholder: 'again' }), inv = inp({ placeholder: 'from KODNA', autocapitalize: 'characters' }); // 2.6.0: an invite code
+    var pw = inp({ type: 'password', placeholder: '8+ characters' }), pw2 = inp({ type: 'password', placeholder: 'again' });
     var m = h('p', { cls: 'formmsg' }), go = btn('Create account', submit, 'primary');
     ui.linkFrom = opts.link || null;
     function submit() {
@@ -135,14 +135,14 @@
       if (pw.value.length < 8) return msg(m, 'Passwords need at least 8 characters.', true);
       if (pw.value !== pw2.value) return msg(m, 'The two passwords do not match.', true);
       busy(go, true, 'Creating...');
-      app().api('signup', { u: un, email: '', pw: pw.value, invite: inv.value.trim() }).then(function () {
+      app().api('signup', { u: un, email: '', pw: pw.value }).then(function () {
         return app().login(un, pw.value, u.value.trim()).then(finishLogin);
       }, function (err) { busy(go, false, 'Create account'); msg(m, /taken/i.test(err.message) ? 'This name is taken. Try another name.' : err.message, true); });
     }
     screen([logo(), h('h2', { text: 'Sign up' }),
-      h('p', { cls: 'small', text: 'A username, a password and the invite code. Your username is also your name: it\'s what Aiu calls you. Each username belongs to one account only. Write your password down somewhere safe: it can\'t be reset, by anyone. A lost password means starting over.' }),
+      h('p', { cls: 'small', text: 'A username and a password. Your username is also your name: it\'s what Aiu calls you. Each username belongs to one account only. Write your password down somewhere safe: it can\'t be reset, by anyone. A lost password means starting over.' }),
       field('Username', u, 'Letters, numbers, - or _. Big letters are kept for how Aiu says it.'),
-      field('Password', pw), field('Password again', pw2), field('Invite code', inv, 'New accounts need the invite code. Ask KODNA for it.'), m, go, btn('Back', opts.link ? ui.main : ui.welcome, 'ghost')]);
+      field('Password', pw), field('Password again', pw2), m, go, btn('Back', opts.link ? ui.main : ui.welcome, 'ghost')]);
   };
 
   ui.checkEmailScreen = function (un, email, pw, sent) {

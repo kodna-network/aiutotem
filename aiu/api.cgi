@@ -22,7 +22,6 @@ MAIL_FROM = ENV['AIU_MAIL_FROM'] || 'Aiu Totem <noreply@kodna.net>'
 SENDMAIL  = ENV['AIU_SENDMAIL']  || '/usr/sbin/sendmail'
 API_URL   = ENV['AIU_API_URL']   || (APP_URL.sub(%r{/*\z}, '/') + 'api.cgi')  # this file's web address (used in emails)
 REQUIRE_EMAIL_CONFIRM = false  # 2.4.0: accounts are a username and a password. No email, no confirm link.
-INVITE_CODE = ENV['AIU_INVITE_CODE'] || 'CHANGE-ME'      # 2.6.0: the code a new account needs (the README has it). '' = anyone can sign up
 ALLOW_DEV = (ENV['AIU_ALLOW_DEV'] || '0') == '1'                   # 2.6.0: '1' only on a test server
 SIGNUPS_OPEN = (ENV['AIU_SIGNUPS_OPEN'] || '1') == '1'              # '0' = nobody new can sign up
 SHOP_DIR  = ENV['AIU_SHOP_DIR']  || File.expand_path('shop', __dir__) # shop folders (public): shop/packs/<item>/
@@ -407,7 +406,7 @@ def act_ping(_req)
   { 'ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'ruby', 'version' => '2.7.0', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'ruby' => RUBY_VERSION,
     'openssl' => defined?(OpenSSL) ? true : false, 'data_folder_ok' => ok_dir,
     'data_folder_private' => !inside_web, 'mail_program_found' => File.executable?(SENDMAIL),
-    'shop_items' => shop_items, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'invite_needed' => !INVITE_CODE.empty?, 'now' => now_ms }
+    'shop_items' => shop_items, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'now' => now_ms }
 end
 
 def act_signup(req)
@@ -416,7 +415,6 @@ def act_signup(req)
   email = req['email'].to_s.strip.empty? ? '' : clean_email(req['email'])  # 2.4.0: email is optional
   pw = clean_pw(req['pw'])
   rate_limit!('signup', 6, 3600)
-  fail!(403, 'invite', "That invite code isn't right. Ask KODNA for the invite code.") if !INVITE_CODE.empty? && req['invite'].to_s.strip.upcase != INVITE_CODE.upcase # 2.6.0
   acct = nil
   with_lock(File.join(DATA_DIR, 'accounts', '.signup.lock')) do
     fail!(409, 'taken', 'That username is taken. Try another.') if File.exist?(acct_dir(u)) || File.exist?(acct_dir(u) + '.reserved')

@@ -77,7 +77,7 @@
       'Everything is on one screen: the question card (with Back to undo your last answer), the five parts, and today\'s checklist of calm things. The checklist starts fresh every midnight; it records that you did it today, not when. + My own calm thing adds your own (a name and which part it heals). Educational only, not medical advice.'
     ]],
     ['Signing in', [
-      'An account is just a username and a password. Your username is also your name: it\'s what Aiu calls you, and each username belongs to one account only (if a name is taken, try another name). New accounts need the invite code from KODNA. Write your password down somewhere safe. You can also use Aiu on one device only, with no account at all, and sign up later (Settings > Account & data > Sign up to sync).',
+      'An account is just a username and a password. Your username is also your name: it\'s what Aiu calls you, and each username belongs to one account only (if a name is taken, try another name). Write your password down somewhere safe. You can also use Aiu on one device only, with no account at all, and sign up later (Settings > Account & data > Sign up to sync).',
       'Settings > Account & data has three parts: User info (your username, Log out, Change password), Profiles (the drop-down) and Capsules.',
       'Your password can\'t be reset, by anyone: there\'s no email, no admin and no recovery code. No one can get into your Aiu without it, not even KODNA. Write it down somewhere safe. A lost password means starting a new account (a capsule you exported can be opened in it, with the capsule\'s own password).'
     ]],

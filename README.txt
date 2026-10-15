@@ -1,4 +1,4 @@
-AIU TOTEM 3.1.0 - install guide
+AIU TOTEM 3.2.0 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -19,11 +19,19 @@ ACCOUNTS
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
 
+WHAT'S NEW IN 3.2.0
+  Upload: the whole aiu folder (api.php and api.cgi only changed their version).
+  - The pet is just for looking after now: tap it for Water, Feed and Brush. Brushing strokes a brush along its back
+    and it purrs. Three bars (water, tummy, brushed) slowly empty over a few hours; full, it does a trick instead.
+  - The mini-games moved to the computer in the office: tap the computer and the dice pick a game. That's the only
+    way in now (no Play button on the pet). The office is free to build, so the games are there from day one.
+  - Fixed: Feed and Water did nothing in the castle (3.0 and 3.1 thought the pet was indoors).
+
 WHAT'S NEW IN 3.1.0 - BIGGER ROOMS
   Upload: the whole aiu folder (js/castle.js was rewritten; api.php and api.cgi only changed their version).
   - The castle picture is bigger (288 x 405, drawn 3x) and each room is twice the size: 3 rooms across, 4 floors,
     12 rooms in all. Every room is one of a kind (no more joining two of the same).
-  - The 12 rooms: living room, kitchen, bedroom, bathroom (the seed you start with), then office 60, library 80,
+  - The 12 rooms: living room, kitchen, bedroom, bathroom (the seed you start with), then office (free since 3.2), library 80,
     garage 90, music room 100, art studio 100, greenhouse 120 (hydroponics under LED grow lights), lab 150 and
     stable 150. The top two floors are open from the start, the third at Sprout, the fourth at Scout.
   - New room art, cuter and more detailed: wallpaper and wainscot, curtains, a fish tank, a fridge with a drawing on

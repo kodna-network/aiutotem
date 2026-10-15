@@ -33,7 +33,7 @@
     kitchen: { name: 'Kitchen', core: 1, desc: 'Where Aiu cooks, chops, makes tea and does the dishes.' },
     bedroom: { name: 'Bedroom', core: 1, desc: 'His bed (from 10 pm), a lamp and a window full of sky.' },
     bath: { name: 'Bathroom', core: 1, desc: 'A clawfoot tub, the sink, his toothbrush and a rubber duck.' },
-    office: { name: 'Office', cost: 60, stage: 1, desc: 'The computer (tap it for games) and the drone\'s dock. Aiu plays and works here.' },
+    office: { name: 'Office', cost: 0, stage: 0, desc: 'The computer: tap it for the mini-games (it\'s the only place to play them). The drone\'s dock. Free to build.' },
     garage: { name: 'Garage', cost: 90, stage: 1, place: 'garage', desc: 'Aiu\'s little car, the tools and the weights. He works out and builds here.' },
     library: { name: 'Library', cost: 80, stage: 2, desc: 'Shelves of books, a reading chair and a globe. Aiu reads and writes here.' },
     greenhouse: { name: 'Greenhouse', cost: 120, stage: 2, place: 'greenhouse', desc: 'Hydroponics under LED grow lights: racks of greens, a water tank, a yoga mat.' },
@@ -740,7 +740,7 @@
     }
   };
   function buyRow(h, d, ok, rich, have, onBuy) {
-    return h('button', { type: 'button', cls: 'qrow' + (ok && rich && !have ? '' : ' dim'), onclick: onBuy }, h('span', { cls: 'qrtitle', text: d.name }), h('span', { cls: 'small', text: (have ? 'built' : ok ? d.cost + ' tokens' : 'opens at ' + C.stageName(d.stage)) + ' · ' + d.desc }));
+    return h('button', { type: 'button', cls: 'qrow' + (ok && rich && !have ? '' : ' dim'), onclick: onBuy }, h('span', { cls: 'qrtitle', text: d.name }), h('span', { cls: 'small', text: (have ? 'built' : ok ? (d.cost ? d.cost + ' tokens' : 'free') : 'opens at ' + C.stageName(d.stage)) + ' · ' + d.desc }));
   }
   function pickRoom(L, key) {
     var a = app(), S = a.S, k = AIU.ui.k, h = U.h, s, list = h('div', { cls: 'morelist' });
@@ -750,7 +750,7 @@
         if (have) return k.snack('You have the ' + d.name.toLowerCase() + ' already. Move it instead.');
         if (!ok) return k.snack(d.name + ' opens when ' + S.totemName + ' reaches ' + C.stageName(d.stage) + '.');
         if (!rich) return k.snack('You need ' + (d.cost - (S.tokens || 0)) + ' more tokens.');
-        s.remove(); spend(d.cost, t).then(function (paid) { if (!paid) return k.snack('The wallet came up short.'); var r2 = Object.assign({}, L.rooms); r2[key] = t; CS.save({ rooms: r2, orn: L.orn, obs: L.obs }).then(function () { a.beep('coin'); a.react('happy'); k.snack('Built: ' + d.name + '.'); }); });
+        s.remove(); (d.cost ? spend(d.cost, t) : Promise.resolve(true)).then(function (paid) { if (!paid) return k.snack('The wallet came up short.'); var r2 = Object.assign({}, L.rooms); r2[key] = t; CS.save({ rooms: r2, orn: L.orn, obs: L.obs }).then(function () { a.beep('coin'); a.react('happy'); k.snack('Built: ' + d.name + '.'); }); });
       }));
     });
     s = k.sheet('Build a room', [h('p', { cls: 'small', text: 'You have ' + (S.tokens || 0) + ' tokens. Each room is one of a kind; you can move it any time.' }), list]);

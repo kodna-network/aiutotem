@@ -1,4 +1,4 @@
-/* AIU TOTEM 2.4.0 - the arcade. Tap the pet, tap Play, and the dice pick one of eight quick games.
+/* AIU TOTEM 2.4.0 - the arcade. Tap the computer in the office (3.2.0: the only way in) and the dice pick one of eight quick games.
    Every game: about a minute, 3 short levels that get harder, a real way to lose, 1 to 3 stars, your best score, a
    one-picture how-to the first time, and one tiny tip to remember at the end. Drawn in code at 180x240 (a handheld
    screen, sharp little pixels), all our own art.

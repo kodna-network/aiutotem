@@ -261,6 +261,7 @@
     pen: ['.....kk', '....kyk', '...kyk.', '..kyk..', '.kyk...', 'kkk....', 'k......'],
     bone: ['.......', 'ww...ww', '.wwwww.', 'ww...ww', '.......'],
     drop: ['...i...', '..iii..', '.iiiii.', '.iicii.', '..iii..'],
+    brush: ['WWWWWWW', 'WWWWWWW', 'a.a.a.a', 'a.a.a.a', '.......'],
     pad: ['.......', '.kkkkk.', 'kwkkkrk', 'wwwkkkk', 'kwkkrkk', '.kk.kk.'],
     hammer: ['.SSSSS.', 'SSSSSSS', '.SS.WW.', '....W..', '....W..', '....W..', '....W..'],
     tree: ['..ggg..', '.ggggg.', 'gglgggg', 'ggggglg', '.ggggg.', '...W...', '..WWW..'],
@@ -393,7 +394,7 @@
     els.doorBtn = h('button', { type: 'button', cls: 'wicon door build', 'aria-label': 'Build', title: 'Build', 'aria-pressed': 'false', onclick: function () { if (!app().S.hatched) return ui.snack('Hatch your egg first. Then you can build.'); var CS = AIU.castle; if (!CS) return; CS.setBuilding(!CS.building); if (CS.building) { ui.go('world'); ui.snack('Build: tap a + to add a room or something outside. Tap a room to move it. Tap the hammer when you\'re done.'); } if (ui.statusTick) ui.statusTick(app().view && app().view.sc); } }, els.doorIco, h('span', { cls: 'wdot', 'aria-hidden': 'true' }));
     var tok = AIU.life ? AIU.life.chip() : null; if (tok) tok.classList.add('wicon');
     els.wbar = h('div', { cls: 'wpanel' }, els.status, h('div', { cls: 'wicons', role: 'group', 'aria-label': 'Go in or out, growth, Vitals and tokens' }, els.doorBtn, mGrow, mGaba, tok), h('div', { cls: 'wbtns' }, els.full));
-    els.world = h('section', { cls: 'world', 'aria-label': a.S.totemName }, h('div', { cls: 'stage' }, els.canvas, els.fx, els.bubble, h('button', { type: 'button', cls: 'sr', text: 'Play a game (the dice pick one)', onclick: function () { AIU.games.roll(); } }), els.boardSr = h('button', { type: 'button', cls: 'sr', text: 'Bounty board: today\'s list', onclick: function () { ui.todaySheet(); } })),
+    els.world = h('section', { cls: 'world', 'aria-label': a.S.totemName }, h('div', { cls: 'stage' }, els.canvas, els.fx, els.bubble, h('button', { type: 'button', cls: 'sr', text: 'Play a game on the office computer (the dice pick one)', onclick: function () { if (AIU.castle && !AIU.castle.has(AIU.castle.current(), 'office')) return ui.snack('The games are on the office computer. Build the office first: it\'s free.'); AIU.games.roll(); } }), els.boardSr = h('button', { type: 'button', cls: 'sr', text: 'Bounty board: today\'s list', onclick: function () { ui.todaySheet(); } })),
       els.wbar, els.care, /* 2.9.0: the status and the four buttons in one card right under the picture */ els.nudge, els.banner);
     els.panel2 = h('section', { cls: 'panel2' }, h('div', { cls: 'phead' }, els.ptitle, els.pacts, els.pread = ui.readBtn()), els.pextra, els.psub, els.panel, els.pfoot);
     var firstMain = !document.querySelector('.app2');
@@ -480,7 +481,7 @@
     var sc = a.sceneState(), w = sc.weatherInfo, wtxt = w.source === 'guess' ? '' : ' · ' + w.label + (w.temp !== undefined ? ' ' + w.temp + '°' + w.units : '') + (w.stale && w.source === 'live' ? ' (' + w.ago + ')' : '');
     if (a.hatching) els.status.textContent = 'The egg is cracking!';
     else if (!S.hatched) els.status.textContent = (sc.eggProgress > 0.9 ? 'The egg is cracking!' : 'Hatches in ' + a.fmtDur(S.hatchAt - a.trueNow())) + wtxt;
-    else { var tips = ['Tap the pet, then Play!', 'Hold Aiu to pick him up.', 'Drag Aiu to the outhouse, the cart or the board.', 'Tap the drone for Vitals.', 'Tap the board: Aiu tells you the day.']; els.status.textContent = 'is ' + (AIU.castle ? AIU.castle.labelFor(sc, sc.actLabel) : sc.actLabel + (sc.indoor && sc.place === 'home' && sc.act !== 'sleep' ? ' inside' : '')) + wtxt + ' · ' + tips[Math.floor(Date.now() / 20000) % tips.length]; }
+    else { var tips = ['Tap the computer in the office for games.', 'Tap the pet to water, feed and brush it.', 'Hold Aiu to pick him up.', 'Drag Aiu to the outhouse, the cart or the board.', 'Tap the drone for Vitals.', 'Tap the board: Aiu tells you the day.']; els.status.textContent = 'is ' + (AIU.castle ? AIU.castle.labelFor(sc, sc.actLabel) : sc.actLabel + (sc.indoor && sc.place === 'home' && sc.act !== 'sleep' ? ' inside' : '')) + wtxt + ' · ' + tips[Math.floor(Date.now() / 20000) % tips.length]; }
     els.status.setAttribute('data-name', S.totemName);
     if (els.canvas) els.canvas.setAttribute('aria-label', 'Pet ' + S.totemName + '. ' + els.status.textContent);
     // growth bar
@@ -626,11 +627,11 @@
     function draw() {
       var lv = AIU.play.levels(); clear(c);
       c.appendChild(h('div', { cls: 'crow' },
-        h('button', { type: 'button', cls: 'cbtn', onclick: function () { AIU.play.snack(); bump(); } }, ui.pix('bone'), h('span', { text: 'Snack' })),
         h('button', { type: 'button', cls: 'cbtn', onclick: function () { AIU.play.water(); bump(); } }, ui.pix('drop'), h('span', { text: 'Water' })),
-        h('button', { type: 'button', cls: 'cbtn play', onclick: function () { ui.careBar(false); AIU.games.roll(); } }, ui.pix('pad'), h('span', { text: 'Play' })), // 2.4.0: the dice pick a game
+        h('button', { type: 'button', cls: 'cbtn', onclick: function () { AIU.play.snack(); bump(); } }, ui.pix('bone'), h('span', { text: 'Feed' })),
+        h('button', { type: 'button', cls: 'cbtn', onclick: function () { AIU.play.brush(); bump(); } }, ui.pix('brush'), h('span', { text: 'Brush' })), // 3.2: the mini-games moved to the computer
         h('button', { type: 'button', cls: 'cbtn cx', 'aria-label': 'Close', onclick: function () { ui.careBar(false); } }, h('span', { text: 'X' }))));
-      c.appendChild(h('div', { cls: 'crow cm' }, h('b', { cls: 'cname', text: nm }), meter('Tummy', lv.tummy), meter('Water', lv.water)));
+      c.appendChild(h('div', { cls: 'crow cm' }, h('b', { cls: 'cname', text: nm }), meter('Water', lv.water), meter('Tummy', lv.tummy), meter('Brushed', lv.fur)));
     }
     function bump() { clearTimeout(ui._careT); ui._careT = setTimeout(function () { ui.careBar(false); }, 45000); }
     AIU.play.onChange = function () { if (!c.hidden) draw(); };

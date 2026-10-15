@@ -1,6 +1,7 @@
 /* AIU TOTEM 2.1.7 - Play: you look after the pet and play with Aiu yourself, right in the world.
    Snack: a treat flies in and the pet catches it and munches. Keep feeding: its tummy fills, and once it's full it does a
    trick instead (jump, spin, roll over, dance) or takes a nap. Water: drops splash into its bowl and it laps them up.
+   3.2.0: and Brush: a brush along its back (a third bar, how freshly brushed). The games moved to the office computer.
    Tap the pet to pet it; rub it (drag back and forth) and it purrs. Tap Aiu: a different trick each time. Rub Aiu: he wiggles.
    Just for fun: nothing here earns points (petting Aiu still counts toward the small daily petting growth, as before).
    The tummy and water levels are kept on this device only and slowly empty again over a few hours. */
@@ -10,16 +11,17 @@
   var PL = AIU.play = {};
   function app() { return AIU.app; }
   var fx = [], bAct = null, lastPet = 0, petRun = 0, lastTrick = '';
-  var RATE = { tummy: 14, water: 18 }; // emptying, per hour
+  var RATE = { tummy: 14, water: 18, fur: 9 }; // emptying, per hour (3.2: fur = how freshly brushed)
 
   /* ---------- levels (this device) ---------- */
   function st() {
-    var L = app().local, s = L.play || (L.play = { tummy: 40, water: 40, t: Date.now() }), now = Date.now(), hrs = Math.max(0, now - (s.t || now)) / 3600000;
-    if (hrs > 0.01) { s.tummy = Math.max(0, s.tummy - RATE.tummy * hrs); s.water = Math.max(0, s.water - RATE.water * hrs); s.t = now; }
+    var L = app().local, s = L.play || (L.play = { tummy: 40, water: 40, fur: 40, t: Date.now() }), now = Date.now(), hrs = Math.max(0, now - (s.t || now)) / 3600000;
+    if (s.fur === undefined) s.fur = 40;
+    if (hrs > 0.01) { s.tummy = Math.max(0, s.tummy - RATE.tummy * hrs); s.water = Math.max(0, s.water - RATE.water * hrs); s.fur = Math.max(0, s.fur - RATE.fur * hrs); s.t = now; }
     return s;
   }
   function save() { try { app().saveLocal(); } catch (e) {} if (PL.onChange) PL.onChange(); }
-  PL.levels = function () { var s = st(); return { tummy: Math.round(s.tummy), water: Math.round(s.water) }; };
+  PL.levels = function () { var s = st(); return { tummy: Math.round(s.tummy), water: Math.round(s.water), fur: Math.round(s.fur) }; };
 
   /* ---------- the pet's moves ---------- */
   var DUR = { munch: 900, drink: 1100, happy: 450, jump: 750, spin: 800, roll: 1500, dance: 1300, purr: 400, nap: 4200 };
@@ -40,7 +42,7 @@
   function head() { var hd = A.buddyHead; return hd ? { x: hd.x, y: hd.y + 4 } : { x: A.BUDDY_OUT.x + 22, y: A.BUDDY_OUT.fy - 18 }; }
   function kind() { var S = app().S; return A.buddyOf(S.accentSeed, AIU.core.setting(S, 'buddy', 'auto')); }
   function busy() { return !!(bAct && Date.now() < bAct.until && !SOFT[bAct.a] && bAct.a !== 'munch' && bAct.a !== 'drink'); }
-  function outside() { var v = app().view && app().view.sc; return !!(v && !v.indoor && (!v.place || v.place === 'home') && v.stage); }
+  function outside() { var v = app().view && app().view.sc; return !!(v && (A.CASTLE || !v.indoor) && (!v.place || v.place === 'home') && v.stage); } // (3.2: the castle is one picture: the pet is always in it)
   PL.outside = outside;
 
   /* ---------- snacks, water, pets ---------- */
@@ -77,6 +79,22 @@
     }
     return true;
   };
+  // 3.2: Brush: a brush strokes along its back a few times, the fur sparkles, it purrs
+  PL.brush = function () {
+    if (!outside()) return false;
+    var s = st(), hd = head(), now = Date.now();
+    if (busy()) return false;
+    fx.push({ k: 'brush', x: hd.x, y: hd.y + 6, t0: now, life: 1800 });
+    app().beep('purr');
+    setTimeout(function () {
+      var s2 = st();
+      if (s2.fur >= 100) { trick(); PL.lastFull = Date.now(); save(); return; } // already as shiny as can be: a trick instead
+      s2.fur = Math.min(100, s2.fur + 34); hearts(2); if (AIU.life) AIU.life.joy('pet');
+      if (s2.fur >= 100) setTimeout(function () { hearts(4); }, 500);
+      save();
+    }, 1200);
+    act('purr', 1800); return true;
+  };
   function hearts(n, at) { var p = at || head(); for (var i = 0; i < (n || 2); i++) fx.push({ k: 'heart', x: p.x - 4 + i * 4 + Math.random() * 3, y: p.y - 6, vx: (Math.random() - 0.5) * 6, vy: -16 - Math.random() * 8, t0: Date.now() + i * 90, life: 1100 }); }
   PL.hearts = hearts;
   PL.pet = function () { // a tap on the pet
@@ -104,7 +122,7 @@
     if (kind === 'feed') { s.tummy = Math.min(100, s.tummy + 25); setTimeout(function () { act('munch', Math.max(900, dur - 2400)); app().beep('munch'); }, 1200); }
     else if (kind === 'water') { s.water = Math.min(100, s.water + 30); PL.bowlUntil = Date.now() + dur + 20000; setTimeout(function () { act('drink', Math.max(1000, dur - 2200)); app().beep('slurp'); }, 1400); }
     else if (kind === 'hug') { act('happy', 800); setTimeout(function () { hearts(3); act('purr', Math.max(600, dur - 1800)); }, 900); }
-    else if (kind === 'brush') { setTimeout(function () { act('purr', Math.max(800, dur - 1200)); }, 700); }
+    else if (kind === 'brush') { s.fur = Math.min(100, s.fur + 30); setTimeout(function () { act('purr', Math.max(800, dur - 1200)); }, 700); }
     else if (kind === 'read') { setTimeout(function () { act('happy', 900); }, Math.max(500, dur - 1500)); }
     else if (kind === 'tuck') { setTimeout(function () { act('nap', Math.max(1500, dur - 1000)); }, 800); }
     save();
@@ -122,7 +140,7 @@
   }
   function heartPic(c, x, y) { K.spr(c, Math.round(x) - 2, Math.round(y), ['r.r', 'rrr', '.r.']); }
   PL.draw = function (c, sc) {
-    if (!sc || sc.indoor || (sc.place && sc.place !== 'home')) { fx.length = 0; return; }
+    if (!sc || (sc.indoor && !A.CASTLE) || (sc.place && sc.place !== 'home')) { fx.length = 0; return; }
     var now = Date.now(), b = kind();
     if (PL.bowlUntil > now && !A.POSTED[b] && b !== 'ghost' && b !== 'conjure') { var hd = head(), bx = Math.round(hd.x + 3), fy = A.BUDDY_OUT.fy, w = st().water; K.R(c, bx - 4, fy - 3, 9, 3, P.ink); K.R(c, bx - 3, fy - 3, 7, 2, P.blue); if (w > 5) K.R(c, bx - 2, fy - 3, 5, 1, P.sky); }
     for (var i = fx.length - 1; i >= 0; i--) {
@@ -136,6 +154,12 @@
       }
       var q = t / 1000; if (t > o.life) { fx.splice(i, 1); continue; }
       var xx = o.x + o.vx * q, yy = o.y + o.vy * q + (o.k === 'heart' ? 0 : 60 * q * q);
+      if (o.k === 'brush') { // the brush going back and forth along its back, a few sparkles behind it
+        var bk = t / o.life, bx2 = Math.round(o.x - 8 + Math.abs(((bk * 3) % 2) - 1) * 16), by2 = Math.round(o.y - 2);
+        K.R(c, bx2 - 3, by2 - 3, 7, 2, P.wood); K.R(c, bx2 + 3, by2 - 4, 4, 1, P.wood); for (var bi = 0; bi < 3; bi++) K.px(c, bx2 - 2 + bi * 2, by2 - 1, P.sand);
+        if (Math.floor(t / 120) % 2) { K.px(c, bx2 - 6, by2 - 5, P.white); K.px(c, bx2 + 5, by2 - 7, P.yellow); }
+        continue;
+      }
       if (o.k === 'heart') heartPic(c, xx, yy); else if (o.k === 'bounce') treatPic(c, o.s, xx, Math.min(A.BUDDY_OUT.fy - 1, yy + 40 * q * q)); else K.px(c, Math.round(xx), Math.round(yy), o.c || P.sand);
     }
   };

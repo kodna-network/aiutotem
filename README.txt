@@ -1,4 +1,4 @@
-AIU TOTEM 3.2.0 - install guide
+AIU TOTEM 3.3.0 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -18,6 +18,22 @@ ACCOUNTS
     aiu_data/accounts/<username> in DirectAdmin > File Manager (that account is gone for good), or set
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
+
+WHAT'S NEW IN 3.3.0 - THE CASTLE STANDS UP
+  Upload: the whole aiu folder (api.php and api.cgi only changed their version).
+  - The castle now looks like The Elder Scrolls: Castles: it stands on a stone terrace and grows UP, floor by floor,
+    instead of being dug into the ground. Stone walls and floors between the rooms, arched ceilings, buttresses on
+    the outside walls, and a roof on top of each column that moves up as you build (red pointed roofs and
+    battlements with a flag for stone, ice spires on the tundra, onion domes in the desert, or rooms carved into a
+    mountain for the cave).
+  - A room needs a room under it (or the ground). Empty spots between the stairs and a room get a plank walkway.
+  - The courtyard is in front: the front door and steps, two lanterns, a cobbled path, and the six spots for the
+    board, the food cart, the well and the rest.
+  - Behind the castle: mountains and a hillside whose ridge rises with the castle. The strange creatures walk along
+    the ridge (tap one).
+  - The observatory sits on the roof of the right-hand tower; Aiu climbs a ladder up the outside to stargaze.
+  - The picture is 300 x 444 (drawn 3x). A 3.1 or 3.2 castle settles onto the terrace: each column keeps its rooms
+    in order, now from the ground up.
 
 WHAT'S NEW IN 3.2.0
   Upload: the whole aiu folder (api.php and api.cgi only changed their version).

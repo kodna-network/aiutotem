@@ -11,7 +11,7 @@
     ]],
     ['The screen', [
       'Along the top of the page: six icons (they stay there while you scroll). World (Aiu\'s place), Quest (your plan and your tiles), Log (today and your book), Accounts (your cards, you, your files and your finance), Shop (the Corner Mart) and Settings. A small dot on Settings shows sync: green = synced, yellow = syncing, orange = waiting or offline, red = log in again, grey = this device only.',
-      'World is where the app opens. The picture of his world is at the top, right under the menu. Under it: Go inside / Go outside, then three buttons with their bars: the heart (how much Aiu has grown; tap for what helps), the leaf (Aiu Vitals; tap to check in) and the token (your wallet). Then a ticker says what Aiu is doing, with a tip. After 10 minutes without a tap, the app comes back to World by itself.',
+      'World is where the app opens. The picture of his world is at the top, right under the menu. Right under it, one card: first a line that says what Aiu is doing (with a tip), then four icon buttons: the house or the tree (go inside or outside; it bounces while he\'s on his way and dims while he sleeps), the heart (how much Aiu has grown, with its bar; tap for what helps), the leaf (Aiu Vitals, with its bar; tap to check in) and the token (your wallet, with how many you have). After 10 minutes without a tap, the app comes back to World by itself.',
       'Aiu walks everywhere: from room to room, up and down the stairs, climbing the ladders to the attic and the basement, out the front door and across the yard (and back in). Go inside / Go outside sends him through the door.',
       'The yard is as tall as the house. Behind the stream: the barn, the well, the house, the outhouse and the lab. In front of the field: the greenhouse, the garage, the tool shed and the vegetable garden. Tap a building and Aiu walks there.',
       'The speaker icon at the top of a page reads that page to you in Aiu\'s voice, as a short summary. Tap it again to stop.',
@@ -51,13 +51,13 @@
       'The calendar only shows things. To add something, make a tile (+ New tile) and give it a day or a repeat: it appears on the calendar by itself, with its reminder. Your tiles are right below the calendar.'
     ]],
     ['Log: Today', [
-      'Log has two parts: Today and Book. Today is today\'s page: today\'s I Ching at the top (more about it below), then your entry for today, then what got done, then your past readings.',
-      'Write, or tap Talk it and speak. 80+ letters grows Aiu +10 (today\'s page only). Add to another day lets you write on an earlier page: the book, the glossary and your story all update, but it doesn\'t grow Aiu.',
+      'Log has two parts: Today and Book. Today is today\'s page in two sections: today\'s I Ching at the top (more about it below), then today\'s entry (write or talk it, what you wrote, what got done).',
+      'Write, or tap Talk it and speak. 80+ letters grows Aiu +10 (today\'s page only). To add to an earlier day, open that day in the Book and tap + New entry: the book, the glossary and your story all update (it doesn\'t grow Aiu). Under your entries: what got done today.',
       'The tile log writes itself as sentences: "Sam washed the dog." "Sam started cleaning the garage." Calm things you check off in Vitals stay in Vitals, not in the book.'
     ]],
     ['Log: the I Ching', [
       'Aiu casts the I Ching by himself every night at midnight. The first time, he casts a few moments after he hatches. If Aiu wasn\'t open at midnight, he tosses the coins the next time you\'re both free. You always see him toss the coins first; the reading shows up only after they land.',
-      'On Today: the word, the number and name, the changing lines (and the hexagram it\'s moving toward) and one line of advice. Tap Translation, Interpretation or Suggestions to open them. The speaker icon at the top reads it to you. Every day in your book is stamped with its reading, even days you didn\'t write.',
+      'On Today: the word, the number and name, the changing lines (and the hexagram it\'s moving toward) and one line of advice, then one paragraph that translates it, explains it and gives suggestions for the day. The speaker icon at the top reads it to you. Every day in your book is stamped with its reading, even days you didn\'t write (that\'s where older readings are).',
       'Practical wisdom, not fortune-telling.'
     ]],
     ['Log: the book', [
@@ -84,10 +84,9 @@
       'Your password can\'t be reset, by anyone: there\'s no email, no admin and no recovery code. No one can get into your Aiu without it, not even KODNA. Write it down somewhere safe. A lost password means starting a new account (a capsule you exported can be opened in it, with the capsule\'s own password).'
     ]],
     ['Accounts', [
-      'Accounts has four tabs: Cards, Person, Files and Finance.',
+      'Accounts has three tabs: Cards, Person and Finance.',
       'Cards: a phone book for your logins: name, username, password, email, website and notes, with labels and search. On a synced Totem every card is scrambled with your Aiu password before it leaves the device, so the server can\'t read it. Each device asks for your Aiu password once.',
       'Person: the personality quiz (tap Take the quiz), the either/or questions Aiu asks, and what calms you. It shapes how Aiu talks with you. (A business profile shows its business info here instead.)',
-      'Files: your own file cabinet. + Add files takes anything: on a phone it can take a photo right then, or pick from your photos or files. Make folders (like "Bailey pictures"), tap a file to open it, share it or save it, and Rename / move to tidy up. Delete puts it in the Discard pile; Delete forever needs the typed word DELETE. On a synced Aiu every file is scrambled on your device before it uploads (a file can be up to 25 MB, and an account holds 250 MB). Letters, plans and résumés you write in Aiu are in the Written folder.',
       'Finance: money in and out, and bills.'
     ]],
     ['Games', [
@@ -119,7 +118,7 @@
     ['Saving and your data', [
       'Settings > Save as PDF: check off what you want (tiles, plan, journal pages, readings, Vitals, finance, documents, this book) and get one PDF to keep or print. Your whole journal as a book is there too.',
       'Settings > Account & data > Capsules: export a capsule (.zip) or import one (see Profiles and capsules). You can also open a capsule on the very first screen, before you hatch an egg.',
-      'A synced Aiu keeps working offline and catches up when the internet comes back. A device-only Aiu lives only in this browser (its Files too): export a capsule now and then.'
+      'A synced Aiu keeps working offline and catches up when the internet comes back. A device-only Aiu lives only in this browser: export a capsule now and then.'
     ]],
     ['Account server', [
       'Accounts (sign up, log in, sync) need the small server file next to the app on your web host. There are two copies of the same server: api.php (PHP, works on almost every host, including WordPress / DirectAdmin) and api.cgi (Ruby). The app tries api.php first, then api.cgi, and remembers the one that answers.',

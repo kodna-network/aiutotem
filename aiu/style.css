@@ -1350,7 +1350,45 @@ html.page3 .app2 .scene { width: 100% !important; height: auto !important; max-h
 html.page3 .app2 .bubble { font-size: 1.0625rem; }
 /* 2.7.0: the door button on the picture */
 .stage { position: relative; }
-.doorrow { display: flex; justify-content: flex-end; margin: 6px 0 2px; }
-.doorbtn { position: static; min-height: 44px; padding: 6px 12px; font: inherit; font-size: 1rem; font-weight: bold; color: #1a1c2c; background: #f4f4f4; border: 3px solid #1a1c2c; border-radius: 12px; box-shadow: 0 3px 0 #1a1c2c; cursor: pointer; opacity: .92; }
-.doorbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 #1a1c2c; }
-.doorrow { gap: 8px; }
+/* 2.9.0: the Log's Today: one open I Ching paragraph; what got done sits inside today's entry */
+.icpara { line-height: 1.5; margin: 8px 0 0; }
+.jdone { margin-top: 12px; padding-top: 10px; border-top: 2px dashed var(--soft); }
+.jdone h5 { margin: 0 0 6px; font-size: 1rem; }
+/* 2.9.0: the shop's "OK?" pop-up */
+.mpop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; padding: 16px; background: rgba(26, 28, 44, .45); }
+.mpopbox { width: 100%; max-width: 30rem; margin: 0 0 6vh; animation: mpopIn .18s ease-out; }
+.mpophead { align-items: center; gap: 10px; margin-bottom: 6px; }
+.mpophead .mbig canvas, .mpophead .mbig img { display: block; image-rendering: pixelated; }
+@keyframes mpopIn { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .mpopbox { animation: none; } }
+/* 2.9.0: one section under the picture: Aiu's status line, then four icon buttons (in / out, growth, Vitals, tokens) */
+.wpanel { display: grid; gap: 10px; margin: 8px 0 4px; padding: 10px; background: var(--card); color: var(--ink); border: 3px solid var(--ink); border-radius: 14px; box-shadow: 3px 3px 0 var(--ink); }
+.wpanel .ticker, html.toy .wpanel .ticker, html:not(.toy) .wpanel .ticker { position: relative; display: block; margin: 0; padding: 9px 12px; background: #1a1c2c; color: #f4f4f4; border: 0; border-radius: 10px; font-size: 1.0625rem; line-height: 1.35; min-height: 2.6em; }
+.wpanel .ticker::before { color: #ffcd75; }
+.wpanel .ticker::after { content: ""; position: absolute; top: -8px; left: 22px; border: 8px solid transparent; border-top: 0; border-bottom-color: #1a1c2c; }
+.wpanel .ticker:empty { display: block; }
+.wicons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.wicons .wicon { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 4.4rem; margin: 0; padding: 8px 6px 7px; font: inherit; color: var(--ink); background: #f4f4f4; border: 3px solid #1a1c2c; border-radius: 12px; box-shadow: 0 3px 0 #1a1c2c; cursor: pointer; text-align: center; }
+.wicons .wicon:active { transform: translateY(2px); box-shadow: 0 1px 0 #1a1c2c; }
+.wicons .wicon:focus-visible { outline: 3px solid var(--warn); outline-offset: 2px; }
+.wicons .wicon .sico { display: grid; place-items: center; width: 2.2rem; height: 2.2rem; color: #1a1c2c; background: none; border: 0; box-shadow: none; }
+.wicons .wicon .sico .pix { width: 2.1rem; height: 2.1rem; }
+.wicons .door { background: #dfe9ff; } .wicons .grow { background: #ffe1e8; } .wicons .gaba { background: #e4f8d6; } .wicons .tokchip { background: #fff1c9; }
+.wicons .wicon .bar, .wicons .wicon .gbar { flex: none; width: 82%; height: 9px; border: 2px solid #1a1c2c; border-radius: 5px; overflow: hidden; }
+.wicons .wicon .bar { background: #f4f4f4; }
+.wicons .wicon .gbar { overflow: visible; }
+.wicons .wicon .gbar i { top: -3px; bottom: -3px; background: #1a1c2c; border: 1px solid #f4f4f4; }
+.wicons .wicon .sval, .wicons .wicon .toksub { display: none; }
+.wicons .tokchip .tokn { display: block; min-width: 0; font-family: 'Term', ui-monospace, monospace; font-size: 1.05rem; line-height: 9px; color: #1a1c2c; }
+.wicons .door .wdot { display: block; width: 82%; height: 9px; }
+.wicons .door.going .sico { animation: doorGo .5s steps(2) infinite alternate; }
+.wicons .door[aria-disabled="true"] { opacity: .45; }
+.wicons .wicon.red { border-color: #ff5d5d; animation: redPulse 2s steps(2) infinite; }
+@keyframes doorGo { to { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .wicons .door.going .sico, .wicons .wicon.red { animation: none; } }
+.wpanel .wbtns { display: none; }
+html.worldfull .wpanel .wbtns { display: flex; justify-content: flex-end; }
+html .wicons .wicon.tokchip { background: #fff1c9; border: 3px solid #1a1c2c; padding: 8px 6px 7px; color: #1a1c2c; }
+:root[data-theme="dark"] .wpanel .ticker { background: #333c57; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wpanel .ticker { background: #333c57; } :root:not([data-theme="light"]) .wpanel .ticker::after { border-bottom-color: #333c57; } }
+:root[data-theme="dark"] .wpanel .ticker::after { border-bottom-color: #333c57; }

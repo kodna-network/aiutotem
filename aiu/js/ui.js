@@ -262,6 +262,7 @@
     bone: ['.......', 'ww...ww', '.wwwww.', 'ww...ww', '.......'],
     drop: ['...i...', '..iii..', '.iiiii.', '.iicii.', '..iii..'],
     pad: ['.......', '.kkkkk.', 'kwkkkrk', 'wwwkkkk', 'kwkkrkk', '.kk.kk.'],
+    tree: ['..ggg..', '.ggggg.', 'gglgggg', 'ggggglg', '.ggggg.', '...W...', '..WWW..'],
     home: ['...r...', '..rrr..', '.rrrrr.', 'rrrrrrr', '.WWWWW.', '.WWkWW.', '.WWkWW.'],
     note: ['...bb.', '...bbb', '...b.b', '...b..', '.bbb..', 'bbbb..', '.bb...'],
     person: ['..kkk..', '..kak..', '..kkk..', '.kkkkk.', 'k.kkk.k', '..k.k..', '..k.k..'],
@@ -363,8 +364,8 @@
     els.gbar = h('div', { cls: 'gbar' }, h('i'));
     els.gglabel = h('span', { cls: 'sr' });
     els.gval = h('b', { cls: 'sval' }); els.vval = h('b', { cls: 'sval' }); // 2.7.0: each meter is a button: an icon key, its bar, its number
-    var mGrow = h('button', { type: 'button', cls: 'smeter grow', onclick: function () { growthSheet(); } }, h('span', { cls: 'sico' }, ui.pix('heart')), els.bar, els.gval, els.glabel);
-    var mGaba = h('button', { type: 'button', cls: 'smeter gaba', onclick: function () { AIU.panels.openVitals(); } }, h('span', { cls: 'sico' }, ui.pix('leaf')), els.gbar, els.vval, els.gglabel); // 2.1.9: a leaf for Vitals (it was a V)
+    var mGrow = h('button', { type: 'button', cls: 'smeter wicon grow', onclick: function () { growthSheet(); } }, h('span', { cls: 'sico' }, ui.pix('heart')), els.bar, els.gval, els.glabel);
+    var mGaba = h('button', { type: 'button', cls: 'smeter wicon gaba', onclick: function () { AIU.panels.openVitals(); } }, h('span', { cls: 'sico' }, ui.pix('leaf')), els.gbar, els.vval, els.gglabel); // 2.1.9: a leaf for Vitals (it was a V)
     els.mGrow = mGrow; els.mGaba = mGaba;
     els.banner = h('div', { cls: 'banner' });
     els.ptitle = h('h2', { cls: 'ptitle' });
@@ -384,10 +385,14 @@
       return b;
     }).concat([gear]));
     els.toast = h('div', { cls: 'toast', role: 'alert' });
-    els.wbar = h('div', { cls: 'wbar' }, h('div', { cls: 'smeters' }, mGrow, mGaba, AIU.life ? AIU.life.chip() : null), h('div', { cls: 'wbtns' }, els.full)); // 2.1.5: the buttons sit above the world, not on it
-    els.doorBtn = h('button', { type: 'button', cls: 'doorbtn', text: 'Go inside', onclick: function () { var v = app().view && app().view.sc; if (v) app().houseTap(!!(v.indoor || A.isRoom(v))); } }); // 2.7.0: in or out, without hunting for the door
+    // 2.9.0: one section under the picture: what Aiu is doing (the status line), then four icon buttons: in / out, growth,
+    // Vitals and tokens (each with its bar or number, no words). The full screen button shows only in full screen.
+    els.doorIco = h('span', { cls: 'sico' }, ui.pix('home'));
+    els.doorBtn = h('button', { type: 'button', cls: 'wicon door', 'aria-label': 'Go inside', title: 'Go inside', onclick: function () { if (els.doorBtn.getAttribute('aria-disabled') === 'true') return ui.snack(app().S.totemName + ' is resting. He\'ll come and go when he wakes up.'); var v = app().view && app().view.sc; if (v) app().houseTap(!!(v.indoor || A.isRoom(v))); } }, els.doorIco, h('span', { cls: 'wdot', 'aria-hidden': 'true' })); // 2.7.0: in or out, without hunting for the door
+    var tok = AIU.life ? AIU.life.chip() : null; if (tok) tok.classList.add('wicon');
+    els.wbar = h('div', { cls: 'wpanel' }, els.status, h('div', { cls: 'wicons', role: 'group', 'aria-label': 'Go in or out, growth, Vitals and tokens' }, els.doorBtn, mGrow, mGaba, tok), h('div', { cls: 'wbtns' }, els.full));
     els.world = h('section', { cls: 'world', 'aria-label': a.S.totemName }, h('div', { cls: 'stage' }, els.canvas, els.fx, els.bubble, h('button', { type: 'button', cls: 'sr', text: 'Play a game (the dice pick one)', onclick: function () { AIU.games.roll(); } }), els.boardSr = h('button', { type: 'button', cls: 'sr', text: 'Bounty board: today\'s list', onclick: function () { ui.todaySheet(); } })),
-      h('div', { cls: 'doorrow' }, els.doorBtn), els.wbar, els.care, /* 2.7.0: the door button sits just under the picture (it covered things on it); 2.5.0: the world first, right under the menu; growth, vitals and tokens under it */ els.status, els.nudge, els.banner);
+      els.wbar, els.care, /* 2.9.0: the status and the four buttons in one card right under the picture */ els.nudge, els.banner);
     els.panel2 = h('section', { cls: 'panel2' }, h('div', { cls: 'phead' }, els.ptitle, els.pacts, els.pread = ui.readBtn()), els.pextra, els.psub, els.panel, els.pfoot);
     var firstMain = !document.querySelector('.app2');
     r.appendChild(h('div', { cls: 'app2' },
@@ -454,7 +459,13 @@
   // keep the status line in step with what the scene shows (called by the scene loop)
   var lastLabel = '';
   ui.statusTick = function (sc) {
-    if (els.doorBtn && sc) { var inn = !!(sc.indoor || (A.isRoom && A.isRoom(sc))), tr = app().trip; els.doorBtn.textContent = tr && tr.dir === 'go' ? (tr.indoor ? 'Heading out...' : 'Heading in...') : inn ? 'Go outside' : 'Go inside'; els.doorBtn.hidden = !app().S.hatched || sc.act === 'sleep' || sc.mode === 'sleepy' || sc.place === 'library'; }
+    if (els.doorBtn && sc) { // 2.9.0: an icon: the house to go in, a tree to go out; it pulses while he's on his way and dims while he sleeps
+      var inn = !!(sc.indoor || (A.isRoom && A.isRoom(sc))), tr = app().trip, going = !!(tr && tr.dir === 'go'), lab = going ? (tr.indoor ? 'Heading out' : 'Heading in') : inn ? 'Go outside' : 'Go inside', ico = (going ? !tr.indoor : !inn) ? 'home' : 'tree';
+      if (els.doorBtn.getAttribute('aria-label') !== lab) { els.doorBtn.setAttribute('aria-label', lab); els.doorBtn.title = lab; }
+      if (els.doorIco.getAttribute('data-ico') !== ico) { els.doorIco.setAttribute('data-ico', ico); els.doorIco.innerHTML = ''; els.doorIco.appendChild(ui.pix(ico)); }
+      els.doorBtn.classList.toggle('going', going);
+      var off = !app().S.hatched || sc.act === 'sleep' || sc.mode === 'sleepy' || sc.place === 'library'; els.doorBtn.setAttribute('aria-disabled', off ? 'true' : 'false');
+    }
     if (!ui.onMain || !els.status || !app().S || !app().S.hatched || app().hatching) return;
     if (sc.actLabel !== lastLabel) { lastLabel = sc.actLabel; ui.refresh(); }
   };

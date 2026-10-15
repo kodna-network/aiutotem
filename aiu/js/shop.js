@@ -187,6 +187,27 @@
     R(62, 45, 8, 6, 'o'); R(63, 44, 6, 1, 'g'); // a little plant on the counter
     return cv;
   }
+  /* 2.9.0: buying asks in a pop-up (the clerk's box over the shop, like Aiu at the bounty board): YES buys it, NO doesn't.
+     It used to ask in the box at the top of the shop, out of sight after you scrolled down to Buy. */
+  function buyPop(it, doBuy) {
+    var old = document.querySelector('.mpop'); if (old) old.remove();
+    var msg = h('p', { text: it.name + '? Certainly. That will be ' + it.price + ' tokens. OK?' }), list = h('div');
+    var back = h('div', { cls: 'mpop', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Buy ' + it.name, onclick: function (e) { if (e.target === back) close(); } },
+      h('div', { cls: 'mbox mtalk mpopbox' }, h('div', { cls: 'row mpophead' }, h('span', { cls: 'mbig' }, S0.img(it, 4)), msg), list));
+    function close() { back.remove(); document.removeEventListener('keydown', esc); }
+    function esc(e) { if (e.key === 'Escape') close(); }
+    function ask() {
+      K().clear(list);
+      list.appendChild(cursorList([{ label: 'YES', on: true, go: function () {
+        K().clear(list); msg.textContent = 'One moment...';
+        doBuy().then(function (said) { msg.textContent = said; K().clear(list); list.appendChild(cursorList([{ label: 'OK', on: true, go: function () { close(); M.say = said; ui.renderPanel(true); } }])); focus(); });
+      } }, { label: 'NO', go: function () { close(); M.say = 'Is there anything else I can do for you?'; ui.renderPanel(true); } }]));
+      focus();
+    }
+    function focus() { setTimeout(function () { var b = list.querySelector('button'); if (b) b.focus(); }, 30); }
+    document.addEventListener('keydown', esc);
+    document.body.appendChild(back); ask();
+  }
   function box(cls, kids) { return h('div', { cls: 'mbox ' + (cls || '') }, kids); }
   function cursorList(items) { // ▶ rows, like a classic shop menu
     return h('div', { cls: 'mlist', role: 'menu' }, items.map(function (x) {
@@ -231,9 +252,7 @@
       var have = !it.treat && !!O[it.id], on = W0[it.slot] === it.id, acts = h('div', { cls: 'row wrap' });
       if (!have) acts.appendChild(k.btn('Buy for ◆' + it.price, function () {
         if (tok < it.price) { M.say = 'Sorry! You need ' + (it.price - tok) + ' more tokens for that. Grow ' + S.totemName + ' and come back!'; GM_sfx('miss'); ui.renderPanel(true); return; }
-        M.say = it.name + '? Certainly. That will be ' + it.price + ' tokens. OK?';
-        M.ask = { yes: function () { M.ask = null; (it.treat ? treat(it) : buy(it)).then(function (r) { M.say = r === 'ok' ? (it.treat ? 'Here you are! Enjoy! (Go see it on World.)' : 'Here you are! Thank you! ' + S.totemName + ' put it on right away.') : r === 'short' ? 'Hmm, the wallet came up short.' : 'You already have that one!'; GM_sfx(r === 'ok' ? 'coin' : 'miss'); ui.renderPanel(true); }); } };
-        ui.renderPanel(true);
+        buyPop(it, function () { return (it.treat ? treat(it) : buy(it)).then(function (r) { GM_sfx(r === 'ok' ? 'coin' : 'miss'); return r === 'ok' ? (it.treat ? 'Here you are! Enjoy! (Go see it on World.)' : 'Here you are! Thank you! ' + S.totemName + ' put it on right away.') : r === 'short' ? 'Hmm, the wallet came up short.' : 'You already have that one!'; }); });
       }, 'primary'));
       else acts.appendChild(k.btn(on ? 'Take it off' : (it.slot === 'yard' || it.slot === 'wall' || it.slot === 'rug' ? 'Put it out' : 'Wear it'), function () { wear(it.slot, on ? null : it.id).then(function () { M.say = on ? 'Put away.' : 'Looking good!'; ui.renderPanel(true); }); }, on ? '' : 'primary'));
       p.appendChild(box('mdesc', [h('span', { cls: 'mbig' }, S0.img(it, 6)), h('div', { cls: 'col' }, h('b', { text: it.name }), h('p', { text: it.desc }), h('span', { cls: 'small', text: it.treat ? 'Used up when you buy it.' : it.weekly ? 'This week only (yours to keep).' : 'For ' + SLOTNAME[it.slot][2] + '.' }), acts)]));

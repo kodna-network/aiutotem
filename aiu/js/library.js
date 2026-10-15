@@ -1,7 +1,8 @@
 /* AIU TOTEM 2.2.0 - the Log: your journal, written over time into a book (an autobiography, with you as the author).
    2.3.0: two tabs.
-   Today  - today's I Ching (one word, the number and name, the changing lines, and folded: translation, interpretation,
-            suggestions), your entries for today (or any day before: "Add to another day"), what got done, past readings.
+   Today  - today's I Ching (one word, the number and name, the changing lines, then one paragraph: translation,
+            interpretation, suggestions), and today's entry: write or talk it, what you wrote, what got done (2.9.0: one
+            section each; no folds, no Add to another day (open the day in the Book), no past readings, no Hilltop view).
    Book   - your story (cover, read the whole book), search, the outline: books (years) > chapters (months) > pages
             (days), the glossary (the words and names you use most) and your life so far, summed up.
    The I Ching is stamped on every day, written in or not. Tiles go in as plain sentences ("Sam washed the dog").
@@ -73,20 +74,18 @@
     PN.ichingInto(p); // 2.3.0: the I Ching lives on Today
     var ps = prompts(S, d), pi = (st.jpi || 0) % ps.length, q = h('p', { cls: 'jprompt', text: ps[pi] });
     var ents = h('div'); mine.slice().reverse().forEach(function (e) { ents.appendChild(k.journalCard(a, e)); });
-    var other = k.inp({ type: 'date', value: U.addDays(d, -1), max: d, 'aria-label': 'Another day' });
     p.appendChild(h('section', { cls: 'jsec' }, h('h4', { text: 'Today\'s entry' + (mine.length ? ' (' + mine.length + ')' : '') }), q,
       h('div', { cls: 'row wrap' },
         k.btn('Write', function () { ui.journalSheet(null, { prompt: q.textContent }); }, 'primary'),
         (function (b) { b.insertBefore(ui.pix('mic'), b.firstChild); return b; })(k.btn(' Talk it', function () { ui.journalSheet(null, { prompt: q.textContent, listen: true }); })),
         k.btn('Another question', function () { st.jpi = (pi + 1) % ps.length; q.textContent = ps[st.jpi]; }, 'ghost')),
-      h('p', { cls: 'small', text: '80+ letters today grows ' + S.totemName + ' +10.' }), ents,
-      k.acc('j-otherday', 'Add to another day', [h('p', { cls: 'small', text: 'Remembered something from before? Pick the day and write it there. Its page, the book and the summary update by themselves.' }),
-        h('div', { cls: 'row' }, other, k.btn('Write on that day', function () { var v = other.value; if (!/^\d{4}-\d\d-\d\d$/.test(v) || v > d) return k.snack('Pick a day up to today.'); ui.journalSheet(null, { day: v === d ? null : v }); }, 'mini primary'))], false)));
+      h('p', { cls: 'small', text: '80+ letters today grows ' + S.totemName + ' +10. To add to an earlier day, open it in the Book.' }), ents,
+      doneToday(S, d), statsLine(S, d)));
+  }
+  function doneToday(S, d) { // 2.9.0: what got done, inside today's entry
     var tl = PN.tileLog(S, d), done = doneOn(S, d);
-    p.appendChild(h('section', { cls: 'jsec' }, h('h4', { text: 'What got done today' }),
-      tl.length || done.length ? h('ul', { cls: 'tilelog' }, tl.map(function (x) { return h('li', { text: x.text }); }).concat(done.map(function (x) { return h('li', { text: x }); }))) : h('p', { cls: 'small', text: 'As you add and finish tiles they\'re written here as sentences, like "' + PN.who(S) + ' washed the dog."' })));
-    p.appendChild(statsLine(S, d));
-    PN.pastReadingsInto(p);
+    return h('div', { cls: 'jdone' }, h('h5', { text: 'What got done today' }),
+      tl.length || done.length ? h('ul', { cls: 'tilelog' }, tl.map(function (x) { return h('li', { text: x.text }); }).concat(done.map(function (x) { return h('li', { text: x }); }))) : h('p', { cls: 'small', text: 'As you add and finish tiles they\'re written here as sentences, like "' + PN.who(S) + ' washed the dog."' }));
   }
   function statsLine(S, d) {
     var ent = entriesOn(S, d).length, tl = PN.tileLog(S, d).filter(function (x) { return x.done; }).length, calm = G.day(S, d).filter(function (g) { return g.kind === 'calm'; });
@@ -585,7 +584,8 @@
      reading shows only after it lands, on every device (a reading cast on another device plays its toss here first).
      ===================================================================================== */
   PN.ichingActions = function () { return []; };
-  // 2.3.0: the I Ching on Today: the word, the number and name, the changing lines up top; the rest folded
+  // 2.3.0: the I Ching on Today: the word, the number and name, the changing lines up top. 2.9.0: then one paragraph (translation,
+  // interpretation, suggestions), all open: no folds, no Hilltop view
   PN.ichingInto = function (p) {
     var a = app(), S = a.S, k = K(), d = today(), rv = PN.readingFor(S, d), I = AIU.iching, sec = h('section', { cls: 'jsec icsec' }, h('h4', { text: 'Today\'s I Ching' }));
     p.appendChild(sec);
@@ -607,13 +607,13 @@
     sec.appendChild(h('p', null, h('b', { text: 'Today: ' }), X.advice));
     var full = X.theme + '. Hexagram ' + rv.hex + ', ' + X.name + '. ' + X.meaning + ' ' + X.modern + ' ' + X.advice;
     PN.todaySpeech = function () { return X.theme + '. Hexagram ' + rv.hex + ', ' + X.name + '. ' + sentences2(X.modern) + ' Today: ' + X.advice; }; void full; // 2.4.0: the page reader
-    sec.appendChild(k.acc('ic-tr', 'Translation', [h('p', null, h('b', { text: X.pinyin + ': ' }), X.name + ' (' + tg.upper + ' over ' + tg.lower + ').'),
-      h('p', { cls: 'small', text: 'Six lines from the bottom up. Solid = yang (active), broken = yin (receptive). Red lines are changing: they flip, and the reading moves toward the next hexagram.' })], false));
-    sec.appendChild(k.acc('ic-in', 'Interpretation', [h('p', null, h('b', { text: 'Traditional: ' }), X.meaning), h('p', null, h('b', { text: 'Modern: ' }), X.modern),
-      (rv.moving || []).map(function (n) { var lp = I.LINEPOS[n]; return h('p', null, h('b', { text: 'Line ' + n + ' (' + lp[0] + '): ' }), 'points at ' + lp[1] + '.'); }),
-      R ? h('p', null, h('b', { text: 'Heading toward #' + R.n + ' ' + R.name + ': ' }), R.meaning) : null], false));
-    sec.appendChild(k.acc('ic-su', 'Suggestions for today', [h('ul', null, h('li', { text: X.advice }), M0 ? h('li', { text: M0.line + ' ' + M0.q }) : null, X.principle ? h('li', { text: 'Hilltop principle: ' + X.principle }) : null, X.feed ? h('li', { text: 'Ask yourself: what am I feeding, and what am I starving?' }) : null)], false));
-    if (rv.text) sec.appendChild(k.acc('ic-hv', S.totemName + '\'s Hilltop View', [h('p', { cls: 'jval', text: rv.text })], false));
+    var lines = (rv.moving || []).map(function (n) { var lp = I.LINEPOS[n]; return 'Line ' + n + ' (' + lp[0] + ') points at ' + lp[1] + '.'; });
+    var sugg = [M0 ? M0.line + ' ' + M0.q : '', X.principle ? 'Hilltop principle: ' + X.principle : '', X.feed ? 'Ask yourself: what am I feeding, and what am I starving?' : ''].filter(Boolean);
+    sec.appendChild(h('p', { cls: 'icpara' },
+      h('b', { text: X.pinyin + ', ' + X.name }), ' (' + tg.upper + ' over ' + tg.lower + '). Six lines from the bottom up: solid lines are yang (active), broken are yin (receptive)' + (lines.length ? ', and the red ones are changing.' : '.') + ' ',
+      X.meaning + (same(X.meaning, X.modern) ? '' : ' ' + X.modern) + ' ' + lines.join(' ') + (R ? ' It\'s heading toward #' + R.n + ' ' + R.name + ': ' + R.meaning : '') + ' ',
+      sugg.length ? h('b', { text: 'Suggestions: ' }) : null, sugg.join(' ')));
+    function same(a0, b0) { var f = function (x) { return String(x || '').toLowerCase().replace(/[^a-z ]/g, '').slice(0, 18); }; return f(a0) === f(b0); } // (some readings say the same thing twice)
   };
   PN.pastReadingsInto = function (p) {
     var a = app(), S = a.S, k = K(), d = today(), days = Object.keys(S.reviews || {}).filter(function (x) { return x !== d && PN.readingFor(S, x); }).sort().reverse();

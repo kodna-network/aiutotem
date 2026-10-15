@@ -18,18 +18,18 @@
   PN.accounts = function () {
     var a = app(), k = K(), mode = a.vaultMode();
     /* 2.5.0: Accounts is four tabs: Cards, Person (Business for a business profile), Files and Finance. My info and the
-       profile card moved out (your name is your username; switching profiles is in Settings > Account & data). */
+       profile card moved out (your name is your username; switching profiles is in Settings > Account & data).
+       2.9.0: three tabs: Cards, Person and Finance (the Files tab is gone; files already saved stay in capsules). */
     var st = PN.state, B = AIU.business, biz = a.profKind() === 'business';
     if (st.aview === 'profile') { st.atab = { id: 'you', you: 'you', docs: 'docs', finance: 'money' }[st.psub] || st.atab || 'cards'; st.aview = null; st.psub = null; }
-    var tab = st.atab || 'cards';
+    var tab = st.atab || 'cards'; if (tab === 'docs' && !(st.doc || st.person || st.folder)) tab = st.atab = 'cards';
     if (tab === 'docs' && (st.doc || st.person || st.folder)) { ui.panelHead('Files', [], null); return B.profileView(); } // a written page, a résumé, an old business folder
-    var subs = [['cards', 'Cards'], ['you', biz ? 'Business' : 'Person'], ['docs', 'Files'], ['money', 'Finance']]; // 2.5.0: the names you picked
+    var subs = [['cards', 'Cards'], ['you', biz ? 'Business' : 'Person'], ['money', 'Finance']]; // 2.5.0: the names you picked (2.9.0: no Files)
     function onSub(x) { st.atab = x; st.doc = null; st.person = null; st.folder = null; ui.renderPanel(true); }
     if (tab !== 'cards') {
-      ui.panelHead('Accounts', tab === 'docs' && AIU.files ? [k.btn('+ Add files', function () { AIU.files.pick(); }, 'mini primary')] : [], subs, tab, onSub);
+      ui.panelHead('Accounts', [], subs, tab, onSub);
       var pb = body();
       if (tab === 'you') return B.youTab(pb);
-      if (tab === 'docs') return AIU.files ? AIU.files.view(pb) : null;
       return PN.financeInto(pb, '');
     }
     ui.panelHead('Accounts', [k.btn('+ New', function () { editCard(null); }, 'mini primary'), k.btn('About privacy', moreSheet, 'mini ghost')], subs, tab, onSub);

@@ -1,4 +1,4 @@
-AIU TOTEM 3.5.0 - install guide
+AIU TOTEM 3.6.0 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -18,6 +18,20 @@ ACCOUNTS
     aiu_data/accounts/<username> in DirectAdmin > File Manager (that account is gone for good), or set
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
+
+WHAT'S NEW IN 3.6.0 - THE BAILEY
+  Upload: the whole aiu folder (api.php and api.cgi only changed their version).
+  - Motte and bailey: the castle stands on a motte (a grassy mound with stones in the grass), and a wooden flying
+    bridge runs down from the front door to the bailey's back gate.
+  - The bailey: a yard fenced with a wooden palisade (back, sides and front), a trodden yard and a lane down the
+    middle, the main gate with two little roofed posts, and a drawbridge over a ditch of water with reeds.
+  - Bailey buildings, on four plots inside the palisade: granary 70, cowshed 80 (two cows swishing their tails),
+    workshop 90 (a smithy: the forge glows, sparks fly, smoke curls from the chimney), stables 100 from Sprout
+    (horses over their half-doors), barracks 120 from Sprout (shields and a spear rack, ready for the raids that
+    come in a later version). Build mode: tap a plot's + to build, tap a building to move it or take it down (all
+    its tokens back). Tap one when you're not building: Aiu walks down the bridge and the lane and pops in.
+  - The six spots for the board, the food cart, the well, the pond and the rest are in the front of the bailey.
+  - The picture is 320 x 760 (drawn 3x), so the World page scrolls a little more.
 
 WHAT'S NEW IN 3.5.0 - LAID OUT LIKE THE ELDER SCROLLS: CASTLES
   Upload: the whole aiu folder (api.php and api.cgi only changed their version).

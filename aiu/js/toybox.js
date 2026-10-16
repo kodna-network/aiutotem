@@ -19,8 +19,8 @@
   A.toyHide = function (who) { return !!(held && held.who === who) || anims.some(function (a) { return a.hides === who && Date.now() < a.end; }); };
 
   /* ---------- visits: Aiu walks to a building, you go in, and he walks back when you come out ---------- */
-  var FUN = { shed: 'shed', well: 'well', outhouse: 'outhouse', barn: 'peek', greenhouse: 'peek', lab: 'peek', garage: 'peek' }; // 2.4.0: the buildings are scenery: he pops in and out (their old screens are on standby)
-  var SAY = { barn: 'The animals say hi!', greenhouse: 'Mmm, smells like tomatoes.', lab: 'Beep boop. Science!', garage: 'Vroom vroom!' };
+  var FUN = { shed: 'shed', well: 'well', outhouse: 'outhouse', barn: 'peek', greenhouse: 'peek', lab: 'peek', garage: 'peek', barracks: 'peek', cowshed: 'peek', horses: 'peek', smithy: 'peek', granary: 'peek' }; // (3.6: and the bailey's buildings) // 2.4.0: the buildings are scenery: he pops in and out (their old screens are on standby)
+  var SAY = { barn: 'The animals say hi!', greenhouse: 'Mmm, smells like tomatoes.', lab: 'Beep boop. Science!', garage: 'Vroom vroom!', barracks: 'Left, right, left! Everybody\'s ready.', cowshed: 'Moooo!', horses: 'The horses nicker hello.', smithy: 'Clang, clang! The forge is hot.', granary: 'Plenty of grain for the winter.' };
   T.visit = function (id, instant) {
     var a = app(), S = a.S, PL = AIU.places; if (!S) return;
     if (!S.hatched) { ui().k.snack('Hatch your egg first. Then ' + S.totemName + ' can show you around.'); return; }

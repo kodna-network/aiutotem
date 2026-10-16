@@ -1098,14 +1098,14 @@
 
   /* ---------- the pet: in the courtyard, out of Aiu's way; at night at the foot of his bed ---------- */
   var HOMEBOUND = /^(care_|petbuddy|feedbuddy|waterbuddy|fetch|ride|board)/;
-  function petAt(sc, aiu) {
-    var b = A.buddyOf(sc.soul, sc.buddy), PLY = AIU.play, home = { x: DOORX + 28, y: SURF }, care = sc.act && HOMEBOUND.test(sc.act), L = CS.current();
+  function petAt(sc, aiu) { // (3.8.3: it walks a little way up in the yard, clear of the front gate)
+    var b = A.buddyOf(sc.soul, sc.buddy), PLY = AIU.play, PY = SURF - 20, home = { x: DOORX + 32, y: PY }, care = sc.act && HOMEBOUND.test(sc.act), L = CS.current();
     var stay = A.POSTED[b] || care || sc.phase === 'night' || (PLY && PLY.active && PLY.active()) || (sc.bplay && sc.bplay.a); // (3.6.2: the pet stays in the bailey, day and night; at night it rests at home by the steps)
     var p = home, left = false;
-    if (!stay) { var w = WF.wanderAt('cbuddy' + (sc.soul || 0), sc.tsec * 0.8, DOORX + 34, W - 12, 0, 0, 1); p = { x: Math.round(w.x), y: SURF }; left = w.left; }
-    if (aiu && aiu.row === -1 && !aiu.walking && Math.abs(aiu.x - p.x) < 24 && !care) p = { x: aiu.x < p.x ? Math.min(W - 8, aiu.x + 24) : Math.max(DOORX + 34, aiu.x - 24), y: SURF };
-    if (care && aiu && aiu.row === -1) p = { x: Math.min(W - 10, aiu.x + 24), y: SURF };
-    var tp = A.toyPos && A.toyPos('buddy', p); if (tp) p = { x: Math.round(tp.x), y: SURF };
+    if (!stay) { var w = WF.wanderAt('cbuddy' + (sc.soul || 0), sc.tsec * 0.8, DOORX + 34, W - 12, 0, 0, 1); p = { x: Math.round(w.x), y: PY }; left = w.left; }
+    if (aiu && aiu.row === -1 && !aiu.walking && Math.abs(aiu.x - p.x) < 24 && !care) p = { x: aiu.x < p.x ? Math.min(W - 8, aiu.x + 24) : Math.max(DOORX + 34, aiu.x - 24), y: PY };
+    if (care && aiu && aiu.row === -1) p = { x: Math.min(W - 10, aiu.x + 24), y: PY };
+    var tp = A.toyPos && A.toyPos('buddy', p); if (tp) p = { x: Math.round(tp.x), y: PY };
     return { x: p.x, y: p.y, left: left };
   }
   // the drone hovers in the sky, top right
@@ -1175,7 +1175,7 @@
   };
   function stringLights(c, sc) { // 3.7: strings of little bulbs swagged along the bailey's palisade: lit and twinkling at night, off by day
     var on = sc.phase === 'night' || sc.phase === 'dusk', f = sc.f || 0, cols = [P.yellow, P.pink, P.cyan, P.lime, P.orange];
-    [[BY - 14, 0, W], [FPY - 12, 0, DOORX - 18], [FPY - 12, DOORX + 18, W]].forEach(function (run) {
+    [[BY - 14, 0, DOORX - 15], [BY - 14, DOORX + 15, W], [FPY - 12, 0, DOORX - 18], [FPY - 12, DOORX + 18, W]].forEach(function (run) { // (3.8.3: a gap at each gate, so the walkway stays clear)
       var y0 = run[0], span = 32;
       for (var x0 = run[1]; x0 < run[2]; x0 += span) {
         var x1 = Math.min(run[2], x0 + span), n = 0;

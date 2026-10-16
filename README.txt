@@ -1,4 +1,4 @@
-AIU TOTEM 3.8.2 - install guide
+AIU TOTEM 3.8.3 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -18,6 +18,11 @@ ACCOUNTS
     aiu_data/accounts/<username> in DirectAdmin > File Manager (that account is gone for good), or set
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
+
+WHAT'S NEW IN 3.8.3
+  Upload: the whole aiu folder (api.php and api.cgi only changed their version).
+  - The pet stays a little way up in the yard, so it's no longer in front of the main gate.
+  - The bailey's string lights leave a gap at both gates, so they don't hang across the walkway.
 
 WHAT'S NEW IN 3.8.2 - THE GARAGE MOVES TO THE BAILEY
   Upload: the whole aiu folder (api.php and api.cgi only changed their version).

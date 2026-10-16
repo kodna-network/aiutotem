@@ -1,4 +1,4 @@
-AIU TOTEM 3.4.0 - install guide
+AIU TOTEM 3.5.0 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -18,6 +18,26 @@ ACCOUNTS
     aiu_data/accounts/<username> in DirectAdmin > File Manager (that account is gone for good), or set
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
+
+WHAT'S NEW IN 3.5.0 - LAID OUT LIKE THE ELDER SCROLLS: CASTLES
+  Upload: the whole aiu folder (api.php and api.cgi only changed their version).
+  - Cells: the castle has five floors of 12 cells each. A room takes 4 cells and can be widened 4 cells at a time
+    (40 tokens) into an empty chamber beside it, up to a whole floor; a wide room gets more of its kind of
+    furniture in the extra cells (a fireplace and an armchair, a dining table, a wardrobe, a shower, a bicycle...).
+  - The throne hall: the heart of the castle, in the middle of the ground floor, with Aiu's throne, a candle
+    chandelier, banners in his colors and stone pillars. It can widen but never moves or goes away. Aiu sits on his
+    throne now and then.
+  - Staircases: build one on any spot (20 tokens) to link a floor with the one above. You start with one by the
+    throne hall. Aiu takes the stairs or the elevator, whichever is shorter.
+  - The elevator moved to a tower on the right (the observatory sits on top of it), and the front door is under
+    the throne hall.
+  - Partitions: between two rooms there's a solid wall with a doorway; open it into an archway (free) and the two
+    rooms read as one big space. (The solid wall takes a few pixels from each side, not a whole cell.)
+  - Selling gives back exactly what you paid: rooms, widening, stairs, things in the courtyard, the observatory and
+    the windmill.
+  - The fifth floor opens at Ranger. A 3.4 castle keeps every room in its chamber; a room where the throne hall
+    goes moves to the first free chamber.
+  - The picture is 320 x 550 (drawn 3x).
 
 WHAT'S NEW IN 3.4.0 - THE SHELL AND THE ELEVATOR
   Upload: the whole aiu folder (api.php and api.cgi only changed their version).

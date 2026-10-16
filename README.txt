@@ -19,6 +19,14 @@ ACCOUNTS
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
 
+WHAT'S NEW IN 3.8.1
+  Upload: the whole aiu folder (api.php and api.cgi only changed their version).
+  - Room designs look calmer: each design now hangs one smaller piece, and only in rooms with a big clear wall (the
+    bedroom, bathroom, music room, lab, garage and stable). The busy rooms (living room, kitchen, office, library,
+    studio, greenhouse, throne hall) just get the design's walls and floor. Fewer graffiti tags (Hip Hop) and flowers
+    (Hippy) on the walls.
+  - The shop shows each design in the bedroom, bathroom and living room.
+
 WHAT'S NEW IN 3.8.0 - SPIRAL STAIRS AND FURNITURE
   Upload: the whole aiu folder (api.php and api.cgi only changed their version).
   - The staircases are spiral stairs now, in a stone stair tower on the left of the castle (with arrow slits and a
@@ -28,9 +36,9 @@ WHAT'S NEW IN 3.8.0 - SPIRAL STAIRS AND FURNITURE
     (nothing to pay again), and since they're out of the rooms, nothing stands in front of the furniture any more.
   - The Stoner design is called Hippy now (deep purple walls dotted with flower power, a shag rug and a tie-dye
     tapestry with a peace sign). If you bought it, you still own it.
-  - Room designs don't overlap the furniture any more: each design hangs one piece of its own (a scroll and a
-    lantern, a woven blanket, a porthole, an oval portrait, a red pointed window, a gold record, a horseshoe and a
-    lantern, a wreath, a tie-dye tapestry) on a clear bit of wall in each room, sized to fit.
+  - Room designs don't overlap the furniture any more: each design hangs one piece of its own (a scroll, a woven
+    blanket, a porthole, an oval portrait, a red pointed window, a gold record, a horseshoe, a wreath, a tie-dye
+    tapestry) on a clear bit of wall, sized to fit.
   - A new Furniture shelf at the Corner Mart: fridges (Retro 60, Smart 80, Pink 50), beds (Canopy 90, Royal 120,
     Race car 70) and toilets (Golden 100, High-tech 80, Royal 90). A new piece goes in where the old one stood, so Aiu
     still sleeps on his pillow and the potty still lines up. Switch any time: in the shop (Use it / Back to the old

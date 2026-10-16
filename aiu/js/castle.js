@@ -479,93 +479,90 @@
   function planksH(c, x, y, w, h, a, bb, step) { R(c, x, y, w, h, a); for (var j = 0; j < h; j += step) { R(c, x, y + j, w, 1, bb); for (var i = (j * 13) % 29; i < w; i += 29) R(c, x + i, y + j, 1, step, bb); } }
   /* 3.8: each design hangs one piece of its own, sized to fit the room's empty bit of wall (SPOT), so it never hides
      behind (or pokes out from behind) the room's furniture. Spots are [x, y, w, h] in the room's first chamber. */
-  var SPOT = { living: [31, 25, 29, 19], kitchen: [39, 21, 20, 20], bedroom: [38, 15, 32, 26], bath: [3, 4, 30, 26], office: [65, 13, 24, 24], garage: [35, 22, 32, 19],
-    library: [63, 21, 18, 24], music: [3, 4, 30, 26], studio: [33, 3, 32, 17], lab: [41, 3, 32, 26], stable: [56, 21, 30, 19] };
+  var SPOT = { bedroom: [38, 15, 32, 26], bath: [3, 4, 30, 26], music: [3, 4, 30, 26], lab: [41, 3, 32, 26], garage: [35, 22, 32, 19], stable: [56, 21, 30, 19] }; // 3.8.1: only rooms with a big clear wall get a piece (the busy ones keep just the walls and floor)
+  function roomy(s) { return { x: s.x + 4, y: s.y + 3, w: s.w - 8, h: s.h - 6 }; } // keep clear of what's around it
   function fit(s, w, h) { w = Math.min(w, s.w - 2); h = Math.min(h, s.h - 2); return { x: Math.round(s.x + (s.w - w) / 2), y: Math.round(s.y + (s.h - h) / 2), w: w, h: h }; }
   var DECOR = {
-    shinto: function (c, s, sc) { // a hanging scroll, and a paper lantern beside it when there's room
-      var wide = s.w >= 26, q = fit(s, 11, 26), x = wide ? s.x + Math.round(s.w * 0.3) - 5 : q.x;
+    shinto: function (c, s) { // a hanging scroll
+      var q = fit(s, 11, 20), x = q.x;
       R(c, x - 1, q.y, 13, 1, '#7a5a3c'); R(c, x, q.y + 1, 11, q.h - 2, P.ink); R(c, x + 1, q.y + 2, 9, q.h - 4, '#efe6cf'); R(c, x - 1, q.y + q.h - 1, 13, 1, '#7a5a3c');
       line(c, x + 4, q.y + 5, x + 6, q.y + q.h - 7, P.ink); line(c, x + 3, q.y + Math.round(q.h / 2) - 2, x + 8, q.y + Math.round(q.h / 2) - 3, P.ink); px(c, x + 7, q.y + q.h - 5, P.red);
-      if (wide) { var lx = s.x + Math.round(s.w * 0.75), ly = s.y + 5, lit = sc.phase !== 'day'; R(c, lx, s.y + 1, 1, 4, P.ink); ell(c, lx, ly + 7, 5, 6, P.ink); ell(c, lx, ly + 7, 4, 5, lit ? '#ffb070' : P.red); R(c, lx - 3, ly + 6, 7, 1, P.white); R(c, lx - 2, ly + 1, 5, 1, P.ink); R(c, lx - 2, ly + 13, 5, 1, P.ink); }
     },
     desert: function (c, s) { // a woven blanket
-      var q = fit(s, 26, 18); box(c, q.x, q.y, q.w, q.h, '#e9dcc0'); R(c, q.x, q.y, q.w, 1, '#7a5232');
+      var q = fit(s, 18, 13); box(c, q.x, q.y, q.w, q.h, '#e9dcc0'); R(c, q.x, q.y, q.w, 1, '#7a5232');
       var rows = Math.max(1, Math.floor((q.h - 3) / 5)), cols = Math.max(1, Math.floor((q.w - 3) / 4)); for (var j = 0; j < rows; j++) for (var i = 0; i < cols; i++) tri(c, q.x + 3 + i * 4, q.y + 3 + j * 5, 2, 1, [P.red, P.teal, P.orange][j % 3]);
       for (var f = 0; f < q.w; f += 3) px(c, q.x + f, q.y + q.h, '#e9dcc0'); // fringe
     },
     space: function (c, s) { // a porthole full of stars
-      var r = Math.max(5, Math.min(10, Math.floor(Math.min(s.w, s.h) / 2) - 2)), x = s.x + Math.round(s.w / 2), y = s.y + Math.round(s.h / 2);
+      var r = Math.max(5, Math.min(8, Math.floor(Math.min(s.w, s.h) / 2) - 1)), x = s.x + Math.round(s.w / 2), y = s.y + Math.round(s.h / 2);
       disc(c, x, y, r, P.ink); disc(c, x, y, r - 1, P.silver); disc(c, x, y, r - 3, P.navy); px(c, x - 3, y - 2, P.white); px(c, x + 2, y + 3, P.white); px(c, x + r - 5, y - r + 5, P.yellow); disc(c, x + 1, y + 1, Math.max(1, r - 8), P.orange);
       for (var a = 0; a < 8; a++) px(c, x + Math.round(Math.cos(a * Math.PI / 4) * (r - 2)), y + Math.round(Math.sin(a * Math.PI / 4) * (r - 2)), '#8a93ad'); // rivets
     },
-    colonial: function (c, s, sc) { // an oval portrait in a gilt frame, and a candle sconce when there's room
-      var wide = s.w >= 26, x = wide ? s.x + Math.round(s.w * 0.38) : s.x + Math.round(s.w / 2), y = s.y + Math.round(s.h / 2), ry = Math.min(9, Math.floor(s.h / 2) - 1), rx = Math.max(4, ry - 2);
+    colonial: function (c, s) { // an oval portrait in a gilt frame
+      var x = s.x + Math.round(s.w / 2), y = s.y + Math.round(s.h / 2), ry = Math.min(8, Math.floor(s.h / 2) - 1), rx = Math.max(4, ry - 2);
       ell(c, x, y, rx, ry, '#c9a24f'); ell(c, x, y, rx - 2, ry - 2, '#3a2a20'); disc(c, x, y - 2, 2, '#e8dcc0'); R(c, x - 3, y + 1, 6, Math.max(2, ry - 4), '#e8dcc0');
-      if (wide) { var lit = sc.phase !== 'day', sx = s.x + Math.round(s.w * 0.82); R(c, sx - 2, y + 4, 5, 2, '#c9a24f'); R(c, sx, y - 2, 1, 6, P.white); px(c, sx, y - 3, lit ? P.yellow : P.orange); if (lit) { c.globalAlpha = 0.2; disc(c, sx, y - 3, 5, P.yellow); c.globalAlpha = 1; } }
     },
     gothic: function (c, s) { // a pointed window of red glass
-      var q = fit(s, 14, 26), x = q.x, top = q.y + 7, cx = x + 7; R(c, x, top, 14, q.h - 7, P.ink); tri(c, cx, q.y, 8, 0.9, P.ink); R(c, x + 1, top + 1, 12, q.h - 9, '#8a1c2c'); tri(c, cx, q.y + 2, 6, 0.9, '#8a1c2c');
+      var q = fit(s, 14, 20), x = q.x, top = q.y + 7, cx = x + 7; R(c, x, top, 14, q.h - 7, P.ink); tri(c, cx, q.y, 8, 0.9, P.ink); R(c, x + 1, top + 1, 12, q.h - 9, '#8a1c2c'); tri(c, cx, q.y + 2, 6, 0.9, '#8a1c2c');
       R(c, cx - 1, q.y + 3, 1, q.h - 4, P.ink); R(c, x + 1, top + Math.round((q.h - 8) / 2), 12, 1, P.ink); px(c, x + 3, top + 3, '#e8557a'); px(c, x + 10, q.y + q.h - 4, '#e8557a');
     },
     hiphop: function (c, s) { // a gold record in a frame
-      var n = Math.max(12, Math.min(21, Math.min(s.w, s.h) - 2)), x = s.x + Math.round((s.w - n) / 2), y = s.y + Math.round((s.h - n) / 2), r = Math.floor(n / 2) - 2, cx = x + Math.floor(n / 2), cy = y + Math.floor(n / 2);
+      var n = Math.max(12, Math.min(15, Math.min(s.w, s.h) - 2)), x = s.x + Math.round((s.w - n) / 2), y = s.y + Math.round((s.h - n) / 2), r = Math.floor(n / 2) - 2, cx = x + Math.floor(n / 2), cy = y + Math.floor(n / 2);
       R(c, x, y, n, n, P.ink); R(c, x + 1, y + 1, n - 2, n - 2, '#2a2433'); disc(c, cx, cy, r + 1, P.ink); disc(c, cx, cy, r, '#c9a24f'); disc(c, cx, cy, Math.max(1, r - 3), '#e8c46a'); disc(c, cx, cy, 2, P.red); px(c, cx, cy, P.ink);
     },
-    roughcountry: function (c, s, sc) { // a horseshoe and a lantern
-      var lit = sc.phase !== 'day', y = s.y + Math.round(s.h / 2) - 6, hx = s.w >= 22 ? s.x + Math.round(s.w * 0.3) : s.x + Math.round(s.w / 2);
+    roughcountry: function (c, s) { // a lucky horseshoe
+      var y = s.y + Math.round(s.h / 2) - 6, hx = s.x + Math.round(s.w / 2);
       R(c, hx - 4, y + 2, 2, 8, P.silver); R(c, hx + 3, y + 2, 2, 8, P.silver); R(c, hx - 4, y + 9, 9, 2, P.silver); R(c, hx - 2, y, 5, 2, P.silver); px(c, hx - 3, y + 4, P.ink); px(c, hx + 4, y + 4, P.ink); px(c, hx, y - 2, P.bark);
-      if (s.w >= 22) { var lx = s.x + Math.round(s.w * 0.75); R(c, lx, y - 3, 1, 4, P.ink); box(c, lx - 3, y + 1, 7, 10, P.dark); R(c, lx - 1, y + 3, 3, 6, lit ? P.yellow : P.sand); if (lit) { c.globalAlpha = 0.2; disc(c, lx, y + 6, 6, P.yellow); c.globalAlpha = 1; } }
     },
     cleancountry: function (c, s) { // a wreath with a red bow
-      var r = Math.max(5, Math.min(8, Math.floor(Math.min(s.w, s.h) / 2) - 2)), x = s.x + Math.round(s.w / 2), y = s.y + Math.round(s.h / 2) - 1;
+      var r = Math.max(5, Math.min(7, Math.floor(Math.min(s.w, s.h) / 2) - 2)), x = s.x + Math.round(s.w / 2), y = s.y + Math.round(s.h / 2) - 1;
       disc(c, x, y, r, P.green); disc(c, x, y, r - 3, '#f6f4ee'); [[-r + 1, -2], [r - 2, -3], [r - 2, 3], [-2, r - 2], [2, -r + 1]].forEach(function (q) { px(c, x + q[0], y + q[1], P.red); });
       R(c, x - 2, y + r - 1, 5, 2, P.red); px(c, x - 3, y + r + 1, P.red); px(c, x + 3, y + r + 1, P.red);
     },
     stoner: function (c, s) { // (Hippy) a tie-dye tapestry
-      var q = fit(s, 28, 24), cx = q.x + Math.floor(q.w / 2), cy = q.y + Math.floor(q.h / 2);
+      var q = fit(s, 20, 16), cx = q.x + Math.floor(q.w / 2), cy = q.y + Math.floor(q.h / 2);
       R(c, q.x - 1, q.y - 1, q.w + 2, q.h + 2, P.ink); c.save(); c.beginPath(); c.rect(q.x, q.y, q.w, q.h); c.clip();
       ['#f5a3b5', P.orange, P.yellow, P.lime, P.cyan, P.blue, '#8a4ac9'].forEach(function (col, i) { ell(c, cx, cy, Math.max(1, q.w - i * 4), Math.max(1, q.h - i * 4), col); }); c.restore();
-      if (q.h >= 14) { disc(c, cx, cy, 5, P.white); disc(c, cx, cy, 4, '#8a4ac9'); R(c, cx, cy - 4, 1, 9, P.white); line(c, cx, cy, cx - 3, cy + 3, P.white); line(c, cx, cy, cx + 3, cy + 3, P.white); } // a peace sign
+      if (q.h >= 12) { disc(c, cx, cy, 5, P.white); disc(c, cx, cy, 4, '#8a4ac9'); R(c, cx, cy - 4, 1, 9, P.white); line(c, cx, cy, cx - 3, cy + 3, P.white); line(c, cx, cy, cx + 3, cy + 3, P.white); } // a peace sign
       R(c, q.x - 2, q.y - 2, q.w + 4, 2, P.bark); for (var f = 1; f < q.w; f += 3) px(c, q.x + f, q.y + q.h + 1, '#f5a3b5'); // the rod and a fringe
     }
   };
   CS.DESIGNS = {
-    shinto: { name: 'Shinto', desc: 'Paper shoji screens, tatami mats, a red beam, a paper lantern, a hanging scroll and a bonsai.',
+    shinto: { name: 'Shinto', desc: 'Paper shoji screens, tatami mats, a red beam and a hanging scroll.',
       wall: function (c, b) { shoji(c, b); }, floor: tatami,
       decor: DECOR.shinto },
-    desert: { name: 'Desert', desc: 'Sun-baked adobe walls, terracotta tiles, a woven blanket, a cactus and dried chilies.',
+    desert: { name: 'Desert', desc: 'Sun-baked adobe walls, terracotta tiles and a woven blanket.',
       wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#e3b07a'); for (var i = 0; i < 70; i++) px(c, b.x + (i * 37) % b.w, b.y + (i * 23) % (b.h - 8), i % 2 ? '#d49c66' : '#eec08e'); R(c, b.x, b.y + b.h - 22, b.w, 2, '#b9733f'); },
       floor: function (c, b) { tiles(c, b.x, b.y + b.h - 7, b.w, 7, '#c4683e', '#b05a33', 7); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
       decor: DECOR.desert },
-    space: { name: 'Space', desc: 'Riveted metal panels, a glowing light strip, a porthole full of stars and blinking console lights.',
+    space: { name: 'Space', desc: 'Riveted metal panels, a glowing light strip and a porthole full of stars.',
       wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#3a4258'); for (var x = 0; x < b.w; x += 23) R(c, b.x + x, b.y, 1, b.h, '#262c3c'); for (var y = 0; y < b.h - 8; y += 19) R(c, b.x, b.y + y, b.w, 1, '#262c3c'); for (var x2 = 3; x2 < b.w; x2 += 23) for (var y2 = 3; y2 < b.h - 8; y2 += 19) px(c, b.x + x2, b.y + y2, '#8a93ad'); R(c, b.x, b.y + b.h - 26, b.w, 2, P.cyan); },
       floor: function (c, b) { var y0 = b.y + b.h - 7; R(c, b.x, y0, b.w, 7, '#2a3040'); for (var x = 0; x < b.w; x += 3) R(c, b.x + x, y0 + 2, 1, 4, '#1a1e2a'); R(c, b.x, y0, b.w, 1, P.cyan); },
       decor: DECOR.space },
-    colonial: { name: 'Colonial', desc: 'Cream walls over white panelled wainscot, wide pine boards, a candle sconce and an oval portrait.',
+    colonial: { name: 'Colonial', desc: 'Cream walls over white panelled wainscot, wide pine boards and an oval portrait.',
       wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#f2ead8'); R(c, b.x, b.y, b.w, 3, P.white); R(c, b.x, b.y + 3, b.w, 1, '#d8ccb0'); var y0 = b.y + b.h - 26; R(c, b.x, y0, b.w, 19, P.white); R(c, b.x, y0, b.w, 2, '#d8ccb0'); for (var x = 4; x < b.w - 10; x += 18) { R(c, b.x + x, y0 + 5, 14, 10, '#d8ccb0'); R(c, b.x + x + 1, y0 + 6, 12, 8, P.white); } },
       floor: function (c, b) { planksH(c, b.x, b.y + b.h - 7, b.w, 7, '#9a6a3c', '#7d5530', 7); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
       decor: DECOR.colonial },
-    gothic: { name: 'Gothic', desc: 'Dark stone, a velvet drape, a checkered floor, a candelabra and a pointed window of red glass.',
+    gothic: { name: 'Gothic', desc: 'Dark stone, a velvet drape, a checkered floor and a pointed window of red glass.',
       wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#3b3446'); for (var y = 0; y < b.h - 8; y += 6) { R(c, b.x, b.y + y, b.w, 1, '#2a2433'); for (var x = ((y / 6) % 2) * 6; x < b.w; x += 12) R(c, b.x + x, b.y + y, 1, 6, '#2a2433'); } R(c, b.x, b.y, b.w, 6, '#5a2a5a'); for (var x2 = 0; x2 < b.w; x2 += 8) tri(c, b.x + x2 + 4, b.y + 6, 3, 1.2, '#5a2a5a'); },
       floor: function (c, b) { tiles(c, b.x, b.y + b.h - 7, b.w, 7, '#2a2430', '#5a5068', 4); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
       decor: DECOR.gothic },
-    hiphop: { name: 'Hip Hop', desc: 'Red brick with graffiti tags, a concrete floor with paint drips, a boombox and a gold record on the wall.',
+    hiphop: { name: 'Hip Hop', desc: 'Red brick with graffiti tags, a concrete floor with paint drips and a gold record on the wall.',
       wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#8a3b2e'); for (var y = 0; y < b.h - 8; y += 4) { R(c, b.x, b.y + y, b.w, 1, '#6a2a22'); for (var x = ((y / 4) % 2) * 5; x < b.w; x += 10) R(c, b.x + x, b.y + y, 1, 4, '#6a2a22'); }
-        var cols = [P.lime, P.pink, P.cyan, P.yellow]; for (var t = 0; t < 4; t++) { var tx = b.x + 6 + t * 22, ty = b.y + 30 + (t % 2) * 6; line(c, tx, ty + 6, tx + 4, ty, cols[t]); line(c, tx + 4, ty, tx + 8, ty + 6, cols[t]); line(c, tx + 8, ty + 6, tx + 13, ty + 1, cols[t]); px(c, tx + 14, ty, P.white); } },
+        var cols = [P.lime, P.pink, P.cyan, P.yellow]; for (var t = 0; t < Math.floor(b.w / 46); t++) { var tx = b.x + 10 + t * 46, ty = b.y + 32; line(c, tx, ty + 6, tx + 4, ty, cols[t]); line(c, tx + 4, ty, tx + 8, ty + 6, cols[t]); line(c, tx + 8, ty + 6, tx + 13, ty + 1, cols[t]); px(c, tx + 14, ty, P.white); } },
       floor: function (c, b) { var y0 = b.y + b.h - 7; R(c, b.x, y0, b.w, 7, '#7a7a80'); R(c, b.x, y0, b.w, 1, P.ink); [[10, P.pink], [40, P.lime], [70, P.cyan]].forEach(function (q) { ell(c, b.x + q[0], y0 + 4, 3, 1, q[1]); }); },
       decor: DECOR.hiphop },
-    roughcountry: { name: 'Rough Country', desc: 'Rough log walls, weathered barn boards, a horseshoe, a lantern, a hat on a peg and a coil of rope.',
+    roughcountry: { name: 'Rough Country', desc: 'Rough log walls, weathered barn boards and a lucky horseshoe.',
       wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#7a5432'); for (var y = 0; y < b.h - 8; y += 7) { R(c, b.x, b.y + y + 5, b.w, 2, '#3a2416'); R(c, b.x, b.y + y, b.w, 1, '#946a42'); } for (var k = 0; k < 9; k++) { var kx = b.x + (k * 31) % b.w, ky = b.y + 2 + ((k * 7) % 9) * 7; ell(c, kx, ky + 2, 2, 1, '#4a3020'); } },
       floor: function (c, b) { planksH(c, b.x, b.y + b.h - 7, b.w, 7, '#6a4a30', '#3a2416', 7); for (var x = 6; x < b.w; x += 14) px(c, b.x + x, b.y + b.h - 4, P.silver); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
       decor: DECOR.roughcountry },
-    cleancountry: { name: 'Clean Country', desc: 'White shiplap, light oak boards, gingham trim, a mason jar of daisies and a wreath.',
+    cleancountry: { name: 'Clean Country', desc: 'White shiplap, light oak boards, gingham trim and a wreath.',
       wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#f6f4ee'); for (var y = 5; y < b.h - 8; y += 6) R(c, b.x, b.y + y, b.w, 1, '#dcd8cc'); for (var x = 0; x < b.w; x += 4) { R(c, b.x + x, b.y, 2, 3, x % 8 ? P.white : P.red); R(c, b.x + x, b.y + 3, 2, 2, x % 8 ? P.red : P.white); } },
       floor: function (c, b) { planksH(c, b.x, b.y + b.h - 7, b.w, 7, '#d9b88a', '#c4a070', 7); R(c, b.x, b.y + b.h - 7, b.w, 1, '#8a6a4a'); },
       decor: DECOR.cleancountry },
-    stoner: { name: 'Hippy', desc: 'Peace and love: deep purple walls dotted with flower power, a shag rug and a tie-dye tapestry.',
+    stoner: { name: 'Hippy', desc: 'Peace and love: deep purple walls with a few flowers, a shag rug and a tie-dye tapestry.',
       wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#3a2560'); for (var i = 0; i < 40; i++) px(c, b.x + (i * 29) % b.w, b.y + (i * 17) % (b.h - 8), i % 3 ? '#4a3278' : '#5a3a8a');
-        for (var k = 0; k < Math.floor(b.w / 9); k++) { var fx = b.x + 4 + (k * 37) % (b.w - 6), fy = b.y + 4 + (k * 23) % (b.h - 16), fc = ['#f5a3b5', P.yellow, P.orange, P.lime][k % 4]; px(c, fx - 1, fy, fc); px(c, fx + 1, fy, fc); px(c, fx, fy - 1, fc); px(c, fx, fy + 1, fc); px(c, fx, fy, k % 2 ? P.white : P.yellow); } }, // flower power
+        for (var k = 0; k < Math.floor(b.w / 22); k++) { var fx = b.x + 4 + (k * 37) % (b.w - 6), fy = b.y + 4 + (k * 23) % (b.h - 16), fc = ['#f5a3b5', P.yellow, P.orange, P.lime][k % 4]; px(c, fx - 1, fy, fc); px(c, fx + 1, fy, fc); px(c, fx, fy - 1, fc); px(c, fx, fy + 1, fc); px(c, fx, fy, k % 2 ? P.white : P.yellow); } }, // flower power
       floor: function (c, b) { var y0 = b.y + b.h - 7; R(c, b.x, y0, b.w, 7, '#c86a3c'); for (var x = 0; x < b.w; x += 2) px(c, b.x + x, y0 + ((x * 7) % 5) + 1, x % 4 ? '#e08a52' : '#a8582f'); R(c, b.x, y0, b.w, 1, P.ink); },
       decor: DECOR.stoner },
   };
@@ -573,11 +570,11 @@
   function ownsDesign(id) { var sh = AIU.shop; return !!(sh && sh.owns && sh.owns('design-' + id)); }
   CS.ownsDesign = ownsDesign;
   function themed(c, t, B, sc, D) { // the room as usual, with design D wherever its plain walls and floor show
-    var n = Math.round((B.w + 4) / CW), w = B.w * SC, hh = B.h * SC;
+    var w = B.w * SC, hh = B.h * SC;
     function layer(fn) { var cv = mk(w, hh), x = cv.getContext('2d'); x.imageSmoothingEnabled = false; x.setTransform(SC, 0, 0, SC, -B.x * SC, -B.y * SC); fn(x); return cv; }
     var full = layer(function (x) { drawRoom(x, t, B, sc); });
     var plain = layer(function (x) { BG[t](x, B, sc); }); // (just its walls and floor)
-    var look = layer(function (x) { D.wall(x, B, sc); D.floor(x, B, sc); var sp = SPOT[t]; if (sp && D.decor) D.decor(x, { x: B.x + sp[0], y: B.y + sp[1], w: sp[2], h: sp[3] }, sc); });
+    var look = layer(function (x) { D.wall(x, B, sc); D.floor(x, B, sc); var sp = SPOT[t]; if (sp && D.decor) D.decor(x, roomy({ x: B.x + sp[0], y: B.y + sp[1], w: sp[2], h: sp[3] }), sc); });
     var fc = full.getContext('2d'), F = fc.getImageData(0, 0, w, hh), Pl = plain.getContext('2d').getImageData(0, 0, w, hh).data, Lk = look.getContext('2d').getImageData(0, 0, w, hh).data, d = F.data;
     for (var i2 = 0; i2 < d.length; i2 += 4) if (d[i2] === Pl[i2] && d[i2 + 1] === Pl[i2 + 1] && d[i2 + 2] === Pl[i2 + 2]) { d[i2] = Lk[i2]; d[i2 + 1] = Lk[i2 + 1]; d[i2 + 2] = Lk[i2 + 2]; d[i2 + 3] = Lk[i2 + 3]; }
     fc.putImageData(F, 0, 0); c.drawImage(full, B.x, B.y, B.w, B.h);
@@ -1376,7 +1373,7 @@
       grid.appendChild(h('button', { type: 'button', cls: 'dcell' + (id === cur ? ' on' : ''), onclick: function () { pick(id); }, 'aria-label': (id ? CS.DESIGNS[id].name : 'Default') + (id === cur ? ', in use' : '') }, pic, h('span', { text: (id ? CS.DESIGNS[id].name : 'Default') + (id === cur ? ' ✓' : '') })));
     });
     var more = CS.DESIGN_ORDER.length - mine.length + 1;
-    s = k.sheet(d0.name + ': design', [h('p', { cls: 'small', text: 'Tap a design to use it in this room. The room\'s furniture stays; its walls, floor and wall decor change.' }), grid,
+    s = k.sheet(d0.name + ': design', [h('p', { cls: 'small', text: 'Tap a design to use it in this room. The room\'s furniture stays; its walls and floor change (and a roomy wall gets a piece of decor).' }), grid,
       h('div', { cls: 'row wrap' }, k.btn(more > 0 ? 'More designs at the Corner Mart (' + more + ')' : 'See them at the Corner Mart', function () { s.remove(); if (AIU.shop && AIU.shop.openShelf) AIU.shop.openShelf('design'); else AIU.ui.go('shop'); }))]);
   };
   CS.furnSheet = function (fp) { // 3.8: pick the fridge, bed or toilet this room uses (from what you own)

@@ -302,7 +302,7 @@ function act_ping() {
   try { setup_data_dir(); $t = data_dir() . '/.write_test'; $ok = @file_put_contents($t, 'ok') !== false; @unlink($t); } catch (Throwable $e) { $ok = false; }
   $inside = strpos(realpath(data_dir()) ?: data_dir(), realpath(__DIR__) . '/') === 0;
   $shop = 0; foreach (glob(SHOP_DIR . '/packs/*/item.json') ?: array() as $f) if (substr(basename(dirname($f)), 0, 1) !== '_') $shop++;
-  return array('ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'php', 'version' => '3.8.0', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'php' => PHP_VERSION, 'openssl' => function_exists('hash_pbkdf2'),
+  return array('ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'php', 'version' => '3.8.1', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'php' => PHP_VERSION, 'openssl' => function_exists('hash_pbkdf2'),
     'data_folder_ok' => $ok, 'data_folder_private' => !$inside, 'mail_program_found' => @is_executable(SENDMAIL) || function_exists('mail'),
     'shop_items' => $shop, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'private' => true, 'rename' => true, 'inactive_days' => DELETE_INACTIVE_DAYS, 'now' => now_ms());
 }

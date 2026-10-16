@@ -131,6 +131,7 @@
     ['living', 'kitchen', 'bedroom', 'bath'].forEach(function (t) { if (!out.rooms[t] && left.indexOf(t) < 0) left.push(t); }); // the four first rooms are always there
     left.forEach(function (t) { for (var f = 0; f < ROWS; f++) for (var b = 0; b < BLOCKS; b++) if (!out.rooms[t] && fits(f, b, 1)) put(t, f, b, 1); }); // (a room that lost its spot moves to the first free chamber)
     Object.keys(src.walls || {}).forEach(function (k) { if (/^[0-4],[12]$/.test(k) && src.walls[k] === 'arch') out.walls[k] = 'arch'; });
+    out.decor = {}; Object.keys(src.decor || {}).forEach(function (t) { var d = src.decor[t]; if (CS.ROOMS[t] && CS.DESIGNS[d]) out.decor[t] = d; }); // 3.7: each room's design (from the Corner Mart)
     Object.keys(src.stairs || {}).forEach(function (k) { if (/^[0-3],([0-9]|1[01])$/.test(k)) out.stairs[k] = src.stairs[k] === 2 ? 2 : 1; });
     var oseen = {}; CS.SLOT_ORDER.forEach(function (sl) { var t = (src.orn || {})[sl]; if (t === 'windmill') { out.mill = true; t = null; } out.orn[sl] = CS.ORN[t] && !oseen[t] ? t : null; if (out.orn[sl]) oseen[t] = 1; });
     var bseen = {}; out.bailey = {}; CS.PLOT_ORDER.forEach(function (pl) { var t = (src.bailey || {})[pl]; out.bailey[pl] = CS.BAILEY[t] && !bseen[t] ? t : null; if (out.bailey[pl]) bseen[t] = 1; });
@@ -176,7 +177,7 @@
     return null;
   };
   CS.canStairs = function (L, stage, f, x) { return f >= 0 && f < ROWS - 1 && CS.open(stage, f) && CS.open(stage, f + 1) && !L.stairs[f + ',' + x] && !L.stairs[f + ',' + (x - 1)] && !L.stairs[f + ',' + (x + 1)]; };
-  CS.save = function (L) { var cur = CS.current(); return app().setSetting('castle', { v: 5, rooms: L.rooms || cur.rooms, walls: L.walls || cur.walls, stairs: L.stairs || cur.stairs, orn: L.orn || cur.orn, bailey: L.bailey || cur.bailey, obs: L.obs !== undefined ? !!L.obs : !!cur.obs, mill: L.mill !== undefined ? !!L.mill : !!cur.mill }); };
+  CS.save = function (L) { var cur = CS.current(); return app().setSetting('castle', { v: 5, rooms: L.rooms || cur.rooms, walls: L.walls || cur.walls, stairs: L.stairs || cur.stairs, orn: L.orn || cur.orn, bailey: L.bailey || cur.bailey, decor: L.decor || cur.decor, obs: L.obs !== undefined ? !!L.obs : !!cur.obs, mill: L.mill !== undefined ? !!L.mill : !!cur.mill }); };
 
   /* ---------- the look of each land ---------- */
   CS.style = function (sc) { if (sc.house === 'cave') return 'cave'; if (sc.biome === 'tundra') return 'ice'; if (sc.biome === 'desert') return 'desert'; return 'stone'; };
@@ -384,7 +385,7 @@
   var BG = {
     hall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#cdbb9c'); for (var j = 0; j < b.h - 8; j += 6) { R(c, b.x, b.y + j, b.w, 1, '#b9a684'); for (var i = ((j / 6) % 2) * 8; i < b.w; i += 16) R(c, b.x + i, b.y + j, 1, 6, '#b9a684'); } tiles(c, b.x, b.y + b.h - 7, b.w, 7, '#efe4cf', '#cbbd9f', 4); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
     living: function (c, b) { var wp = '#e6c68e'; R(c, b.x, b.y, b.w, b.h, '#f3dcae'); for (var j = 6; j < b.h - 24; j += 8) for (var i = (j / 2) % 8; i < b.w; i += 12) { px(c, b.x + i + 3, b.y + j, wp); px(c, b.x + i + 2, b.y + j + 1, wp); px(c, b.x + i + 4, b.y + j + 1, wp); px(c, b.x + i + 3, b.y + j + 2, wp); } R(c, b.x, b.y + b.h - 24, b.w, 17, '#e9c994'); R(c, b.x, b.y + b.h - 24, b.w, 1, P.wood); floorBand(c, b, P.wood, P.bark); for (var fx = 4; fx < b.w; fx += 11) R(c, b.x + fx, b.y + b.h - 6, 1, 6, P.bark); },
-    kitchen: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#f7ead0'); tiles(c, b.x, b.y + 26, b.w, 12, '#ffd9a0', P.white, 4); tiles(c, b.x, b.y + b.h - 7, b.w, 7, P.red, P.white, 4); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
+    kitchen: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#f7ead0'); tiles(c, b.x + 20, b.y + 26, b.w - 20, 12, '#ffd9a0', P.white, 4); /* (the backsplash starts where the kitchen's own does) */ tiles(c, b.x, b.y + b.h - 7, b.w, 7, P.red, P.white, 4); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
     bedroom: function (c, b) { stripes(c, b.x, b.y, b.w, b.h, '#d6c6ef', '#c7b2ea', 6, 2); floorBand(c, b, '#a993d6', P.white); },
     bath: function (c, b) { R(c, b.x, b.y, b.w, b.h, P.white); grid(c, b.x, b.y, b.w, 30, '#dce8f0', 6); R(c, b.x, b.y + 30, b.w, b.h - 37, '#8fe3ea'); grid(c, b.x, b.y + 30, b.w, b.h - 37, '#7fd6de', 6); R(c, b.x, b.y + 30, b.w, 1, P.sky); tiles(c, b.x, b.y + b.h - 7, b.w, 7, P.white, P.silver, 4); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
     office: function (c, b) { stripes(c, b.x, b.y, b.w, b.h, '#cad9ea', '#bccde2', 8, 1); floorBand(c, b, P.slate, P.silver); },
@@ -467,6 +468,85 @@
     }
   };
 
+  /* ---------- room designs (3.7, bought at the Corner Mart): each one restyles a room's walls and floor and hangs its own
+     decor; the room's own furniture stays. A room is drawn as usual, and wherever nothing stands on its plain walls and
+     floor, the design shows instead. ---------- */
+  function shoji(c, b) { R(c, b.x, b.y, b.w, b.h, '#f4ecd8'); for (var x = 0; x < b.w; x += 12) R(c, b.x + x, b.y, 1, b.h - 24, '#7a5a3c'); for (var y = 8; y < b.h - 24; y += 9) R(c, b.x, b.y + y, b.w, 1, '#a07a50'); R(c, b.x, b.y + b.h - 24, b.w, 17, '#8a6440'); R(c, b.x, b.y + b.h - 24, b.w, 2, '#5a3d2b'); R(c, b.x, b.y, b.w, 3, '#b13e53'); }
+  function tatami(c, b) { var y0 = b.y + b.h - 7; R(c, b.x, y0, b.w, 7, '#c9c48a'); for (var x = 0; x < b.w; x += 30) R(c, b.x + x, y0, 2, 7, '#3c5a3a'); R(c, b.x, y0, b.w, 1, '#3c5a3a'); for (var x2 = 4; x2 < b.w; x2 += 3) px(c, b.x + x2, y0 + 3, '#b7b276'); }
+  function planksH(c, x, y, w, h, a, bb, step) { R(c, x, y, w, h, a); for (var j = 0; j < h; j += step) { R(c, x, y + j, w, 1, bb); for (var i = (j * 13) % 29; i < w; i += 29) R(c, x + i, y + j, 1, step, bb); } }
+  CS.DESIGNS = {
+    shinto: { name: 'Shinto', desc: 'Paper shoji screens, tatami mats, a red beam, a paper lantern, a hanging scroll and a bonsai.',
+      wall: function (c, b) { shoji(c, b); }, floor: tatami,
+      props: function (c, b, sc) { var lit = sc.phase !== 'day'; R(c, b.x + 20, b.y + 3, 1, 5, P.ink); ell(c, b.x + 20, b.y + 13, 5, 6, P.ink); ell(c, b.x + 20, b.y + 13, 4, 5, lit ? '#ffb070' : P.red); R(c, b.x + 17, b.y + 12, 7, 1, P.white); R(c, b.x + 18, b.y + 7, 5, 1, P.ink); R(c, b.x + 18, b.y + 19, 5, 1, P.ink);
+        R(c, b.x + b.w - 26, b.y + 6, 12, 24, P.ink); R(c, b.x + b.w - 25, b.y + 7, 10, 22, '#efe6cf'); line(c, b.x + b.w - 21, b.y + 10, b.x + b.w - 19, b.y + 24, P.ink); line(c, b.x + b.w - 22, b.y + 16, b.x + b.w - 17, b.y + 15, P.ink); R(c, b.x + b.w - 27, b.y + 6, 14, 1, '#7a5a3c'); R(c, b.x + b.w - 27, b.y + 29, 14, 1, '#7a5a3c');
+        box(c, b.x + b.w / 2 - 5, b.y + b.h - 13, 10, 5, '#3b5dc9'); R(c, b.x + b.w / 2, b.y + b.h - 19, 1, 6, P.bark); ell(c, b.x + b.w / 2 - 2, b.y + b.h - 20, 4, 2, P.green); ell(c, b.x + b.w / 2 + 3, b.y + b.h - 22, 3, 2, P.teal); } },
+    desert: { name: 'Desert', desc: 'Sun-baked adobe walls, terracotta tiles, a woven blanket, a cactus and dried chilies.',
+      wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#e3b07a'); for (var i = 0; i < 70; i++) px(c, b.x + (i * 37) % b.w, b.y + (i * 23) % (b.h - 8), i % 2 ? '#d49c66' : '#eec08e'); R(c, b.x, b.y + b.h - 22, b.w, 2, '#b9733f'); },
+      floor: function (c, b) { tiles(c, b.x, b.y + b.h - 7, b.w, 7, '#c4683e', '#b05a33', 7); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
+      props: function (c, b, sc) { var x = b.x + 8; box(c, x, b.y + 6, 22, 16, '#e9dcc0'); for (var j = 0; j < 3; j++) for (var i = 0; i < 5; i++) tri(c, x + 3 + i * 4, b.y + 9 + j * 5, 2, 1, [P.red, P.teal, P.orange][j]);
+        var cx = b.x + b.w - 14; box(c, cx - 5, b.y + b.h - 15, 10, 8, '#c4683e'); R(c, cx - 1, b.y + b.h - 29, 3, 14, P.ink); R(c, cx, b.y + b.h - 28, 1, 12, P.green); R(c, cx - 4, b.y + b.h - 24, 3, 1, P.green); R(c, cx - 4, b.y + b.h - 27, 1, 3, P.green); R(c, cx + 3, b.y + b.h - 22, 2, 1, P.green); R(c, cx + 4, b.y + b.h - 25, 1, 3, P.green);
+        R(c, b.x + b.w / 2, b.y + 2, 1, 4, P.bark); for (var k = 0; k < 4; k++) R(c, b.x + b.w / 2 - 1 + (k % 2) * 2, b.y + 6 + k * 3, 2, 3, P.red); } },
+    space: { name: 'Space', desc: 'Riveted metal panels, a glowing light strip, a porthole full of stars and blinking console lights.',
+      wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#3a4258'); for (var x = 0; x < b.w; x += 23) R(c, b.x + x, b.y, 1, b.h, '#262c3c'); for (var y = 0; y < b.h - 8; y += 19) R(c, b.x, b.y + y, b.w, 1, '#262c3c'); for (var x2 = 3; x2 < b.w; x2 += 23) for (var y2 = 3; y2 < b.h - 8; y2 += 19) px(c, b.x + x2, b.y + y2, '#8a93ad'); R(c, b.x, b.y + b.h - 26, b.w, 2, P.cyan); },
+      floor: function (c, b) { var y0 = b.y + b.h - 7; R(c, b.x, y0, b.w, 7, '#2a3040'); for (var x = 0; x < b.w; x += 3) R(c, b.x + x, y0 + 2, 1, 4, '#1a1e2a'); R(c, b.x, y0, b.w, 1, P.cyan); },
+      props: function (c, b, sc) { var f = sc.f || 0, px0 = b.x + b.w - 22, py0 = b.y + 16; disc(c, px0, py0, 10, P.ink); disc(c, px0, py0, 9, P.silver); disc(c, px0, py0, 7, P.navy); px(c, px0 - 3, py0 - 2, P.white); px(c, px0 + 2, py0 + 3, P.white); px(c, px0 + 4, py0 - 4, P.yellow); disc(c, px0 + 2, py0 + 1, 2, P.orange);
+        for (var i = 0; i < 6; i++) R(c, b.x + 8 + i * 4, b.y + 8, 2, 2, (i + Math.floor(f / 4)) % 3 === 0 ? P.lime : (i % 2 ? P.red : P.sky)); R(c, b.x + 6, b.y + 6, 26, 1, P.ink); R(c, b.x + 6, b.y + 11, 26, 1, P.ink); } },
+    colonial: { name: 'Colonial', desc: 'Cream walls over white panelled wainscot, wide pine boards, a candle sconce and an oval portrait.',
+      wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#f2ead8'); R(c, b.x, b.y, b.w, 3, P.white); R(c, b.x, b.y + 3, b.w, 1, '#d8ccb0'); var y0 = b.y + b.h - 26; R(c, b.x, y0, b.w, 19, P.white); R(c, b.x, y0, b.w, 2, '#d8ccb0'); for (var x = 4; x < b.w - 10; x += 18) { R(c, b.x + x, y0 + 5, 14, 10, '#d8ccb0'); R(c, b.x + x + 1, y0 + 6, 12, 8, P.white); } },
+      floor: function (c, b) { planksH(c, b.x, b.y + b.h - 7, b.w, 7, '#9a6a3c', '#7d5530', 7); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
+      props: function (c, b, sc) { var lit = sc.phase !== 'day', sx = b.x + 14; R(c, sx - 2, b.y + 18, 5, 2, '#c9a24f'); R(c, sx, b.y + 12, 1, 6, P.white); px(c, sx, b.y + 11, lit ? P.yellow : P.orange); if (lit) { c.globalAlpha = 0.2; disc(c, sx, b.y + 11, 6, P.yellow); c.globalAlpha = 1; }
+        var ox = b.x + b.w - 20; ell(c, ox, b.y + 15, 7, 9, '#c9a24f'); ell(c, ox, b.y + 15, 5, 7, '#3a2a20'); disc(c, ox, b.y + 12, 2, '#e8dcc0'); R(c, ox - 3, b.y + 15, 6, 5, '#e8dcc0'); } },
+    gothic: { name: 'Gothic', desc: 'Dark stone, a velvet drape, a checkered floor, a candelabra and a pointed window of red glass.',
+      wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#3b3446'); for (var y = 0; y < b.h - 8; y += 6) { R(c, b.x, b.y + y, b.w, 1, '#2a2433'); for (var x = ((y / 6) % 2) * 6; x < b.w; x += 12) R(c, b.x + x, b.y + y, 1, 6, '#2a2433'); } R(c, b.x, b.y, b.w, 6, '#5a2a5a'); for (var x2 = 0; x2 < b.w; x2 += 8) tri(c, b.x + x2 + 4, b.y + 6, 3, 1.2, '#5a2a5a'); },
+      floor: function (c, b) { tiles(c, b.x, b.y + b.h - 7, b.w, 7, '#2a2430', '#5a5068', 4); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
+      props: function (c, b, sc) { var f = sc.f || 0, wx = b.x + b.w - 24; R(c, wx, b.y + 14, 14, 18, P.ink); tri(c, wx + 7, b.y + 6, 8, 0.9, P.ink); R(c, wx + 1, b.y + 15, 12, 16, '#8a1c2c'); tri(c, wx + 7, b.y + 8, 6, 0.9, '#8a1c2c'); R(c, wx + 6, b.y + 9, 1, 22, P.ink); R(c, wx + 1, b.y + 22, 12, 1, P.ink); px(c, wx + 3, b.y + 18, '#e8557a'); px(c, wx + 10, b.y + 26, '#e8557a');
+        var cx = b.x + 14; R(c, cx - 6, b.y + 26, 13, 1, '#c9a24f'); R(c, cx, b.y + 26, 1, 8, '#c9a24f'); [-6, 0, 6].forEach(function (u, i) { R(c, cx + u, b.y + 20, 1, 6, P.white); px(c, cx + u, b.y + 19 - ((f + i) % 3 === 0 ? 1 : 0), (f + i) % 2 ? P.yellow : P.orange); }); } },
+    hiphop: { name: 'Hip Hop', desc: 'Red brick with graffiti tags, a concrete floor with paint drips, a boombox and a gold record on the wall.',
+      wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#8a3b2e'); for (var y = 0; y < b.h - 8; y += 4) { R(c, b.x, b.y + y, b.w, 1, '#6a2a22'); for (var x = ((y / 4) % 2) * 5; x < b.w; x += 10) R(c, b.x + x, b.y + y, 1, 4, '#6a2a22'); }
+        var cols = [P.lime, P.pink, P.cyan, P.yellow]; for (var t = 0; t < 4; t++) { var tx = b.x + 6 + t * 22, ty = b.y + 30 + (t % 2) * 6; line(c, tx, ty + 6, tx + 4, ty, cols[t]); line(c, tx + 4, ty, tx + 8, ty + 6, cols[t]); line(c, tx + 8, ty + 6, tx + 13, ty + 1, cols[t]); px(c, tx + 14, ty, P.white); } },
+      floor: function (c, b) { var y0 = b.y + b.h - 7; R(c, b.x, y0, b.w, 7, '#7a7a80'); R(c, b.x, y0, b.w, 1, P.ink); [[10, P.pink], [40, P.lime], [70, P.cyan]].forEach(function (q) { ell(c, b.x + q[0], y0 + 4, 3, 1, q[1]); }); },
+      props: function (c, b, sc) { var f = sc.f || 0, gx = b.x + 18; R(c, gx - 10, b.y + 5, 21, 21, P.ink); R(c, gx - 9, b.y + 6, 19, 19, '#2a2433'); disc(c, gx, b.y + 15, 8, P.ink); disc(c, gx, b.y + 15, 7, '#c9a24f'); disc(c, gx, b.y + 15, 2, P.red); // a gold record in a frame
+        var bx = b.x + b.w - 30; box(c, bx, b.y + 10, 22, 13, P.dark); disc(c, bx + 5, b.y + 17, 3, P.slate); disc(c, bx + 17, b.y + 17, 3, P.slate); R(c, bx + 9, b.y + 13, 4, 3, P.cyan); R(c, bx + 4, b.y + 8, 14, 2, P.silver); if (f % 8 < 4) { px(c, bx + 24, b.y + 9, P.white); px(c, bx + 26, b.y + 7, P.white); } } },
+    roughcountry: { name: 'Rough Country', desc: 'Rough log walls, weathered barn boards, a horseshoe, a lantern, a hat on a peg and a coil of rope.',
+      wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#7a5432'); for (var y = 0; y < b.h - 8; y += 7) { R(c, b.x, b.y + y + 5, b.w, 2, '#3a2416'); R(c, b.x, b.y + y, b.w, 1, '#946a42'); } for (var k = 0; k < 9; k++) { var kx = b.x + (k * 31) % b.w, ky = b.y + 2 + ((k * 7) % 9) * 7; ell(c, kx, ky + 2, 2, 1, '#4a3020'); } },
+      floor: function (c, b) { planksH(c, b.x, b.y + b.h - 7, b.w, 7, '#6a4a30', '#3a2416', 7); for (var x = 6; x < b.w; x += 14) px(c, b.x + x, b.y + b.h - 4, P.silver); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
+      props: function (c, b, sc) { var lit = sc.phase !== 'day', hx = b.x + 14; R(c, hx - 4, b.y + 8, 2, 8, P.silver); R(c, hx + 3, b.y + 8, 2, 8, P.silver); R(c, hx - 4, b.y + 15, 9, 2, P.silver); R(c, hx - 2, b.y + 6, 5, 2, P.silver);
+        var lx = b.x + b.w - 14; R(c, lx, b.y + 3, 1, 5, P.ink); box(c, lx - 3, b.y + 8, 7, 9, P.dark); R(c, lx - 1, b.y + 10, 3, 5, lit ? P.yellow : P.sand);
+        R(c, b.x + b.w / 2, b.y + 10, 2, 2, P.bark); ell(c, b.x + b.w / 2 + 1, b.y + 13, 7, 2, '#b07a4f'); R(c, b.x + b.w / 2 - 3, b.y + 8, 8, 4, '#b07a4f'); } },
+    cleancountry: { name: 'Clean Country', desc: 'White shiplap, light oak boards, gingham trim, a mason jar of daisies and a wreath.',
+      wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#f6f4ee'); for (var y = 5; y < b.h - 8; y += 6) R(c, b.x, b.y + y, b.w, 1, '#dcd8cc'); for (var x = 0; x < b.w; x += 4) { R(c, b.x + x, b.y, 2, 3, x % 8 ? P.white : P.red); R(c, b.x + x, b.y + 3, 2, 2, x % 8 ? P.red : P.white); } },
+      floor: function (c, b) { planksH(c, b.x, b.y + b.h - 7, b.w, 7, '#d9b88a', '#c4a070', 7); R(c, b.x, b.y + b.h - 7, b.w, 1, '#8a6a4a'); },
+      props: function (c, b, sc) { var wx = b.x + b.w - 20; disc(c, wx, b.y + 16, 7, P.green); disc(c, wx, b.y + 16, 4, '#f6f4ee'); [[-5, -3], [4, -5], [6, 3], [-3, 6]].forEach(function (q) { px(c, wx + q[0], b.y + 16 + q[1], P.red); }); R(c, wx - 1, b.y + 22, 3, 4, P.red);
+        var jx = b.x + 14; box(c, jx - 4, b.y + 18, 9, 10, '#cdeef0'); R(c, jx - 4, b.y + 17, 9, 2, P.silver); [[-3, P.white], [0, P.yellow], [3, P.white]].forEach(function (q) { R(c, jx + q[0], b.y + 11, 1, 7, P.green); disc(c, jx + q[0], b.y + 10, 1, q[1]); }); } },
+    stoner: { name: 'Stoner', desc: 'A cozy, trippy chill-out den: a tie-dye tapestry, a bead curtain, a lava lamp, a shag floor and a curl of incense.',
+      wall: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#3a2560'); for (var i = 0; i < 40; i++) px(c, b.x + (i * 29) % b.w, b.y + (i * 17) % (b.h - 8), i % 3 ? '#4a3278' : '#5a3a8a'); },
+      floor: function (c, b) { var y0 = b.y + b.h - 7; R(c, b.x, y0, b.w, 7, '#c86a3c'); for (var x = 0; x < b.w; x += 2) px(c, b.x + x, y0 + ((x * 7) % 5) + 1, x % 4 ? '#e08a52' : '#a8582f'); R(c, b.x, y0, b.w, 1, P.ink); },
+      props: function (c, b, sc) { var f = sc.f || 0, tx = b.x + 22, ty = b.y + 16; R(c, tx - 13, ty - 12, 27, 24, P.ink); ['#f5a3b5', P.orange, P.yellow, P.lime, P.cyan, P.blue].forEach(function (col, i) { disc(c, tx, ty, 11 - i * 2, col); }); R(c, tx - 13, ty - 12, 27, 2, P.bark); // a tie-dye tapestry
+        for (var s = 0; s < 6; s++) for (var y = b.y + 2; y < b.y + 34; y += 3) px(c, b.x + b.w - 30 + s * 3, y + (s % 2), [P.pink, P.yellow, P.cyan][(s + y) % 3]); // a bead curtain
+        var lx = b.x + b.w - 10, ly = b.y + b.h - 8; R(c, lx - 3, ly - 3, 7, 3, P.silver); R(c, lx - 2, ly - 17, 5, 14, '#ff6b9a'); R(c, lx - 1, ly - 19, 3, 2, P.silver); disc(c, lx, ly - 8 - Math.round(4 * Math.abs(Math.sin(f / 9))), 1, P.yellow); disc(c, lx, ly - 13 + Math.round(3 * Math.abs(Math.sin(f / 7))), 1, P.orange); // a lava lamp
+        R(c, b.x + 44, b.y + b.h - 12, 1, 5, P.bark); for (var k = 0; k < 3; k++) { var kk = (f + k * 5) % 15; c.globalAlpha = 1 - kk / 15; px(c, b.x + 44 + Math.round(Math.sin((f + k * 4) / 4) * 2), b.y + b.h - 13 - kk, P.silver); } c.globalAlpha = 1; } } // incense
+  };
+  CS.DESIGN_ORDER = ['shinto', 'desert', 'space', 'colonial', 'gothic', 'hiphop', 'roughcountry', 'cleancountry', 'stoner'];
+  function ownsDesign(id) { var sh = AIU.shop; return !!(sh && sh.owns && sh.owns('design-' + id)); }
+  CS.ownsDesign = ownsDesign;
+  function themed(c, t, B, sc, D) { // the room as usual, with design D wherever its plain walls and floor show
+    var n = Math.round((B.w + 4) / CW), w = B.w * SC, hh = B.h * SC;
+    function layer(fn) { var cv = mk(w, hh), x = cv.getContext('2d'); x.imageSmoothingEnabled = false; x.setTransform(SC, 0, 0, SC, -B.x * SC, -B.y * SC); fn(x); return cv; }
+    var full = layer(function (x) { drawRoom(x, t, B, sc); });
+    var plain = layer(function (x) { BG[t](x, B, sc); }); // (just its walls and floor)
+    var look = layer(function (x) { D.wall(x, B, sc); D.floor(x, B, sc); for (var i = 0; i < n; i++) { var e = { x: B.x + i * CW, y: B.y, w: Math.min(CW - 4, B.x + B.w - (B.x + i * CW)), h: B.h }; x.save(); x.beginPath(); x.rect(e.x, e.y, e.w, e.h); x.clip(); if (i % 2) { x.translate(e.x * 2 + e.w, 0); x.scale(-1, 1); } D.props(x, e, sc, t); x.restore(); } });
+    var fc = full.getContext('2d'), F = fc.getImageData(0, 0, w, hh), Pl = plain.getContext('2d').getImageData(0, 0, w, hh).data, Lk = look.getContext('2d').getImageData(0, 0, w, hh).data, d = F.data;
+    for (var i2 = 0; i2 < d.length; i2 += 4) if (d[i2] === Pl[i2] && d[i2 + 1] === Pl[i2 + 1] && d[i2 + 2] === Pl[i2 + 2]) { d[i2] = Lk[i2]; d[i2 + 1] = Lk[i2 + 1]; d[i2 + 2] = Lk[i2 + 2]; d[i2 + 3] = Lk[i2 + 3]; }
+    fc.putImageData(F, 0, 0); c.drawImage(full, B.x, B.y, B.w, B.h);
+  }
+  CS.previewDesign = function (id, type, scale) { // a little picture of a room in a design (for the shop and the design picker)
+    var t = type || 'living', B = { x: 0, y: 0, w: CW - 4, h: CH - 4 }, s = scale || 2, sc = { phase: 'day', f: 0, accent: P.red, season: 'summer', cos: {} };
+    var cv = document.createElement('canvas'); cv.width = B.w * s; cv.height = B.h * s; var c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
+    var tmp = mk(B.w * SC, B.h * SC), tc = tmp.getContext('2d'); tc.imageSmoothingEnabled = false; tc.setTransform(SC, 0, 0, SC, 0, 0);
+    if (id && CS.DESIGNS[id]) themed(tc, t, B, sc, CS.DESIGNS[id]); else drawRoom(tc, t, B, sc);
+    c.drawImage(tmp, 0, 0, cv.width, cv.height); return cv;
+  };
+
   /* ---------- Aiu himself: his own little animations in each room ---------- */
   function drawAiu(c, sc, cr, x, fy, o) { // his creature picture with feet at (x, fy). o: { flip, dy, eyes, shadow, noHat }
     o = o || {}; var f = sc.f || 0;
@@ -491,6 +571,16 @@
   // each one: where he stands in the room (from its left edge), what the status line says, the room, and how it's drawn (b = the room)
   var FL = function (b) { return b.y + b.h - 7; }; // the floor line
   var ANIM = {
+    icast: { x: 46, label: 'tossing the I Ching coins at his throne', room: 'hall', draw: function (c, b, sc, cr, f) { // 3.7: the daily toss, on the dais in front of his throne
+      var cs = sc.cast, fy = b.y + b.h - 16, t = cs ? cs.t : 0, p = drawAiu(c, sc, cr, b.x + 46, fy, { shadow: false, eyes: t >= 18 ? 'happy' : null, dy: cs && (t % 3) < 0.25 ? -2 : 0 });
+      if (!cs) return;
+      var sx = b.x + 62, sy = b.y + b.h - 44; R(c, sx - 1, sy - 1, 21, 24, P.ink); R(c, sx, sy, 19, 22, '#efe6cf'); R(c, sx, sy, 19, 1, P.wood); R(c, sx, sy + 21, 19, 1, P.wood); // the paper on its stand
+      var done = Math.min(6, Math.floor(t / 3) + ((t % 3) / 3 >= 0.6 ? 1 : 0));
+      for (var i = 0; i < done; i++) { var v = cs.vals[i], y = sy + 18 - i * 3, mv = v === 6 || v === 9, col = mv ? (t >= 18 && f % 6 < 3 ? P.orange : P.red) : P.ink; if (v === 7 || v === 9) R(c, sx + 3, y, 13, 2, col); else { R(c, sx + 3, y, 5, 2, col); R(c, sx + 11, y, 5, 2, col); } }
+      var li = t >= 18 ? 5 : Math.min(5, Math.floor(t / 3)), ph = t >= 18 ? 1 : (t % 3) / 3, heads = cs.vals[li] - 6;
+      for (var k = 0; k < 3; k++) { var cx = p.hx - 7 + k * 7, face = k < heads, cy = ph < 0.6 ? Math.round(p.top - 6 - Math.sin(ph / 0.6 * Math.PI) * 14 - k) : fy - 3;
+        if (ph < 0.6 && (f + k) % 2) R(c, cx - 2, cy, 4, 1, P.yellow); else { disc(c, cx, cy, 2, P.ink); disc(c, cx, cy, 1, face ? P.yellow : '#b5703f'); } }
+    } },
     throne: { x: 46, label: 'sitting on his throne', room: 'hall', draw: function (c, b, sc, cr, f) { var p = drawAiu(c, sc, cr, b.x + 46, b.y + b.h - 19, { shadow: false, eyes: f % 60 < 3 ? 'blink' : f % 120 < 40 ? 'happy' : null }); R(c, b.x + 37, b.y + b.h - 22, 18, 5, P.ink); R(c, b.x + 38, b.y + b.h - 21, 16, 3, sc.accent || P.red); if (f % 90 < 6) { px(c, p.hx - 7, p.top - 2, P.yellow); px(c, p.hx + 7, p.top - 4, P.white); } } },
     couch: { x: 22, label: 'relaxing on the couch', room: 'living', draw: function (c, b, sc, cr, f) { var p = drawAiu(c, sc, cr, b.x + 22, b.y + b.h - 20, { eyes: f % 50 < 3 ? 'blink' : 'happy', shadow: false }); if (f % 60 < 24) note(c, p.hx + 7, p.top, f); } },
     tv: { x: 22, label: 'watching TV', room: 'living', draw: function (c, b, sc, cr, f) { var tv = [P.sky, P.lime, P.pink, P.yellow][Math.floor(f / 6) % 4]; R(c, b.x + 63, b.y + b.h - 32, 22, 13, tv); R(c, b.x + 66 + (f % 8), b.y + b.h - 28, 6, 5, P.white); c.globalAlpha = 0.12; R(c, b.x + 8, b.y + b.h - 44, 80, 40, tv); c.globalAlpha = 1; drawAiu(c, sc, cr, b.x + 22, b.y + b.h - 20, { shadow: false, eyes: f % 40 < 2 ? 'blink' : 'open' }); } },
@@ -539,7 +629,7 @@
   CS.ANIM = ANIM;
   // what he's doing -> his animation (each list in order of preference: the first one whose room is built)
   var MAP = {
-    sleep: ['sleep'], cook: ['stir'], cookpan: ['stir'], hibachi: ['stir'], foodprep: ['chop'], tea: ['tea'], dishes: ['dishes'], eat: ['eat'], care_feed: ['eat'],
+    iching: ['icast'], sleep: ['sleep'], cook: ['stir'], cookpan: ['stir'], hibachi: ['stir'], foodprep: ['chop'], tea: ['tea'], dishes: ['dishes'], eat: ['eat'], care_feed: ['eat'],
     brushteeth: ['brush'], bath: ['soak'], laundry: ['laundry'],
     games: ['game', 'tv'], laptop: ['type', 'read'], journal: ['writelib', 'write', 'read'], read: ['readlib', 'read'], care_read: ['readlib', 'read'], birdwatch: ['window'],
     music: ['guitar', 'piano', 'couch'], paint: ['paint', 'couch'], pottery: ['pottery', 'knit'], sandcastle: ['sculpt', 'puzzle'], snowman: ['sculpt', 'puzzle'],
@@ -554,7 +644,7 @@
   }
   CS.animFor = animFor;
   // the things he does outside, and what has to be built first ('' = nothing)
-  var OUTSIDE = { hibachi: 'cart', iching: '', board: '', petbuddy: '', feedbuddy: '', waterbuddy: '', care_hug: '', fetch: '', fishing: 'pond', garden: 'garden', water: 'garden', stargaze: 'obs' };
+  var OUTSIDE = { hibachi: 'cart', board: '', petbuddy: '', feedbuddy: '', waterbuddy: '', care_hug: '', fetch: '', fishing: 'pond', garden: 'garden', water: 'garden', stargaze: 'obs' };
   function outsideAct(sc, L) {
     if (!sc.act || !(sc.act in OUTSIDE)) return false; var need = OUTSIDE[sc.act];
     if (need === 'obs') return !!L.obs;
@@ -562,8 +652,19 @@
     return !need || !!CS.hasOrn(L, need);
   }
   CS.outsideAct = outsideAct;
+  // 3.7: on some nights (about one in three, the same on every device) Aiu gets up after midnight and walks the bailey
+  // with a lantern for half an hour (00:05 to 00:35), then goes back to bed
+  var PATROL = [{ x: 30, row: -1 }, { x: 46, row: -5 }, { x: 150, row: -6 }, { x: 270, row: -5 }, { x: 290, row: -1 }, { x: 196, row: -1 }];
+  function patrolNow(sc) {
+    var a = app(); if (!a || !a.S || !sc.stage || sc.act !== 'sleep' || a.visit || a.casting) return null;
+    var now = new Date(a.trueNow()), m = now.getHours() * 60 + now.getMinutes(); if (m < 5 || m >= 35) return null;
+    if (U.hash32('patrol' + U.dayStr(now) + (a.S.egg && a.S.egg.id)) % 3) return null;
+    var i = Math.floor(Date.now() / 22000) % PATROL.length; return { x: PATROL[i].x, row: PATROL[i].row, i: i };
+  }
+  CS.patrolNow = patrolNow;
   CS.labelFor = function (sc, label) { // what the status line says he's doing (the castle's own words for his room animation)
     var a = app(); if (!a || !a.S || !sc.stage || !sc.act || sc.place !== 'home') return label;
+    if (patrolNow(sc)) return 'patrolling the bailey with a lantern';
     var L = CS.current(); if (outsideAct(sc, L)) return label;
     var k = animFor(sc, L); return ANIM[k] ? ANIM[k].label : label;
   };
@@ -728,7 +829,7 @@
     R(c, OX - 6, TOPY - 1, BLOCKS * CW + 12, BASE - TOPY + 1, P.ink); stoneFace(c, OX - 5, TOPY, BLOCKS * CW + 10, BASE - TOPY, S0);
     for (var f = 0; f < ROWS; f++) for (var bk = 0; bk < BLOCKS; bk++) {
       var t = own[f + ',' + bk];
-      if (t) { var rr = L.rooms[t]; if (rr.b !== bk) continue; var B = inner(f, bk, rr.w); R(c, B.x - 1, B.y - 1, B.w + 2, B.h + 2, P.ink); drawRoom(c, t, B, sc); arches(c, B, S0); continue; }
+      if (t) { var rr = L.rooms[t]; if (rr.b !== bk) continue; var B = inner(f, bk, rr.w); R(c, B.x - 1, B.y - 1, B.w + 2, B.h + 2, P.ink); var Dz = L.decor[t] && CS.DESIGNS[L.decor[t]]; if (Dz && ownsDesign(L.decor[t])) themed(c, t, B, sc, Dz); else drawRoom(c, t, B, sc); arches(c, B, S0); continue; }
       var e = inner(f, bk, 1); R(c, e.x - 1, e.y - 1, e.w + 2, e.h + 2, P.ink); c.save(); c.beginPath(); c.rect(e.x, e.y, e.w, e.h); c.clip(); emptyRoom(c, e, sc, S0, !CS.open(stage, f), f * 3 + bk * 7); c.restore(); arches(c, e, S0);
     }
     // between neighbors on a floor: a solid wall with a doorway, or an open archway (between two rooms, if you chose it)
@@ -802,6 +903,7 @@
       if (lm) return { x: lm.door.x, row: lm.row, key: 'v:' + lm.id, out: lm.row < 0 ? 1 : 0, visitRoom: lm.row >= 0, b: lm.row >= 0 ? lm.r : null };
     }
     if (!sc.stage) { var lb = roomBox(L, 'living'); return { x: lb.x + 50, row: L.rooms.living.f, key: 'egg', b: lb }; }
+    var pw = patrolNow(sc); if (pw) return { x: pw.x, row: pw.row, key: 'patrol:' + pw.i, out: 1, patrol: 1 };
     if (outsideAct(sc, L)) {
       if (sc.act === 'hibachi') return { x: A.CART_AT.x, row: -1, key: 'cart', cart: true, out: 1 };
       if (sc.act === 'stargaze') return { x: OBS.ax, row: -2, key: 'obs', out: 1 };
@@ -856,7 +958,7 @@
     return { x: tgt.x, y: floorY(tgt.row), row: tgt.row, walking: false, tgt: tgt, left: faceLeft };
   };
   CS.walking = function () { return !!walker.path; };
-  CS.outside = function () { return !walker.path && !!lastPos && lastPos.row === -1; }; // standing in the bailey (3.6.2: the I Ching toss waits for this)
+  CS.atCast = function () { return !walker.path && !!walker.tgt && walker.tgt.anim === 'icast'; }; // at his throne for the I Ching toss (3.7: the toss waits for this)
   CS.dropAt = function (p) { var row = p.y > BASE ? -1 : Math.max(0, Math.min(ROWS - 1, rowAt(p.y))); if (row >= 0 && blockAt(p.x) < 0) row = -1; walker.drop = { x: Math.max(OX + 6, Math.min((row >= 0 ? OX + BLOCKS * CW : W) - 8, p.x)), row: row }; };
   function oldAnchor(sc) { // where the old outdoor pictures put him (for what he still does with them: outside, tricks, the egg)
     if (!sc.stage) return { x: sc.spotX || (sc.indoor ? 104 : A.AIU_OUT), y: sc.indoor ? 100 : 97 };
@@ -897,7 +999,7 @@
     ctx.setTransform(SC, 0, 0, SC, 0, 0); ctx.imageSmoothingEnabled = false;
     var a = app(), S = a.S, L = setup(S); sc.stageNow = S ? S.stage : 0; sc.castle = true;
     var cos = sc.cos || {}, night = sc.phase === 'night' || sc.phase === 'dusk';
-    var key = [sc.biome, sc.season, sc.house, sc.accent, lastLay, CS.building ? 'b' : '', sc.stageNow, sc.phase, cos.wall && cos.wall.it && cos.wall.it.id, cos.rug && cos.rug.it && cos.rug.it.id, Math.floor((sc.f || 0) / 15) % 2].join('|');
+    var key = [sc.biome, sc.season, sc.house, sc.accent, lastLay, CS.DESIGN_ORDER.filter(ownsDesign).join(','), CS.building ? 'b' : '', sc.stageNow, sc.phase, cos.wall && cos.wall.it && cos.wall.it.id, cos.rug && cos.rug.it && cos.rug.it.id, Math.floor((sc.f || 0) / 15) % 2].join('|');
     if (stat.key !== key) { if (!stat.back || stat.bk !== sc.biome + sc.season) { stat.back = drawBack(sc); stat.bk = sc.biome + sc.season; } stat.front = drawFront(sc, L, CS.building); stat.key = key; }
     if (!layer) layer = big(W, H);
     var Lc = layer.getContext('2d'); Lc.setTransform(SC, 0, 0, SC, 0, 0); Lc.imageSmoothingEnabled = false; Lc.clearRect(0, 0, W, H);
@@ -931,7 +1033,7 @@
       if (aiu.ride && cr) { drawAiu(Lc, sc, cr, EX, aiu.y, { shadow: false }); car(Lc, aiu.y, true); } // riding the elevator
       else if (aiu.walking) WF.drawWalker(Lc, sc, { x: aiu.x, y: aiu.y }, aiu.left, 1, false);
       else if (tg.anim && !trick && cr) { clipB(tg.b); ANIM[tg.anim].draw(Lc, tg.b, sc, cr, sc.f || 0); Lc.restore(); }
-      else if (cr && !trick && (tg.visitRoom || (tg.out && !(sc.act in OUTSIDE)))) drawAiu(Lc, sc, cr, aiu.x, aiu.y, { flip: aiu.left, eyes: tg.visitRoom ? 'happy' : null });
+      else if (cr && !trick && (tg.visitRoom || tg.patrol || (tg.out && !(sc.act in OUTSIDE)))) drawAiu(Lc, sc, cr, aiu.x, aiu.y, { flip: aiu.left, eyes: tg.visitRoom ? 'happy' : null });
       else { clipB(tg.b); Lc.translate(lastMap.x, lastMap.y); IN.drawActor(Lc, Object.assign({}, sc, { walk: null })); Lc.restore(); } // the old pictures: outside acts, tricks, evolving
     } else if (aiu.ride) car(Lc, aiu.y, true);
     // the time of day: the sky, the hills and the courtyard darken; the furnished rooms stay lamp-lit
@@ -942,12 +1044,24 @@
       Lc.save(); Lc.globalCompositeOperation = 'source-atop'; Lc.globalAlpha = dim * 0.2; Object.keys(L.rooms).forEach(function (t) { var b = roomBox(L, t); R(Lc, b.x, b.y, b.w, b.h, P.ink); }); Lc.restore();
     }
     ctx.drawImage(layer, 0, 0, W, H);
+    stringLights(ctx, sc); // (after the dark, so they glow)
+    if (tg.patrol && sc.stage && !hideAiu) { var lx = Math.round(aiu.x + (aiu.left ? -7 : 7)), lyy = Math.round(aiu.y - 11); ctx.globalAlpha = 0.22; disc(ctx, lx, lyy, 14, P.yellow); ctx.globalAlpha = 0.35; disc(ctx, lx, lyy, 7, P.yellow); ctx.globalAlpha = 1; R(ctx, lx, lyy - 6, 1, 3, P.ink); box(ctx, lx - 2, lyy - 3, 5, 6, P.dark); R(ctx, lx - 1, lyy - 2, 3, 4, P.yellow); } // his lantern
     if (sc.stage) { var dof = droneOffset(sc); ctx.save(); ctx.translate(dof.x, dof.y); IN.drone(ctx, sc); ctx.restore(); }
     var wy = RIDGE - 4; IN.weather(ctx, sc, [0, 0, W / 2, wy]); IN.weather(ctx, sc, [W / 2, 0, W / 2, wy]); IN.weather(ctx, sc, [0, BASE + 7, W, H - BASE - 7]);
     if (sc.flash) { var rr = Math.round(10 + (1 - Math.min(1, sc.flash)) * 18); for (var sp = 0; sp < 12; sp++) { var an = sp / 12 * Math.PI * 2; px(ctx, Math.round(aiu.x + Math.cos(an) * rr), Math.round(aiu.y - 14 + Math.sin(an) * rr * 0.7), sp % 2 ? P.yellow : P.white); } }
     if (A.toyDraw) A.toyDraw(ctx, sc);
     if (CS.building) buildOverlay(ctx, sc, L);
   };
+  function stringLights(c, sc) { // 3.7: strings of little bulbs swagged along the bailey's palisade: lit and twinkling at night, off by day
+    var on = sc.phase === 'night' || sc.phase === 'dusk', f = sc.f || 0, cols = [P.yellow, P.pink, P.cyan, P.lime, P.orange];
+    [[BY - 14, 0, W], [FPY - 12, 0, DOORX - 18], [FPY - 12, DOORX + 18, W]].forEach(function (run) {
+      var y0 = run[0], span = 32;
+      for (var x0 = run[1]; x0 < run[2]; x0 += span) {
+        var x1 = Math.min(run[2], x0 + span), n = 0;
+        for (var x = x0; x <= x1; x++) { var k = (x - x0) / Math.max(1, x1 - x0), y = Math.round(y0 + Math.sin(k * Math.PI) * 5); px(c, x, y, P.ink); if ((x - x0) % 6 === 3) { var col = cols[(Math.floor(x / 6) + n) % cols.length], tw = on && (f + x * 7) % 23 !== 0; if (tw) { c.globalAlpha = 0.3; disc(c, x, y + 2, 3, col); c.globalAlpha = 1; } R(c, x, y + 1, 1, 2, tw ? col : P.slate); if (tw) px(c, x, y + 1, P.white); } }
+      }
+    });
+  }
   function buildOverlay(ctx, sc, L) {
     var t = Date.now() / 300, stg = sc.stageNow || 0;
     if (CS.moving && L.rooms[CS.moving]) { var r0 = roomBox(L, CS.moving); ctx.strokeStyle = P.yellow; ctx.lineWidth = 1; ctx.setLineDash([2, 2]); ctx.lineDashOffset = Math.floor(t) % 4; ctx.strokeRect(r0.x + 0.5, r0.y + 0.5, r0.w - 1, r0.h - 1); ctx.setLineDash([]);
@@ -1065,6 +1179,7 @@
       var back = (d.cost || 0) + (r.w - 1) * WIDEN; if (!confirm('Take out the ' + d.name.toLowerCase() + '? You get all its tokens back (' + back + ').')) return;
       close(); var n = Object.assign({}, L.rooms); delete n[t]; refund(back, t).then(function () { return CS.save({ rooms: n }); }).then(function () { k.snack('Removed. The chamber is empty again.'); });
     }, 'del'));
+    var dn = L.decor[t] && CS.DESIGNS[L.decor[t]] ? CS.DESIGNS[L.decor[t]].name : 'Default'; acts.push(k.btn('Design: ' + dn, function () { close(); CS.designSheet(t); })); // 3.7
     var sb = stairsBtn(L, f, cell, close); if (sb) acts.push(sb);
     s = k.sheet(d.name, [h('p', { text: d.desc }), h('p', { cls: 'small', text: (r.w * 4) + ' cells wide.' + (d.anchor ? ' The throne hall is the heart of the castle: it can widen, but it stays put.' : d.core ? ' One of the four first rooms: it can move and widen, but it stays.' : '') }), h('div', { cls: 'row wrap' }, acts)]);
   }
@@ -1121,6 +1236,20 @@
   }
   function obsSheet(L) { backSheet(L, CS.OBS, 'obs', 'obs', 'Built: the observatory. ' + app().S.totemName + ' will ride up to stargaze at night.'); }
   function millSheet(L) { backSheet(L, CS.ORN.windmill, 'mill', 'windmill', 'Built: the windmill, up on the hill.'); }
+  // 3.7: a room's design: Default and every design you own (bought at the Corner Mart), each with a little preview
+  CS.designSheet = function (t) {
+    var L = CS.current(), k = AIU.ui.k, h = U.h, s, cur = L.decor[t] || '', d0 = CS.ROOMS[t];
+    if (!d0 || !L.rooms[t]) return;
+    function pick(id) { s.remove(); var dc = Object.assign({}, L.decor); if (id) dc[t] = id; else delete dc[t]; CS.save({ decor: dc }).then(function () { app().beep('knock'); k.snack(d0.name + ': ' + (id ? CS.DESIGNS[id].name : 'Default') + ' design.'); }); }
+    var mine = [''].concat(CS.DESIGN_ORDER.filter(ownsDesign)), grid = h('div', { cls: 'dgrid' });
+    mine.forEach(function (id) {
+      var pic = CS.previewDesign(id, t, 1); pic.className = 'dprev';
+      grid.appendChild(h('button', { type: 'button', cls: 'dcell' + (id === cur ? ' on' : ''), onclick: function () { pick(id); }, 'aria-label': (id ? CS.DESIGNS[id].name : 'Default') + (id === cur ? ', in use' : '') }, pic, h('span', { text: (id ? CS.DESIGNS[id].name : 'Default') + (id === cur ? ' ✓' : '') })));
+    });
+    var more = CS.DESIGN_ORDER.length - mine.length + 1;
+    s = k.sheet(d0.name + ': design', [h('p', { cls: 'small', text: 'Tap a design to use it in this room. The room\'s furniture stays; its walls, floor and wall decor change.' }), grid,
+      h('div', { cls: 'row wrap' }, k.btn(more > 0 ? 'More designs at the Corner Mart (' + more + ')' : 'See them at the Corner Mart', function () { s.remove(); if (AIU.shop && AIU.shop.openShelf) AIU.shop.openShelf('design'); else AIU.ui.go('shop'); }))]);
+  };
   CS.roomInfo = function (type) { var d = CS.ROOMS[type]; return d ? d.name + ': ' + d.desc : ''; };
   CS.obsInfo = function () { return CS.OBS.name + ': ' + CS.OBS.desc; };
 })();

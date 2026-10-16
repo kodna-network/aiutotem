@@ -1392,3 +1392,10 @@ html .wicons .wicon.tokchip { background: #fff1c9; border: 3px solid #1a1c2c; pa
 :root[data-theme="dark"] .wpanel .ticker { background: #333c57; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wpanel .ticker { background: #333c57; } :root:not([data-theme="light"]) .wpanel .ticker::after { border-bottom-color: #333c57; } }
 :root[data-theme="dark"] .wpanel .ticker::after { border-bottom-color: #333c57; }
+/* 3.7: room designs (the Corner Mart's shelf and the room's design picker in build mode) */
+.dgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; margin: 8px 0; }
+.dcell { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border: 2px solid var(--line, #c9c2b0); border-radius: 8px; background: var(--card, #fff); font: inherit; color: inherit; cursor: pointer; }
+.dcell.on { border-color: var(--accent, #38b764); box-shadow: 0 0 0 2px rgba(56,183,100,0.25); }
+.dprev { width: 92px; height: 76px; image-rendering: pixelated; image-rendering: crisp-edges; border: 1px solid #1a1c2c; border-radius: 2px; }
+.dprevrow { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+.mdesc.mdesign { flex-direction: column; align-items: stretch; }

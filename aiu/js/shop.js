@@ -15,7 +15,7 @@
   var COL = { k: '#1a1c2c', r: '#b13e53', P: '#f5a3b5', o: '#ef7d57', y: '#ffcd75', l: '#a7f070', g: '#38b764', t: '#257179', n: '#29366f', b: '#3b5dc9', i: '#41a6f6', c: '#73eff7', w: '#f4f4f4', s: '#94b0c2', S: '#566c86', d: '#333c57', W: '#a0673e', B: '#6b3f2a', a: '#f2d59a', p: '#5d275d' };
 
   /* ---------- the catalog ---------- */
-  var SLOTS = [['week', 'This week', 'this week only'], ['treat', 'Treats', 'right now'], ['hat', 'Hats', 'Aiu'], ['face', 'Faces', 'Aiu'], ['pet', 'Pet', 'the pet'], ['gear', 'Pet gear', 'the pet'], ['yard', 'Yard', 'the yard'], ['wall', 'Wall art', 'the bedroom wall'], ['rug', 'Rugs', 'the living room']];
+  var SLOTS = [['week', 'This week', 'this week only'], ['treat', 'Treats', 'right now'], ['hat', 'Hats', 'Aiu'], ['face', 'Faces', 'Aiu'], ['pet', 'Pet', 'the pet'], ['gear', 'Pet gear', 'the pet'], ['yard', 'Yard', 'the yard'], ['wall', 'Wall art', 'the bedroom wall'], ['rug', 'Rugs', 'the living room'], ['design', 'Room designs', 'any room in the castle']];
   var SLOTNAME = {}; SLOTS.forEach(function (x) { SLOTNAME[x[0]] = x; });
   function frame(w, hh, inner) { return function (c) { c.fillStyle = COL.B; c.fillRect(0, 0, w, hh); c.fillStyle = COL.W; c.fillRect(1, 1, w - 2, hh - 2); inner(c, 2, 2, w - 4, hh - 4); }; }
   function fill(c, x, y, w, hh, k) { c.fillStyle = COL[k] || k; c.fillRect(x, y, w, hh); }
@@ -80,6 +80,14 @@
     { id: 'tr-snack', name: 'Fancy Pet Snack', price: 10, desc: 'A special treat: the pet\'s tummy fills right up.', rows: ['..BB..', '.BaaB.', 'BaaraB', 'BaaaaB', '.BBBB.'] }
   ];
   TREATS.forEach(function (it) { it.slot = 'treat'; it.treat = true; });
+  // 3.7: room designs (for any room in the castle: its walls, floor and wall decor; the furniture stays). Default is free.
+  var DPRICE = { shinto: 120, desert: 100, space: 150, colonial: 100, gothic: 130, hiphop: 120, roughcountry: 90, cleancountry: 90, stoner: 110 };
+  var CSd = AIU.castle && AIU.castle.DESIGNS ? AIU.castle : null;
+  function dIcon(id) { return function (c) { var pv = AIU.castle.previewDesign(id, 'living', 1); c.imageSmoothingEnabled = true; c.drawImage(pv, 0, 0, 23, 19); c.strokeStyle = COL.k; c.lineWidth = 1; c.strokeRect(0.5, 0.5, 22, 18); }; }
+  if (CSd) {
+    ITEMS.push({ id: 'design-default', slot: 'design', design: '', name: 'Default', price: 0, desc: 'Each room\'s own look, as it came. Always yours.', w: 23, hh: 19, draw: dIcon('') });
+    CSd.DESIGN_ORDER.forEach(function (id) { var d = CSd.DESIGNS[id]; ITEMS.push({ id: 'design-' + id, slot: 'design', design: id, name: d.name, price: DPRICE[id] || 100, desc: d.desc, w: 23, hh: 19, draw: dIcon(id) }); });
+  }
   var BYID = {}; ITEMS.concat(TREATS).forEach(function (it) { BYID[it.id] = it; });
   S0.ITEMS = ITEMS; S0.byId = function (id) { return BYID[id]; };
 
@@ -99,6 +107,21 @@
   function owned(S) { return Object.assign({}, FREE, (S && S.tokOwned) || {}); } // free things are yours from the start
   function worn(S) { var v = AIU.core.setting(S, 'cos', null); return v && typeof v === 'object' ? v : {}; }
   S0.worn = function () { return worn(app().S); };
+  S0.owns = function (id) { var a = app(); return !!(a && a.S && owned(a.S)[id]); }; // (3.7: the castle asks this for room designs)
+  S0.openShelf = function (cat) { M.view = 'buy'; M.cat = cat; M.sel = null; M.ask = null; M.say = null; ui.go('shop'); };
+  function roomsUsing(id) { var CS = AIU.castle; if (!CS) return []; var L = CS.current(); return Object.keys(L.rooms).filter(function (t) { return (L.decor[t] || '') === id; }); }
+  function useDesignSheet(it) { // which rooms wear this design: tap a room to put it on (or back to its own look)
+    var CS = AIU.castle, k = K(), s; if (!CS) return;
+    function draw() {
+      var L = CS.current(), rows = Object.keys(L.rooms).map(function (t) {
+        var cur = L.decor[t] || '', on = cur === it.design;
+        return h('button', { type: 'button', cls: 'qrow', onclick: function () { var dc = Object.assign({}, L.decor); if (on || !it.design) delete dc[t]; else dc[t] = it.design; CS.save({ decor: dc }).then(function () { GM_sfx('coin'); s.remove(); useDesignSheet(it); }); } },
+          h('span', { cls: 'qrtitle', text: (on ? '✓ ' : '') + CS.ROOMS[t].name }), h('span', { cls: 'small', text: on ? (it.design ? 'Wearing ' + it.name + ' (tap to go back to Default)' : 'Its own look') : 'Now: ' + (cur ? CS.DESIGNS[cur].name : 'Default') + ' (tap to use ' + it.name + ')' }));
+      });
+      return rows;
+    }
+    s = k.sheet(it.name + ': which rooms?', [h('p', { cls: 'small', text: 'Tap a room to give it this design. You can also pick a room\'s design in build mode: tap the room, then Design.' }), h('div', { cls: 'morelist' }, draw())]);
+  }
   // For the scene: the canvases of whatever is on (only things you own)
   S0.sceneBits = function (S) {
     var w = worn(S), o = owned(S), out = {};
@@ -116,7 +139,7 @@
     if (owned(S)[it.id]) return Promise.resolve('have');
     if ((S.tokens || 0) < it.price) return Promise.resolve('short');
     a.local.tbuyWatch = a.local.tbuyWatch || {}; a.local.tbuyWatch[it.id] = Date.now(); a.saveLocal(); // 2.6.0: watched until the server agrees
-    return a.addEvents([{ type: 'tbuy', data: { item: it.id, price: it.price } }]).then(function () { return wear(it.slot, it.id); }).then(function () { return 'ok'; });
+    return a.addEvents([{ type: 'tbuy', data: { item: it.id, price: it.price } }]).then(function () { return it.slot === 'design' ? null : wear(it.slot, it.id); }).then(function () { return 'ok'; });
   }
 
   function treat(it) {
@@ -241,7 +264,8 @@
       ITEMS.filter(function (it) { return it.slot === M.cat && (!it.weekly || O[it.id]) && (M.view === 'buy' || O[it.id]); }); // 2.6.0: specials stay on their own shelf until you own them
     if (!M.sel || !list.some(function (it) { return it.id === M.sel; })) M.sel = list.length ? list[0].id : null;
     var rows = list.map(function (it) {
-      var have = !it.treat && !!O[it.id], on = !it.treat && W0[it.slot] === it.id;
+      var have = !it.treat && !!O[it.id], on = !it.treat && it.slot !== 'design' && W0[it.slot] === it.id, nUse = it.slot === 'design' && have ? roomsUsing(it.design).length : 0;
+      if (it.slot === 'design' && M.view === 'mine') return { label: it.name, on: M.sel === it.id, icon: h('span', { cls: 'micon' }, S0.img(it, 3)), right: nUse ? nUse + (nUse === 1 ? ' room' : ' rooms') : '', aria: it.name, go: function () { M.sel = it.id; M.ask = null; M.say = null; ui.renderPanel(true); } };
       return { label: it.name, on: M.sel === it.id, dim: M.view === 'buy' && !have && tok < it.price, icon: h('span', { cls: 'micon' }, S0.img(it, 3)), right: M.view === 'buy' ? (have ? (on ? 'ON' : 'OWNED') : '◆' + it.price) : (on ? 'ON' : ''),
         aria: it.name + (have ? (on ? ', wearing it' : ', owned') : ', ' + it.price + ' tokens'), go: function () { M.sel = it.id; M.ask = null; M.say = null; ui.renderPanel(true); } };
     });
@@ -254,8 +278,10 @@
         if (tok < it.price) { M.say = 'Sorry! You need ' + (it.price - tok) + ' more tokens for that. Grow ' + S.totemName + ' and come back!'; GM_sfx('miss'); ui.renderPanel(true); return; }
         buyPop(it, function () { return (it.treat ? treat(it) : buy(it)).then(function (r) { GM_sfx(r === 'ok' ? 'coin' : 'miss'); return r === 'ok' ? (it.treat ? 'Here you are! Enjoy! (Go see it on World.)' : 'Here you are! Thank you! ' + S.totemName + ' put it on right away.') : r === 'short' ? 'Hmm, the wallet came up short.' : 'You already have that one!'; }); });
       }, 'primary'));
+      else if (it.slot === 'design') acts.appendChild(k.btn('Use in a room...', function () { useDesignSheet(it); }, 'primary')); // 3.7
       else acts.appendChild(k.btn(on ? 'Take it off' : (it.slot === 'yard' || it.slot === 'wall' || it.slot === 'rug' ? 'Put it out' : 'Wear it'), function () { wear(it.slot, on ? null : it.id).then(function () { M.say = on ? 'Put away.' : 'Looking good!'; ui.renderPanel(true); }); }, on ? '' : 'primary'));
-      p.appendChild(box('mdesc', [h('span', { cls: 'mbig' }, S0.img(it, 6)), h('div', { cls: 'col' }, h('b', { text: it.name }), h('p', { text: it.desc }), h('span', { cls: 'small', text: it.treat ? 'Used up when you buy it.' : it.weekly ? 'This week only (yours to keep).' : 'For ' + SLOTNAME[it.slot][2] + '.' }), acts)]));
+      if (it.slot === 'design' && AIU.castle) { var pv = h('div', { cls: 'dprevrow' }, ['living', 'kitchen', 'bedroom'].map(function (t) { var cv = AIU.castle.previewDesign(it.design, t, 1); cv.className = 'dprev'; return cv; })); p.appendChild(box('mdesc mdesign', [pv, h('div', { cls: 'col' }, h('b', { text: it.name + (it.design ? ' design' : '') }), h('p', { text: it.desc }), h('span', { cls: 'small', text: have ? (roomsUsing(it.design).length ? 'In: ' + roomsUsing(it.design).map(function (t) { return AIU.castle.ROOMS[t].name; }).join(', ') + '.' : 'Not in any room yet.') : 'Buy it once, use it in any room (the living room, kitchen and bedroom are shown).' }), acts)])); }
+      else p.appendChild(box('mdesc', [h('span', { cls: 'mbig' }, S0.img(it, 6)), h('div', { cls: 'col' }, h('b', { text: it.name }), h('p', { text: it.desc }), h('span', { cls: 'small', text: it.treat ? 'Used up when you buy it.' : it.weekly ? 'This week only (yours to keep).' : 'For ' + SLOTNAME[it.slot][2] + '.' }), acts)]));
     }
     p.appendChild(talkBox);
     p.appendChild(h('div', { cls: 'row wrap' }, k.btn('< Back', function () { M.view = 'menu'; M.sel = null; M.ask = null; M.say = null; ui.renderPanel(true); }, 'ghost'),

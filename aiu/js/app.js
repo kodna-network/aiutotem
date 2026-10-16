@@ -1018,10 +1018,10 @@
       if (AIU.ui.refresh) AIU.ui.refresh(true);
       setTimeout(done, dur);
     }
-    var CS = A.CASTLE && AIU.castle; if (!CS || !CS.outside) return toss();
-    // 3.6.2: in the castle he walks out to the bailey first, and the coins (and their clock) start once he's there (they used to start in his room)
+    var CS = A.CASTLE && AIU.castle; if (!CS || !CS.atCast) return toss();
+    // in the castle he walks to his throne first (3.7; it was the bailey in 3.6.2), and the coins (and their clock) start once he's there
     var t0 = Date.now(); app.castWalk = t0; app.forceAct = { id: 'iching', until: t0 + 90000 };
-    (function wait() { if (app.castWalk !== t0) return; if (CS.outside() || Date.now() - t0 > 60000) return toss(); if (!app.forceAct || app.forceAct.id !== 'iching') app.forceAct = { id: 'iching', until: Date.now() + 60000 }; setTimeout(wait, 200); })(); // (still on his way if you picked him up)
+    (function wait() { if (app.castWalk !== t0) return; if (CS.atCast() || Date.now() - t0 > 60000) return toss(); if (!app.forceAct || app.forceAct.id !== 'iching') app.forceAct = { id: 'iching', until: Date.now() + 60000 }; setTimeout(wait, 200); })(); // (still on his way if you picked him up)
   }
   app.autoCast = function () { // Aiu tosses the day's coins in the yard; the reading is saved when they land
     var S = app.S; if (!S || !S.hatched || app.casting || app.castWalk) return;

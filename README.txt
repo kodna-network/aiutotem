@@ -1,4 +1,4 @@
-AIU TOTEM 3.6.2 - install guide
+AIU TOTEM 3.7.0 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -18,6 +18,24 @@ ACCOUNTS
     aiu_data/accounts/<username> in DirectAdmin > File Manager (that account is gone for good), or set
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
+
+WHAT'S NEW IN 3.7.0 - ROOM DESIGNS
+  Upload: the whole aiu folder (api.php and api.cgi only changed their version).
+  - Room designs at the Corner Mart (a new Room designs shelf): Shinto (shoji screens, tatami, a paper lantern, a scroll,
+    a bonsai) 120, Desert (adobe, terracotta, a woven blanket, a cactus) 100, Space (metal panels, a porthole, console
+    lights) 150, Colonial (panelled wainscot, pine boards, a sconce, a portrait) 100, Gothic (dark stone, velvet, a
+    candelabra, red glass) 130, Hip Hop (brick and graffiti, a boombox, a gold record) 120, Rough Country (logs, barn
+    boards, a horseshoe, a lantern) 90, Clean Country (shiplap, light oak, gingham, daisies, a wreath) 90, Stoner (a
+    tie-dye tapestry, a bead curtain, a lava lamp, shag, incense) 110. Default is free.
+  - A design changes a room's walls, floor and wall decor; the room's own furniture stays. Buy once, use in any number
+    of rooms. The shop shows each design in three rooms; tap Use in a room to pick rooms. In build mode, tap a room
+    and then Design: Default and every design you own, each with a preview. My stuff > Room designs lists them all
+    with how many rooms use each.
+  - The I Ching toss happens at Aiu's throne in the throne hall now (the coins fly over his head, the hexagram fills
+    in on a paper beside him). He walks there first; the toss starts when he arrives.
+  - String lights along the bailey's palisade, lit and twinkling at night.
+  - On some nights (about one in three, the same on every device) Aiu gets up after midnight and patrols the bailey
+    with a lantern for half an hour, then goes back to bed.
 
 WHAT'S NEW IN 3.6.2
   Upload: the whole aiu folder (api.php and api.cgi only changed their version).

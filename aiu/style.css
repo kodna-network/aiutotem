@@ -1398,4 +1398,5 @@ html .wicons .wicon.tokchip { background: #fff1c9; border: 3px solid #1a1c2c; pa
 .dcell.on { border-color: var(--accent, #38b764); box-shadow: 0 0 0 2px rgba(56,183,100,0.25); }
 .dprev { width: 92px; height: 76px; image-rendering: pixelated; image-rendering: crisp-edges; border: 1px solid #1a1c2c; border-radius: 2px; }
 .dprevrow { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+.dprev.big { width: 184px; height: 152px; }
 .mdesc.mdesign { flex-direction: column; align-items: stretch; }

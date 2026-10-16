@@ -1,4 +1,4 @@
-AIU TOTEM 3.7.0 - install guide
+AIU TOTEM 3.8.2 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -18,6 +18,18 @@ ACCOUNTS
     aiu_data/accounts/<username> in DirectAdmin > File Manager (that account is gone for good), or set
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
+
+WHAT'S NEW IN 3.8.2 - THE GARAGE MOVES TO THE BAILEY
+  Upload: the whole aiu folder (api.php and api.cgi only changed their version).
+  - The garage is a bailey building now (90 tokens), not a castle room: a timber garage with Aiu's car and his tools.
+    He fixes the car and works out in front of it, and tapping it still opens the garage page. A garage you already
+    had in the castle moves to a free plot in the bailey by itself; if you'd widened it, the widening comes back as
+    tokens.
+  - A roomier bailey: six plots in three rows (it was four), and the spots along the front are spread out a little
+    more, with the pet's home spot by the lane so it doesn't stand in the garden.
+  - The pet's water: tap Water and a bowl goes down just in front of the pet, a little jug fills it, and the pet
+    drinks. (Before, the bowl was drawn in the wrong place in the castle and the water fell from the sky.) The bowl
+    stays put and is picked up after a few seconds; the pet waits by it while it's out.
 
 WHAT'S NEW IN 3.8.1
   Upload: the whole aiu folder (api.php and api.cgi only changed their version).
@@ -89,7 +101,7 @@ WHAT'S NEW IN 3.6.0 - THE BAILEY
     bridge runs down from the front door to the bailey's back gate.
   - The bailey: a yard fenced with a wooden palisade (back, sides and front), a trodden yard and a lane down the
     middle, the main gate with two little roofed posts, and a drawbridge over a ditch of water with reeds.
-  - Bailey buildings, on four plots inside the palisade: granary 70, cowshed 80 (two cows swishing their tails),
+  - Bailey buildings, on four plots inside the palisade (six since 3.8.2): granary 70, cowshed 80 (two cows swishing their tails),
     workshop 90 (a smithy: the forge glows, sparks fly, smoke curls from the chimney), stables 100 from Sprout
     (horses over their half-doors), barracks 120 from Sprout (shields and a spear rack, ready for the raids that
     come in a later version). Build mode: tap a plot's + to build, tap a building to move it or take it down (all

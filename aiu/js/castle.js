@@ -4,7 +4,7 @@
    above wherever you build them, and an elevator runs up a tower on the right (the observatory on top). Between two
    rooms: a solid wall with a doorway, or an open archway. Selling gives back exactly what you paid.
    Behind: mountains and a hillside (the creatures wander the ridge, the windmill stands up there). Below (3.6): the
-   castle stands on a motte; a flying bridge runs down to the bailey, a yard in a wooden palisade with four plots for its
+   castle stands on a motte; a flying bridge runs down to the bailey, a yard in a wooden palisade with six plots for its
    buildings (granary, cowshed, workshop, stables, barracks), six spots in front (board, food cart, well, pond and more),
    and the main gate with a drawbridge over the ditch.
    Aiu goes to the room for what he's doing, taking the stairs or the elevator (whichever is shorter), and does a little
@@ -21,8 +21,8 @@
 
   /* ---------- the grid: 5 floors (floor 0 = the ground floor) of 12 cells each; a room is a block of 4 cells and can be
      widened 4 cells at a time (up to the whole floor). The elevator runs up a tower on the right; staircases go anywhere. ---------- */
-  var W = 340, H = 760, SC = 3, OX = 26, CW = 96, CH = 80, CELL = 24, BLOCKS = 3, ROWS = 5, BASE = 504, SURF = BASE + 206, SW = 20;
-  var BY = BASE + 62, FPY = BASE + 222; // the bailey: its back palisade (at the foot of the motte) and its front palisade
+  var W = 340, H = 810, SC = 3, OX = 26, CW = 96, CH = 80, CELL = 24, BLOCKS = 3, ROWS = 5, BASE = 504, SURF = BASE + 256, SW = 20;
+  var BY = BASE + 62, FPY = BASE + 272; // the bailey: its back palisade (at the foot of the motte) and its front palisade
   var TOPY = BASE - ROWS * CH, TT = TOPY - 22, EX = OX + BLOCKS * CW + SW / 2, DOORX = OX + CW + CW / 2, WIDEN = 40, STAIRS = 20;
   var OBS = { x: EX - 2, y: TT, ax: EX - 18 };
   CS.W = W; CS.H = H; CS.SC = SC;
@@ -30,7 +30,7 @@
   function colX(b) { return OX + b * CW; }
   function cellRect(f, b) { return { x: colX(b), y: BASE - (f + 1) * CH, w: CW, h: CH }; }
   function inner(f, b, w) { var q = cellRect(f, b); return { x: q.x + 2, y: q.y + 2, w: (w || 1) * CW - 4, h: CH - 4 }; }
-  function floorY(f) { return f === -2 ? OBS.y : f === -3 ? BASE + 8 : f === -5 ? BASE + 112 : f === -6 ? BASE + 162 : f < 0 ? SURF : BASE - f * CH - 9; } // (-1 the front of the bailey, -3 the top of the flying bridge, -5 and -6 the bailey's back and middle rows)
+  function floorY(f) { return f === -2 ? OBS.y : f === -3 ? BASE + 8 : f === -5 ? BASE + 112 : f === -6 ? BASE + 162 : f === -7 ? BASE + 212 : f < 0 ? SURF : BASE - f * CH - 9; } // (-1 the front of the bailey, -3 the top of the flying bridge, -5 and -6 the bailey's back and middle rows)
   function rowAt(y) { return Math.floor((BASE - y) / CH); }
   function blockAt(x) { return x < OX || x >= OX + BLOCKS * CW ? -1 : Math.floor((x - OX) / CW); }
   var STX = OX - 11; // 3.8: the middle of the spiral-stair tower on the left of the castle
@@ -47,7 +47,6 @@
     bedroom: { name: 'Bedroom', core: 1, desc: 'His bed (from 10 pm), a lamp and a window full of sky.' },
     bath: { name: 'Bathroom', core: 1, desc: 'A clawfoot tub, the sink, his toothbrush and a rubber duck.' },
     office: { name: 'Office', cost: 0, stage: 0, desc: 'The computer: tap it for the mini-games (it\'s the only place to play them). The drone\'s dock. Free to build.' },
-    garage: { name: 'Garage', cost: 90, stage: 1, place: 'garage', desc: 'Aiu\'s little car, the tools and the weights. He works out and builds here.' },
     library: { name: 'Library', cost: 80, stage: 2, desc: 'Shelves of books, a reading chair and a globe. Aiu reads and writes here.' },
     greenhouse: { name: 'Greenhouse', cost: 120, stage: 2, place: 'greenhouse', desc: 'Hydroponics under LED grow lights: racks of greens, a water tank, a yoga mat.' },
     music: { name: 'Music room', cost: 100, stage: 2, desc: 'A piano, a guitar and a drum. Aiu plays here.' },
@@ -68,19 +67,20 @@
     statue: { name: 'Aiu statue', cost: 200, stage: 4, desc: 'A stone statue of Aiu, for the grown-up Totem.' }
   };
   CS.OBS = { name: 'Observatory', cost: 180, stage: 3, desc: 'A little domed telescope on top of the elevator tower. Aiu rides up to stargaze at night.' };
-  CS.SLOTS = { L1: 38, L2: 76, R1: 116, R2: 232, R3: 272, R4: 310 }; // three on each side of the front steps
+  CS.SLOTS = { L1: 30, L2: 74, R1: 118, R2: 228, R3: 272, R4: 314 }; // three on each side of the front steps
   var SIDE = { L1: 'a', L2: 'a', R1: 'a', R2: 'b', R3: 'b', R4: 'b' };
   CS.SLOT_ORDER = ['L1', 'L2', 'R1', 'R2', 'R3', 'R4'];
-  /* ---------- the bailey: the fenced yard below the motte (3.6). Four plots for its buildings, six spots in front ---------- */
+  /* ---------- the bailey: the fenced yard below the motte (3.6). Six plots for its buildings (3.8.2), six spots in front ---------- */
   CS.BAILEY = {
     barracks: { name: 'Barracks', cost: 120, stage: 2, desc: 'A long timber house with bunks, shields on the wall and a rack of spears (ready for the guards, when raids come in a later version).' },
     cowshed: { name: 'Cowshed', cost: 80, stage: 1, desc: 'A little shed and a pen with two cows swishing their tails.' },
     horses: { name: 'Stables', cost: 100, stage: 2, desc: 'Horses in their stalls, poking their heads out over the half-doors.' },
     smithy: { name: 'Workshop', cost: 90, stage: 1, desc: 'A smithy: the forge glows, the anvil rings, smoke curls out of the chimney.' },
+    garage: { name: 'Garage', cost: 90, stage: 1, desc: 'A timber garage for Aiu\'s little car, with his tools. He fixes the car and works out in front of it; tap it to look after his ride.' }, // 3.8.2: out of the castle, into the bailey
     granary: { name: 'Granary', cost: 70, stage: 1, desc: 'A storehouse up on stone feet (to keep the mice out), with sacks of grain by the door.' }
   };
-  CS.PLOTS = { B1: { x: 80, row: -5 }, B2: { x: 260, row: -5 }, B3: { x: 90, row: -6 }, B4: { x: 250, row: -6 } };
-  CS.PLOT_ORDER = ['B1', 'B2', 'B3', 'B4'];
+  CS.PLOTS = { B1: { x: 80, row: -5 }, B2: { x: 260, row: -5 }, B3: { x: 90, row: -6 }, B4: { x: 250, row: -6 }, B5: { x: 80, row: -7 }, B6: { x: 260, row: -7 } }; // (3.8.2: six plots, in three rows)
+  CS.PLOT_ORDER = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6'];
   function thatch(c, x, y, w, h) { // a thatched roof over x .. x+w, its eave at y, rising h
     for (var i = 0; i <= h; i++) { var inset = Math.round(i * (w * 0.18) / h); R(c, x + inset - 1, y - i, w - 2 * inset + 2, 1, P.ink); if (i) R(c, x + inset, y - i, w - 2 * inset, 1, i % 3 === 0 ? '#c9a24f' : '#e2bd62'); }
     for (var t = x + 3; t < x + w - 3; t += 4) px(c, t, y - 1, '#a8823a');
@@ -111,6 +111,13 @@
       R(c, x - 6, y - 5, 8, 2, P.ink); R(c, x - 4, y - 3, 4, 3, P.ink); if (f % 8 < 2) { px(c, x - 2, y - 8, P.yellow); px(c, x + 1, y - 9, P.white); px(c, x - 5, y - 8, P.yellow); } // the anvil (and sparks)
       box(c, x + 8, y - 10, 9, 10, P.bark, P.wood); R(c, x + 8, y - 6, 9, 1, P.ink); // a barrel
     },
+    garage: function (c, x, y, sc) { // 3.8.2: timber walls, a wide open door with his car inside, the tools (he works out on the clear spot to its right)
+      var acc = sc.accent || P.red; timber(c, x - 30, y, 52, 24); thatch(c, x - 34, y - 24, 60, 10);
+      R(c, x - 25, y - 20, 40, 20, P.ink); R(c, x - 24, y - 19, 38, 19, '#4a4058'); for (var d = 0; d < 3; d++) R(c, x - 24, y - 19 + d * 2, 38, 1, P.slate); // the open door, its roll-up shutter at the top
+      box(c, x - 21, y - 10, 30, 7, acc, null, P.plum); R(c, x - 16, y - 15, 18, 6, P.ink); R(c, x - 15, y - 14, 16, 5, acc); R(c, x - 13, y - 13, 5, 3, P.sky); R(c, x - 6, y - 13, 6, 3, P.sky); R(c, x + 7, y - 8, 2, 2, P.yellow); // the car
+      [-15, 3].forEach(function (u) { disc(c, x + u, y - 3, 3, P.ink); disc(c, x + u, y - 3, 1, P.silver); });
+      for (var t = 0; t < 3; t++) R(c, x + 10 + t * 2, y - 18, 1, 5, [P.silver, P.red, P.yellow][t]); // tools on the back wall
+    },
     granary: function (c, x, y, sc) {
       [-18, -4, 10].forEach(function (u) { R(c, x + u, y - 6, 6, 6, P.ink); R(c, x + u + 1, y - 5, 4, 5, P.silver); R(c, x + u - 1, y - 7, 8, 2, P.ink); R(c, x + u, y - 7, 6, 1, P.slate); }); // staddle stones
       timber(c, x - 24, y - 7, 46, 18); thatch(c, x - 28, y - 25, 54, 12); R(c, x - 4, y - 21, 8, 10, P.ink); R(c, x - 3, y - 20, 6, 9, P.bark);
@@ -138,6 +145,7 @@
     Object.keys(src.stairs || {}).forEach(function (k) { var mm = /^([0-3])(,\d+)?$/.exec(k); if (!mm) return; var v0 = src.stairs[k] === 2 ? 2 : 1, cur = out.stairs[mm[1]]; out.stairs[mm[1]] = cur === 1 || v0 === 1 ? 1 : 2; }); // 3.8: a flight of the spiral stair per floor (a 3.5-3.7 staircase moves into the tower)
     var oseen = {}; CS.SLOT_ORDER.forEach(function (sl) { var t = (src.orn || {})[sl]; if (t === 'windmill') { out.mill = true; t = null; } out.orn[sl] = CS.ORN[t] && !oseen[t] ? t : null; if (out.orn[sl]) oseen[t] = 1; });
     var bseen = {}; out.bailey = {}; CS.PLOT_ORDER.forEach(function (pl) { var t = (src.bailey || {})[pl]; out.bailey[pl] = CS.BAILEY[t] && !bseen[t] ? t : null; if (out.bailey[pl]) bseen[t] = 1; });
+    if ((src.rooms || {}).garage && !bseen.garage) { var gp = CS.PLOT_ORDER.filter(function (pl) { return !out.bailey[pl]; })[0]; if (gp) out.bailey[gp] = 'garage'; } // 3.8.2: the garage moved from the castle to the bailey
     ['board', 'cart'].forEach(function (t) { if (!oseen[t]) { var sl = CS.SLOT_ORDER.filter(function (x) { return !out.orn[x]; })[0]; if (sl) { out.orn[sl] = t; oseen[t] = 1; } } });
     if (!(src.v >= 4)) wellByPond(out.orn);
     return out;
@@ -302,19 +310,6 @@
       box(c, b.x + 22, b.y + b.h - 27, 10, 10, P.red); R(c, b.x + 26, b.y + b.h - 17, 2, 9, P.ink); R(c, b.x + 22, b.y + b.h - 8, 10, 1, P.ink);
       plant(c, b.x + 84, b.y + b.h - 14);
     },
-    garage: function (c, b, sc) {
-      var acc = sc.accent || P.red; R(c, b.x, b.y, b.w, b.h, '#a9b4c2'); grid(c, b.x, b.y, b.w, b.h - 7, '#9aa6b5', 8); R(c, b.x, b.y + b.h - 7, b.w, 7, P.dark); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); ell(c, b.x + 30, b.y + b.h - 3, 7, 1, P.ink);
-      // the pegboard and its tools
-      box(c, b.x + 4, b.y + 6, 30, 18, '#c9a77a'); for (var t = 0; t < 5; t++) { R(c, b.x + 8 + t * 5, b.y + 9, 1, 11, [P.silver, P.red, P.silver, P.yellow, P.blue][t]); R(c, b.x + 7 + t * 5, b.y + 9, 3, 2, P.dark); }
-      // the little car
-      box(c, b.x + 6, b.y + b.h - 22, 46, 12, acc, null, P.plum); R(c, b.x + 14, b.y + b.h - 31, 28, 10, P.ink); R(c, b.x + 15, b.y + b.h - 30, 26, 9, acc); R(c, b.x + 17, b.y + b.h - 29, 9, 6, P.sky); R(c, b.x + 29, b.y + b.h - 29, 10, 6, P.sky); R(c, b.x + 18, b.y + b.h - 28, 2, 3, P.white);
-      R(c, b.x + 48, b.y + b.h - 19, 4, 3, P.yellow); R(c, b.x + 6, b.y + b.h - 19, 3, 3, P.red);
-      [15, 43].forEach(function (u) { disc(c, b.x + u, b.y + b.h - 10, 5, P.ink); disc(c, b.x + u, b.y + b.h - 10, 3, P.slate); px(c, b.x + u, b.y + b.h - 10, P.silver); });
-      // the weight rack, a barbell, a bench, the roll-up door
-      R(c, b.x + 66, b.y + b.h - 32, 2, 25, P.ink); R(c, b.x + 86, b.y + b.h - 32, 2, 25, P.ink); R(c, b.x + 64, b.y + b.h - 30, 26, 2, P.silver); disc(c, b.x + 65, b.y + b.h - 29, 4, P.ink); disc(c, b.x + 89, b.y + b.h - 29, 4, P.ink);
-      box(c, b.x + 70, b.y + b.h - 14, 14, 4, P.dark); R(c, b.x + 72, b.y + b.h - 10, 2, 3, P.ink); R(c, b.x + 80, b.y + b.h - 10, 2, 3, P.ink);
-      box(c, b.x + 56, b.y + 4, 32, 18, P.slate, P.silver); for (var d = 0; d < 5; d++) R(c, b.x + 57, b.y + 7 + d * 3, 30, 1, P.dark);
-    },
     greenhouse: function (c, b, sc) {
       R(c, b.x, b.y, b.w, b.h, '#1f3b33'); grid(c, b.x, b.y, b.w, b.h, '#27493f', 8); R(c, b.x, b.y + b.h - 7, b.w, 7, P.dark); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink);
       var glow = (sc.f || 0) % 30 < 15; // the LED grow bars: pink and white light
@@ -392,7 +387,6 @@
     bedroom: function (c, b) { stripes(c, b.x, b.y, b.w, b.h, '#d6c6ef', '#c7b2ea', 6, 2); floorBand(c, b, '#a993d6', P.white); },
     bath: function (c, b) { R(c, b.x, b.y, b.w, b.h, P.white); grid(c, b.x, b.y, b.w, 30, '#dce8f0', 6); R(c, b.x, b.y + 30, b.w, b.h - 37, '#8fe3ea'); grid(c, b.x, b.y + 30, b.w, b.h - 37, '#7fd6de', 6); R(c, b.x, b.y + 30, b.w, 1, P.sky); tiles(c, b.x, b.y + b.h - 7, b.w, 7, P.white, P.silver, 4); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
     office: function (c, b) { stripes(c, b.x, b.y, b.w, b.h, '#cad9ea', '#bccde2', 8, 1); floorBand(c, b, P.slate, P.silver); },
-    garage: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#a9b4c2'); grid(c, b.x, b.y, b.w, b.h - 7, '#9aa6b5', 8); R(c, b.x, b.y + b.h - 7, b.w, 7, P.dark); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
     greenhouse: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#1f3b33'); grid(c, b.x, b.y, b.w, b.h, '#27493f', 8); R(c, b.x, b.y + b.h - 7, b.w, 7, P.dark); R(c, b.x, b.y + b.h - 7, b.w, 1, P.ink); },
     library: function (c, b) { planks(c, b.x, b.y, b.w, b.h - 7, '#8a5634', '#734429'); floorBand(c, b, '#6b3f2a', P.ink); R(c, b.x, b.y + b.h - 6, b.w, 2, P.plum); },
     music: function (c, b) { R(c, b.x, b.y, b.w, b.h, '#5d4a7a'); for (var j = 0; j < b.h - 8; j += 6) for (var i = (j / 6 % 2) * 3; i < b.w; i += 6) R(c, b.x + i, b.y + j, 3, 3, '#6e5a8c'); floorBand(c, b, P.wood, P.bark); },
@@ -431,11 +425,6 @@
       box(c, e.x + 8, e.y + e.h - 30, 16, 23, P.slate, P.silver); [0, 1, 2].forEach(function (i) { R(c, e.x + 9, e.y + e.h - 22 + i * 7, 14, 1, P.dark); R(c, e.x + 14, e.y + e.h - 27 + i * 7, 4, 1, P.silver); }); // a filing cabinet
       box(c, e.x + 40, e.y + e.h - 24, 40, 4, P.wood, P.sand); R(c, e.x + 42, e.y + e.h - 20, 2, 13, P.bark); R(c, e.x + 76, e.y + e.h - 20, 2, 13, P.bark); box(c, e.x + 52, e.y + e.h - 34, 16, 10, P.white, null, P.silver); R(c, e.x + 55, e.y + e.h - 36, 10, 2, P.white); // a desk with a printer
       ell(c, e.x + 86, e.y + e.h - 11, 8, 5, P.ink); ell(c, e.x + 86, e.y + e.h - 11, 7, 4, P.orange); ell(c, e.x + 84, e.y + e.h - 13, 3, 1, P.yellow); // a beanbag
-    },
-    garage: function (c, e, sc) {
-      box(c, e.x + 6, e.y + e.h - 26, 40, 5, P.wood, P.sand); R(c, e.x + 8, e.y + e.h - 21, 3, 14, P.bark); R(c, e.x + 41, e.y + e.h - 21, 3, 14, P.bark); box(c, e.x + 12, e.y + e.h - 32, 8, 6, P.slate); box(c, e.x + 26, e.y + e.h - 30, 14, 4, P.red, P.pink); // a workbench, a vise, a toolbox
-      box(c, e.x + 8, e.y + 6, 36, 14, '#c9a77a'); for (var t = 0; t < 6; t++) R(c, e.x + 11 + t * 5, e.y + 9, 1, 8, [P.silver, P.red, P.silver, P.yellow, P.blue, P.silver][t]);
-      [58, 80].forEach(function (u) { disc(c, e.x + u, e.y + e.h - 14, 6, P.ink); disc(c, e.x + u, e.y + e.h - 14, 4, P.silver); px(c, e.x + u, e.y + e.h - 14, P.ink); }); line(c, e.x + 58, e.y + e.h - 14, e.x + 68, e.y + e.h - 24, P.blue); line(c, e.x + 68, e.y + e.h - 24, e.x + 80, e.y + e.h - 14, P.blue); line(c, e.x + 66, e.y + e.h - 24, e.x + 72, e.y + e.h - 24, P.blue); R(c, e.x + 64, e.y + e.h - 26, 4, 2, P.ink); R(c, e.x + 76, e.y + e.h - 28, 1, 6, P.ink); // a bicycle
     },
     greenhouse: function (c, e, sc) {
       var glow = (sc.f || 0) % 30 < 15; R(c, e.x + 6, e.y + 4, 80, 3, P.ink); R(c, e.x + 7, e.y + 5, 78, 1, glow ? '#ff7ad9' : '#f5a3e4'); c.globalAlpha = 0.12; R(c, e.x + 6, e.y + 7, 80, 32, '#ff7ad9'); c.globalAlpha = 1;
@@ -479,7 +468,7 @@
   function planksH(c, x, y, w, h, a, bb, step) { R(c, x, y, w, h, a); for (var j = 0; j < h; j += step) { R(c, x, y + j, w, 1, bb); for (var i = (j * 13) % 29; i < w; i += 29) R(c, x + i, y + j, 1, step, bb); } }
   /* 3.8: each design hangs one piece of its own, sized to fit the room's empty bit of wall (SPOT), so it never hides
      behind (or pokes out from behind) the room's furniture. Spots are [x, y, w, h] in the room's first chamber. */
-  var SPOT = { bedroom: [38, 15, 32, 26], bath: [3, 4, 30, 26], music: [3, 4, 30, 26], lab: [41, 3, 32, 26], garage: [35, 22, 32, 19], stable: [56, 21, 30, 19] }; // 3.8.1: only rooms with a big clear wall get a piece (the busy ones keep just the walls and floor)
+  var SPOT = { bedroom: [38, 15, 32, 26], bath: [3, 4, 30, 26], music: [3, 4, 30, 26], lab: [41, 3, 32, 26], stable: [56, 21, 30, 19] }; // 3.8.1: only rooms with a big clear wall get a piece (the busy ones keep just the walls and floor)
   function roomy(s) { return { x: s.x + 4, y: s.y + 3, w: s.w - 8, h: s.h - 6 }; } // keep clear of what's around it
   function fit(s, w, h) { w = Math.min(w, s.w - 2); h = Math.min(h, s.h - 2); return { x: Math.round(s.x + (s.w - w) / 2), y: Math.round(s.y + (s.h - h) / 2), w: w, h: h }; }
   var DECOR = {
@@ -677,9 +666,12 @@
     yoga: ['yoga', 'window'], garden: ['water', 'fishtank'], water: ['water', 'fishtank'], chickens: ['hens', 'fishtank'], fishing: ['fishtank'], stargaze: ['window'],
     tv: ['tv'], knit: ['knit'], puzzle: ['puzzle'], bubbles: ['bubbles'], tidy: ['sweep'], kite: ['ball'], butterfly: ['window'], ball: ['ball'], bugnet: ['ball'], newborn: ['look'], fetch: ['ball']
   };
+  function garagePlot(L) { return CS.PLOT_ORDER.filter(function (q) { return L.bailey[q] === 'garage'; })[0] || null; }
+  function roomOK(L, room) { return room === 'garage' ? !!garagePlot(L) : CS.has(L, room); } // (3.8.2: the garage is in the bailey)
+  function garageBox(L) { var p = CS.PLOTS[garagePlot(L)], fy = floorY(p.row); return { x: p.x - 50, y: fy - 69, w: 92, h: 76 }; } // a room-sized box in front of it, so his garage pictures line up
   function animFor(sc, L) { // -> an ANIM key whose room is built
     var idle = ['throne', 'couch', 'tv', 'fishtank'], cands = (MAP[sc.act] || []).concat(sc.act ? [] : idle.slice(Math.floor((sc.tsec || 0) / 300) % idle.length)).concat(['couch']);
-    for (var i = 0; i < cands.length; i++) { var a0 = ANIM[cands[i]]; if (a0 && CS.has(L, a0.room)) return cands[i]; }
+    for (var i = 0; i < cands.length; i++) { var a0 = ANIM[cands[i]]; if (a0 && roomOK(L, a0.room)) return cands[i]; }
     return 'couch';
   }
   CS.animFor = animFor;
@@ -694,7 +686,7 @@
   CS.outsideAct = outsideAct;
   // 3.7: on some nights (about one in three, the same on every device) Aiu gets up after midnight and walks the bailey
   // with a lantern for half an hour (00:05 to 00:35), then goes back to bed
-  var PATROL = [{ x: 50, row: -1 }, { x: 66, row: -5 }, { x: 170, row: -6 }, { x: 290, row: -5 }, { x: 310, row: -1 }, { x: 216, row: -1 }];
+  var PATROL = [{ x: 50, row: -1 }, { x: 66, row: -5 }, { x: 170, row: -6 }, { x: 60, row: -7 }, { x: 290, row: -5 }, { x: 280, row: -7 }, { x: 310, row: -1 }, { x: 216, row: -1 }];
   function patrolNow(sc) {
     var a = app(); if (!a || !a.S || !sc.stage || sc.act !== 'sleep' || a.visit || a.casting) return null;
     var now = new Date(a.trueNow()), m = now.getHours() * 60 + now.getMinutes(); if (m < 5 || m >= 35) return null;
@@ -929,7 +921,7 @@
     R(c, 0, BASE + 7, W, 2, 'rgba(255,255,255,0.18)'); c.globalAlpha = 0.25; R(c, 0, BY - 6, W, 6, P.ink); c.globalAlpha = 1; // the brow of the mound and the shadow at its foot
     for (var rk = 0; rk < 9; rk++) { var rx0 = Math.floor(r() * W), ry0 = BASE + 16 + Math.floor(r() * 34); if (Math.abs(rx0 - DOORX) > 18) { ell(c, rx0, ry0, 3, 2, S0.frame2); ell(c, rx0 - 1, ry0 - 1, 2, 1, S0.frame); px(c, rx0 - 2, ry0 - 1, P.white); } } // stones in the grass
     R(c, 0, BY, W, FPY - BY, g[0]); for (var f0 = 0; f0 < 120; f0++) px(c, Math.floor(r() * W), BY + 2 + Math.floor(r() * (FPY - BY - 4)), g[1]);
-    ell(c, DOORX, BY + 92, 112, 70, dirt); ell(c, DOORX, BY + 92, 100, 62, dirt2); ell(c, DOORX, BY + 92, 96, 58, dirt); // the trodden yard
+    ell(c, DOORX, BY + 112, 118, 92, dirt); ell(c, DOORX, BY + 112, 106, 84, dirt2); ell(c, DOORX, BY + 112, 102, 80, dirt); // the trodden yard
     for (var ln = BY; ln < FPY; ln += 3) R(c, DOORX - 9, ln, 18, 2, (ln % 6) ? dirt2 : dirt); // the lane from the back gate to the main gate
     if (sc.season !== 'winter' && sc.biome !== 'desert' && sc.biome !== 'tundra') for (var fl = 0; fl < 18; fl++) { var fx0 = 14 + Math.floor(r() * (W - 28)), fy0 = BY + 6 + Math.floor(r() * (FPY - BY - 12)); if (Math.abs(fx0 - DOORX) > 60 || fy0 > BY + 150) px(c, fx0, fy0, [P.pink, P.yellow, P.white][fl % 3]); }
     function stakes(x0, x1, base, tall, gapA, gapB) { for (var sx = x0; sx < x1; sx += 4) { if (sx + 3 > gapA && sx < gapB) continue; R(c, sx, base - tall, 4, tall, P.ink); R(c, sx + 1, base - tall + 2, 2, tall - 2, (sx / 4) % 2 ? P.wood : '#9a6b45'); px(c, sx + 1, base - tall + 1, P.wood); px(c, sx + 2, base - tall, P.ink); } R(c, x0, base - Math.round(tall * 0.6), x1 - x0, 1, P.bark); }
@@ -998,8 +990,14 @@
 
   /* ---------- where things are: set up each time the layout changes ---------- */
   var lastLay = '', LAY = null;
+  var moved = false;
+  function moveGarage(S, L) { // 3.8.2: once: the castle garage is now in the bailey; any widening it had comes back as tokens
+    var v = S && C.setting(S, 'castle', null), g = v && v.rooms && v.rooms.garage; if (!g || moved) return; moved = true;
+    var back = Math.max(0, ((g.w | 0) || 1) - 1) * WIDEN;
+    setTimeout(function () { (back ? refund(back, 'garage moved') : Promise.resolve()).then(function () { return CS.save({ rooms: L.rooms, bailey: L.bailey }); }); }, 0);
+  }
   function setup(S) {
-    var L = CS.layout(S), key = JSON.stringify(L); if (key === lastLay && LAY) return LAY; lastLay = key; LAY = L;
+    var L = CS.layout(S), key = JSON.stringify(L); moveGarage(S, L); if (key === lastLay && LAY) return LAY; lastLay = key; LAY = L;
     A.BOARD_P = null; A.CART_P = null;
     CS.SLOT_ORDER.forEach(function (sl) {
       var t = L.orn[sl], x = CS.SLOTS[sl];
@@ -1035,8 +1033,8 @@
       if (sl && CS.SLOTS[sl]) return { x: CS.SLOTS[sl] + (CS.SLOTS[sl] < DOORX ? 22 : -24), row: -1, key: 'o:' + sc.act, out: 1 };
       return { x: OUT_SPOT.x, row: -1, key: 'out:' + sc.act, out: 1 };
     }
-    var an = animFor(sc, L), A0 = ANIM[an], B = roomBox(L, A0.room);
-    return { x: B.x + A0.x, row: L.rooms[A0.room].f, key: 'in:' + an + ':' + B.x + ',' + B.y, anim: an, room: A0.room, b: B };
+    var an = animFor(sc, L), A0 = ANIM[an], inG = A0.room === 'garage', B = inG ? garageBox(L) : roomBox(L, A0.room);
+    return { x: B.x + A0.x, row: inG ? CS.PLOTS[garagePlot(L)].row : L.rooms[A0.room].f, key: 'in:' + an + ':' + B.x + ',' + B.y, anim: an, room: A0.room, b: B };
   }
   var walker = { pos: null, path: null, start: 0, dur: 0, len: 0, key: '', tgt: null, drop: null }, lift = { y: floorY(0) };
   function segLen(a0, b0) { return b0.ride ? Math.abs(b0.y - a0.y) * 0.7 : Math.abs(b0.x - a0.x) + Math.abs(b0.y - a0.y) * 1.4; }
@@ -1046,7 +1044,7 @@
     var lifts = [0, 1, 2, 3, 4, -2].map(function (lv) { return node(lv, EX); });
     lifts.forEach(function (a0, i) { lifts.forEach(function (b0, j) { if (i !== j) E.push({ a: a0, b: b0, k: 'ride' }); }); });
     Object.keys(L.stairs).forEach(function (k) { var f = +k, a0 = node(f, STX), b0 = node(f + 1, STX); E.push({ a: a0, b: b0, k: 'stairs' }, { a: b0, b: a0, k: 'stairs' }); }); // (the spiral stair in the tower)
-    var lane = [0, -3, -5, -6, -1].map(function (lv) { return node(lv, DOORX); }); for (var li = 1; li < lane.length; li++) E.push({ a: lane[li - 1], b: lane[li], k: 'steps' }, { a: lane[li], b: lane[li - 1], k: 'steps' }); // out the front door, down the flying bridge and the bailey's lane
+    var lane = [0, -3, -5, -6, -7, -1].map(function (lv) { return node(lv, DOORX); }); for (var li = 1; li < lane.length; li++) E.push({ a: lane[li - 1], b: lane[li], k: 'steps' }, { a: lane[li], b: lane[li - 1], k: 'steps' }); // out the front door, down the flying bridge and the bailey's lane
     var pt = function (i) { return { x: N[i].x, y: floorY(N[i].lv) }; };
     var dist = N.map(function () { return Infinity; }), prev = N.map(function () { return null; }), done = {}; dist[0] = 0;
     for (;;) {
@@ -1101,7 +1099,7 @@
   /* ---------- the pet: in the courtyard, out of Aiu's way; at night at the foot of his bed ---------- */
   var HOMEBOUND = /^(care_|petbuddy|feedbuddy|waterbuddy|fetch|ride|board)/;
   function petAt(sc, aiu) {
-    var b = A.buddyOf(sc.soul, sc.buddy), PLY = AIU.play, home = { x: DOORX + 46, y: SURF }, care = sc.act && HOMEBOUND.test(sc.act), L = CS.current();
+    var b = A.buddyOf(sc.soul, sc.buddy), PLY = AIU.play, home = { x: DOORX + 28, y: SURF }, care = sc.act && HOMEBOUND.test(sc.act), L = CS.current();
     var stay = A.POSTED[b] || care || sc.phase === 'night' || (PLY && PLY.active && PLY.active()) || (sc.bplay && sc.bplay.a); // (3.6.2: the pet stays in the bailey, day and night; at night it rests at home by the steps)
     var p = home, left = false;
     if (!stay) { var w = WF.wanderAt('cbuddy' + (sc.soul || 0), sc.tsec * 0.8, DOORX + 34, W - 12, 0, 0, 1); p = { x: Math.round(w.x), y: SURF }; left = w.left; }
@@ -1328,7 +1326,7 @@
         s.remove(); pay(d.cost, 'bailey:' + t, function () { var b2 = Object.assign({}, L.bailey); b2[pl] = t; CS.save({ bailey: b2 }).then(function () { a.beep('coin'); a.react('happy'); k.snack('Built in the bailey: ' + d.name + '.'); }); });
       }));
     });
-    s = k.sheet('Build in the bailey', [h('p', { cls: 'small', text: 'You have ' + (S.tokens || 0) + ' tokens. Four plots inside the palisade; each building is one of a kind, and you get all its tokens back if you take it down.' }), list]);
+    s = k.sheet('Build in the bailey', [h('p', { cls: 'small', text: 'You have ' + (S.tokens || 0) + ' tokens. Six plots inside the palisade; each building is one of a kind, and you get all its tokens back if you take it down.' }), list]);
   }
   function baileySheet(L, pl, t) {
     var k = AIU.ui.k, h = U.h, d = CS.BAILEY[t], s;

@@ -350,8 +350,9 @@
     if (at && at.left) { L.save(); L.translate(feetX * 2, 0); L.scale(-1, 1); }
     L.drawImage(bcv, feetX - 60 * s, feetY - 70 * s, 120 * s, 80 * s);
     if (at && at.left) L.restore();
-    if (hd && hd !== saveHead) A.buddyHead = { x: (feetX + (hd.x - (BX + 11)) * s) - YO.x, y: (feetY + (hd.y - BY) * s) - YO.y, mx: hd.mx }; // in old yard pixels, for the treats
+    if (hd && hd !== saveHead) A.buddyHead = { x: (feetX + (hd.x - (BX + 11)) * s * (at && at.left ? -1 : 1)) - YO.x, y: (feetY + (hd.y - BY) * s) - YO.y, mx: hd.mx }; // in old yard pixels, for the treats
     A.buddyFeetP = { x: feetX, y: feetY, s: s, b: b };
+    A.buddyFeet = { x: feetX - YO.x, y: feetY - YO.y, left: !!(at && at.left) }; // (3.8.2: where it stands, in the same pixels as buddyHead: for its water bowl)
   }
   A.buddyRectP = function (sc) { var f0 = A.buddyFeetP; if (!f0) return null; var s = f0.s, tall = A.POSTED[f0.b] ? 12 : 0; return { x: f0.x - 20 * s, y: f0.y - (38 + tall) * s, w: 40 * s, h: (42 + tall) * s }; };
 

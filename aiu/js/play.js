@@ -40,6 +40,8 @@
   };
   function trick() { var l = ['jump', 'spin', 'roll', 'dance'].filter(function (x) { return x !== lastTrick; }), t = l[Math.floor(Math.random() * l.length)]; lastTrick = t; act(t); app().beep('chirp'); return t; }
   function head() { var hd = A.buddyHead; return hd ? { x: hd.x, y: hd.y + 4 } : { x: A.BUDDY_OUT.x + 22, y: A.BUDDY_OUT.fy - 18 }; }
+  function feet() { var f = A.CASTLE && A.buddyFeet, hd = head(); return f ? { x: f.x, y: f.y, left: f.left } : { x: hd.x, y: A.BUDDY_OUT.fy, left: false }; } // 3.8.2: where it stands (the castle has its own spot for it)
+  function bowlAt() { var b = kind(), hd = head(), f = feet(); return A.POSTED[b] ? { x: Math.round(hd.x), y: Math.round(hd.y + 2) } : { x: Math.round(hd.x + (f.left ? -8 : 8)), y: Math.round(f.y) }; } // just in front of its nose, on the ground
   function kind() { var S = app().S; return A.buddyOf(S.accentSeed, AIU.core.setting(S, 'buddy', 'auto')); }
   function busy() { return !!(bAct && Date.now() < bAct.until && !SOFT[bAct.a] && bAct.a !== 'munch' && bAct.a !== 'drink'); }
   function outside() { var v = app().view && app().view.sc; return !!(v && (A.CASTLE || !v.indoor) && (!v.place || v.place === 'home') && v.stage); } // (3.2: the castle is one picture: the pet is always in it)
@@ -50,7 +52,7 @@
   PL.snack = function () {
     if (!outside()) return false;
     var hd = head(), b = kind(), sx = hd.x + 34 + Math.random() * 10;
-    fx.push({ k: 'treat', s: TREAT[b] || 'bone', x0: sx, y0: 112, x1: hd.x + 1, y1: hd.y, t0: Date.now(), dur: 650, arc: 22 + Math.random() * 8, done: land });
+    fx.push({ k: 'treat', s: TREAT[b] || 'bone', x0: sx, y0: A.CASTLE ? hd.y - 26 : 112, x1: hd.x + 1, y1: hd.y, t0: Date.now(), dur: 650, arc: 22 + Math.random() * 8, done: land });
     app().beep('toss');
     function land(o) {
       var s = st();
@@ -66,15 +68,13 @@
     }
     return true;
   };
-  PL.water = function () {
+  PL.water = function () { // 3.8.2: a bowl in front of the pet, a jug fills it up, and it drinks
     if (!outside()) return false;
-    var hd = head(), b = kind(), bowl = { x: hd.x + (A.POSTED[b] ? 0 : 3), y: A.POSTED[b] ? hd.y + 2 : A.BUDDY_OUT.fy - 2 };
-    PL.bowlUntil = Date.now() + 60000;
-    for (var i = 0; i < 5; i++) fx.push({ k: 'drop', x0: bowl.x + 30 + i * 2, y0: 112 + i * 3, x1: bowl.x + (i % 3) - 1, y1: bowl.y, t0: Date.now() + i * 70, dur: 520, arc: 16, done: i === 4 ? sip : null });
-    app().beep('splash');
+    var now = Date.now(); PL.bowlUntil = now + 12000; PL.pourAt = now; fx.push({ k: 'pour', t0: now, life: 1000 }); /* (it stays by the bowl while it's out) */
+    app().beep('splash'); setTimeout(sip, 1000);
     function sip() {
-      var s = st();
-      if (s.water >= 100 || busy()) { for (var j = 0; j < 6; j++) fx.push({ k: 'crumb', x: bowl.x, y: bowl.y, vx: (Math.random() - 0.5) * 50, vy: -30 - Math.random() * 30, t0: Date.now(), life: 700, c: P.sky }); if (!busy()) trick(); PL.lastFull = Date.now(); save(); return; }
+      var s = st(), bw = PL.bowlPos || bowlAt();
+      if (s.water >= 100 || busy()) { for (var j = 0; j < 6; j++) fx.push({ k: 'crumb', x: bw.x, y: bw.y - 3, vx: (Math.random() - 0.5) * 50, vy: -30 - Math.random() * 30, t0: Date.now(), life: 700, c: P.sky }); if (!busy()) trick(); PL.lastFull = Date.now(); save(); return; }
       s.water = Math.min(100, s.water + 25); act('drink'); app().beep('slurp'); save(); if (AIU.life) AIU.life.joy('water');
     }
     return true;
@@ -115,7 +115,7 @@
   };
   // 2.1.15: rubbing Aiu is a back rub while he works: hearts and happy eyes, no wiggle that stops his activity
   PL.aiuRub = function () { var a = app(), now = Date.now(); a.patAt = now; if (now - (PL._ah || 0) > 260) { PL._ah = now; var p = A.actorPos(a.view && a.view.sc || {}); hearts(1, { x: p.x, y: p.y - 22 }); } };
-  PL.active = function () { return fx.length > 0 || !!bAct; };
+  PL.active = function () { return fx.length > 0 || !!bAct || (PL.bowlUntil || 0) > Date.now(); };
   // 2.2.0: Aiu gives the pet the care you just gave yourself (app.careBuddy): the pet reacts, and its tummy and bowl fill
   PL.careAct = function (kind, dur) {
     var s = st();
@@ -142,7 +142,15 @@
   PL.draw = function (c, sc) {
     if (!sc || (sc.indoor && !A.CASTLE) || (sc.place && sc.place !== 'home')) { fx.length = 0; return; }
     var now = Date.now(), b = kind();
-    if (PL.bowlUntil > now && !A.POSTED[b] && b !== 'ghost' && b !== 'conjure') { var hd = head(), bx = Math.round(hd.x + 3), fy = A.BUDDY_OUT.fy, w = st().water; K.R(c, bx - 4, fy - 3, 9, 3, P.ink); K.R(c, bx - 3, fy - 3, 7, 2, P.blue); if (w > 5) K.R(c, bx - 2, fy - 3, 5, 1, P.sky); }
+    if (PL.bowlUntil > now && b !== 'ghost' && b !== 'conjure') { // its water bowl, just in front of it
+      var fo = A.frameOff ? A.frameOff(sc) : { x: 0, y: 0 }; // (the castle draws these around Aiu, so the bowl keeps its own spot in the picture)
+      if (PL.bowlKey !== PL.bowlUntil) { PL.bowlKey = PL.bowlUntil; var b0 = bowlAt(); PL.bowlAbs = { x: b0.x + fo.x, y: b0.y + fo.y }; } // set down once, where it stands to drink; it stays there
+      PL.bowlPos = { x: Math.round(PL.bowlAbs.x - fo.x), y: Math.round(PL.bowlAbs.y - fo.y) };
+      var bw = PL.bowlPos, bx = bw.x, by = bw.y, pk = PL.pourAt ? Math.min(1, (now - PL.pourAt) / 1000) : 1, lvl = pk < 1 ? pk : (st().water > 5 ? 1 : 0.2);
+      K.R(c, bx - 5, by - 4, 11, 1, P.ink); K.R(c, bx - 5, by - 3, 1, 2, P.ink); K.R(c, bx + 5, by - 3, 1, 2, P.ink); K.R(c, bx - 4, by - 1, 9, 1, P.ink); // the rim and sides
+      K.R(c, bx - 4, by - 3, 9, 2, P.blue); K.px(c, bx - 4, by - 3, P.sky); // the bowl
+      if (lvl > 0.1) { K.R(c, bx - 4, by - 4, 9, 1, lvl >= 1 ? P.cyan : P.sky); if (lvl >= 1) K.px(c, bx - 2, by - 4, P.white); } // the water in it
+    }
     for (var i = fx.length - 1; i >= 0; i--) {
       var o = fx[i], t = now - o.t0;
       if (t < 0) continue;
@@ -154,13 +162,19 @@
       }
       var q = t / 1000; if (t > o.life) { fx.splice(i, 1); continue; }
       var xx = o.x + o.vx * q, yy = o.y + o.vy * q + (o.k === 'heart' ? 0 : 60 * q * q);
+      if (o.k === 'pour') { var bw2 = PL.bowlPos || bowlAt(), jx = bw2.x + 3, jy = bw2.y - 17, tip = t > 200;
+        K.R(c, jx, jy, 7, 7, P.ink); K.R(c, jx + 1, jy + 1, 5, 5, P.white); K.R(c, jx + 1, jy + 3, 5, 3, P.sky); K.R(c, jx + 7, jy + 2, 1, 3, P.ink); K.px(c, jx + 8, jy + 3, P.ink); // a little jug with a handle
+        K.R(c, jx - 2, jy + (tip ? 4 : 1), 2, 1, P.ink); K.px(c, jx - 2, jy + (tip ? 5 : 2), P.ink); // its spout (tipped down to pour)
+        if (tip && t < o.life - 100) for (var yy2 = jy + 6; yy2 < bw2.y - 4; yy2++) K.px(c, jx - 2, yy2, (yy2 + Math.floor(t / 70)) % 2 ? P.sky : P.cyan); // the stream
+        continue;
+      }
       if (o.k === 'brush') { // the brush going back and forth along its back, a few sparkles behind it
         var bk = t / o.life, bx2 = Math.round(o.x - 8 + Math.abs(((bk * 3) % 2) - 1) * 16), by2 = Math.round(o.y - 2);
         K.R(c, bx2 - 3, by2 - 3, 7, 2, P.wood); K.R(c, bx2 + 3, by2 - 4, 4, 1, P.wood); for (var bi = 0; bi < 3; bi++) K.px(c, bx2 - 2 + bi * 2, by2 - 1, P.sand);
         if (Math.floor(t / 120) % 2) { K.px(c, bx2 - 6, by2 - 5, P.white); K.px(c, bx2 + 5, by2 - 7, P.yellow); }
         continue;
       }
-      if (o.k === 'heart') heartPic(c, xx, yy); else if (o.k === 'bounce') treatPic(c, o.s, xx, Math.min(A.BUDDY_OUT.fy - 1, yy + 40 * q * q)); else K.px(c, Math.round(xx), Math.round(yy), o.c || P.sand);
+      if (o.k === 'heart') heartPic(c, xx, yy); else if (o.k === 'bounce') treatPic(c, o.s, xx, Math.min(feet().y - 1, yy + 40 * q * q)); else K.px(c, Math.round(xx), Math.round(yy), o.c || P.sand);
     }
   };
 })();

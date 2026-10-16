@@ -1286,6 +1286,7 @@
     // 2.0: what used to sit in the header: name, stage and type, sync status, and the sound switch
     var top0 = [ // 2.3.0: just the sync status up top (the name and stage are under Aiu & pet)
       h('p', { cls: 'small', text: 'Sync: ' + (ui.syncText || (a.prof.local ? 'This device only' : a.sync.state)) }),
+      !a.prof.local && a.sync.state === 'login' ? h('div', { cls: 'row wrap' }, btn('Log in again', function () { s.remove(); ui.reloginSheet(); }, 'primary')) : // 3.6.1
       !a.prof.local ? h('div', { cls: 'row wrap' }, btn('Sync now', function () { a.syncNow('manual').then(function () { s.remove(); ui.settings(); }, function () { s.remove(); ui.settings(); }); })) : null
     ];
     // 2.0: the instructions book, and ONE PDF maker (check off what goes in; it remembers your picks on this device)

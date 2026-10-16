@@ -46,7 +46,7 @@ API_VERSION = 1
 MAX_BODY    = 4 * 1024 * 1024
 MAX_EVENTS_PER_PUSH = 1000
 MAX_EVENTS_PER_PULL = 3000
-MAX_EVENT_BYTES     = 16_000
+MAX_EVENT_BYTES     = 32_000 # 3.6.1: one thing you did, as the app sends it (a scrambled one may be up to 1.4x this; it used to be 16 000)
 MAX_PROFILES        = 24 # Aiu profiles per account (2.2.0)
 PIECE_MAX           = 1024 * 1024 + 64 # 2.5.0: one piece of a file
 FILE_MAX_PIECES     = 64 # so one file is at most about 64 MB (the app keeps it to 25)
@@ -431,7 +431,7 @@ def clean_event(e, now, sealed = false)
   t = e['t']
   return nil unless t.is_a?(Integer) && t >= MIN_T
   data = e['data'].is_a?(Hash) ? e['data'] : {}
-  return nil if JSON.generate(data).bytesize > MAX_EVENT_BYTES
+  return nil if JSON.generate(data).bytesize > (sealed ? (MAX_EVENT_BYTES * 1.4).to_i + 256 : MAX_EVENT_BYTES)
   ev = { 'seq' => 0, 'rt' => now, 'id' => id, 't' => t, 'type' => type }
   if t > now + FUTURE_SLACK_MS
     ev['t'] = now
@@ -460,7 +460,7 @@ def act_ping(_req)
   end
   inside_web = File.expand_path(DATA_DIR).start_with?(File.expand_path(__dir__) + '/')
   shop_items = Dir.glob(File.join(SHOP_DIR, 'packs', '*', 'item.json')).reject { |f| File.basename(File.dirname(f)).start_with?('_') }.length
-  { 'ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'ruby', 'version' => '3.6.0', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'ruby' => RUBY_VERSION,
+  { 'ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'ruby', 'version' => '3.6.1', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'ruby' => RUBY_VERSION,
     'openssl' => defined?(OpenSSL) ? true : false, 'data_folder_ok' => ok_dir,
     'data_folder_private' => !inside_web, 'mail_program_found' => File.executable?(SENDMAIL),
     'shop_items' => shop_items, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'private' => true, 'rename' => true, 'inactive_days' => DELETE_INACTIVE_DAYS, 'now' => now_ms }
@@ -563,7 +563,7 @@ def act_sync(req)
   fail!(413, 'too_many', 'Too many events at once.') if incoming.length > MAX_EVENTS_PER_PUSH
   pn = req['pname']
   if sealed # 2.8.0: a private account takes only scrambled events, names and summaries
-    incoming.each { |r| need_update! unless r.is_a?(Hash) && sealed_obj?(r['data']) }
+    incoming.each { |r| need_update! unless r.is_a?(Hash) && sealed_obj?(r['data'], 1 << 20) } # (3.6.1: a scrambled one that's too big is turned down below, not mistaken for an old app)
     pn = nil unless pn.nil? || sealed?(pn, 600)
   end
   ensure_profile(u, tid, pn.nil? ? nil : clean_pname(pn), req['pkind'].nil? ? nil : clean_kind(req['pkind']))

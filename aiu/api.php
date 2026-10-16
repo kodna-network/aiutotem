@@ -41,7 +41,7 @@ define('API_VERSION', 1);
 define('MAX_BODY', 4 * 1024 * 1024);
 define('MAX_EVENTS_PER_PUSH', 1000);
 define('MAX_EVENTS_PER_PULL', 3000);
-define('MAX_EVENT_BYTES', 16000);
+define('MAX_EVENT_BYTES', 32000); // 3.6.1: one thing you did, as the app sends it (a scrambled one may be up to 1.4x this; it used to be 16000, and a long journal page scrambled went over and was dropped)
 define('MAX_PROFILES', 24);
 define('PIECE_MAX', 1024 * 1024 + 64);  // 2.5.0: one piece of a file
 define('FILE_MAX_PIECES', 64);      // so one file is at most about 64 MB (the app keeps it to 25)      // Aiu profiles per account (2.2.0)
@@ -283,7 +283,7 @@ function clean_event($e, $now, $sealed = false) {
   if ($type === 'dev_growth' && !ALLOW_DEV) return null; // 2.6.0: test growth only on a test server
   $t = g($e, 't'); if (!is_int($t) || $t < MIN_T) return null;
   $data = g($e, 'data'); if (!is_object($data)) $data = new stdClass();
-  if (strlen(json_encode($data, JF)) > MAX_EVENT_BYTES) return null;
+  if (strlen(json_encode($data, JF)) > ($sealed ? (int) (MAX_EVENT_BYTES * 1.4) + 256 : MAX_EVENT_BYTES)) return null;
   $ev = array('seq' => 0, 'rt' => $now, 'id' => $id, 't' => $t, 'type' => $type);
   if ($t > $now + FUTURE_SLACK_MS) { $ev['t'] = $now; $ev['tf'] = 1; }
   $d = (string) g($e, 'd', ''); if (preg_match('/\A\d{4}-\d{2}-\d{2}\z/', $d)) $ev['d'] = $d;
@@ -302,7 +302,7 @@ function act_ping() {
   try { setup_data_dir(); $t = data_dir() . '/.write_test'; $ok = @file_put_contents($t, 'ok') !== false; @unlink($t); } catch (Throwable $e) { $ok = false; }
   $inside = strpos(realpath(data_dir()) ?: data_dir(), realpath(__DIR__) . '/') === 0;
   $shop = 0; foreach (glob(SHOP_DIR . '/packs/*/item.json') ?: array() as $f) if (substr(basename(dirname($f)), 0, 1) !== '_') $shop++;
-  return array('ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'php', 'version' => '3.6.0', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'php' => PHP_VERSION, 'openssl' => function_exists('hash_pbkdf2'),
+  return array('ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'php', 'version' => '3.6.1', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'php' => PHP_VERSION, 'openssl' => function_exists('hash_pbkdf2'),
     'data_folder_ok' => $ok, 'data_folder_private' => !$inside, 'mail_program_found' => @is_executable(SENDMAIL) || function_exists('mail'),
     'shop_items' => $shop, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'private' => true, 'rename' => true, 'inactive_days' => DELETE_INACTIVE_DAYS, 'now' => now_ms());
 }
@@ -369,7 +369,7 @@ function act_sync($req) {
   $incoming = is_array(g($req, 'events')) ? g($req, 'events') : array();
   if (count($incoming) > MAX_EVENTS_PER_PUSH) fail(413, 'too_many', 'Too many events at once.');
   if ($sealed) { // 2.8.0: a private account takes only scrambled events, names and summaries
-    foreach ($incoming as $r) if (!sealed_obj(g($r, 'data'))) need_update();
+    foreach ($incoming as $r) if (!sealed_obj(g($r, 'data'), 1 << 20)) need_update(); // (3.6.1: a scrambled one that's too big is turned down below, not mistaken for an old app)
     if ($pn !== null && !is_sealed($pn, 600)) $pn = null;
   }
   ensure_profile($u, $tid, $pn === null ? null : clean_pname($pn), $pk === null ? null : clean_kind((string) $pk));

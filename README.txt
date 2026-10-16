@@ -1,4 +1,4 @@
-AIU TOTEM 3.6.0 - install guide
+AIU TOTEM 3.6.1 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -18,6 +18,18 @@ ACCOUNTS
     aiu_data/accounts/<username> in DirectAdmin > File Manager (that account is gone for good), or set
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
+
+WHAT'S NEW IN 3.6.1 - SYNC FIXES
+  Upload: the whole aiu folder, including api.php and api.cgi (both changed).
+  - Fixed: a device that lost its log-in (after a password or username change on another device, or a log-out) sat at
+    "N waiting to sync" with no way to log back in once the app had been closed and opened again. Now it says
+    "Log in to sync", the banner shows, and Settings has a Log in again button. Log in and everything that was waiting
+    goes up; nothing is lost.
+  - Fixed: since private sync (2.8.0) every change is scrambled before it leaves the device, which makes it bigger, but
+    the server's size limit stayed the same, so a long journal page could be dropped without a word. The limit is now
+    32 000 bytes per change (MAX_EVENT_BYTES in api.php / api.cgi), with room for the scrambled copy.
+  - If the server ever does turn a change down, the sync line now says so instead of showing "waiting" forever (the
+    change stays saved on the device).
 
 WHAT'S NEW IN 3.6.0 - THE BAILEY
   Upload: the whole aiu folder (api.php and api.cgi only changed their version).

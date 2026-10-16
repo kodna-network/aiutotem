@@ -63,7 +63,7 @@
     app.S = null; app.popup = null; app.lines = []; app.lastInput = 0; app.assets = {};
     // 2.2.0: each profile is its own Aiu: nothing from the last one carries over
     app.casting = null; app.forceAct = null; app.trip = null; app.shownIn = null; app.placeReq = null; app.mode = null; app.modeUntil = 0; app.evolve = null; app.hatching = null; app.flash = 0; app.care = null; app.patAt = 0; app.boardInfo = null;
-    app.sync = { state: 'idle', last: 0, err: '' }; app.weather = null; app.unsent = [];
+    app.sync = !app.prof.local && !app.prof.token ? { state: 'login', last: 0, err: 'Please log in again.' } : { state: 'idle', last: 0, err: '' }; app.weather = null; app.unsent = []; // 3.6.1: a profile that lost its log-in says so (it used to sit at "N waiting to sync" with no way to log back in)
     app.prof.lastOpen = Date.now(); app.saveProfiles();
     app.onOpen.forEach(function (fn) { try { fn(pid); } catch (e) {} });
     var st;
@@ -774,7 +774,7 @@
   app.syncNow = function (why) {
     if (!app.prof || !app.prof.token) return Promise.resolve();
     if (syncing) return syncing;
-    var prof = app.prof, st = app.store, before = noticeSnapshot(), hadTotem = !!(app.S && app.S.egg), gotRemote = 0, since = 0, remoteSaid = [], key = null, plain = false;
+    var prof = app.prof, st = app.store, before = noticeSnapshot(), hadTotem = !!(app.S && app.S.egg), gotRemote = 0, since = 0, remoteSaid = [], key = null, plain = false, turnedDown = 0;
     setSync('syncing');
     // 2.8.0: everything leaves this device scrambled with the account's data key, made or opened when you log in
     syncing = app.dataKey().then(function (k) {
@@ -792,7 +792,7 @@
           if (!toSend.length && app.S && app.S.egg) wait.push(AIU.vault.sealText(key, JSON.stringify(C.snapshot(app.S)), 'snap').then(function (x) { body.snapshot = { $x: x }; }));
           return Promise.all(wait).then(function () { return app.api('sync', body); });
         }).then(function (res) {
-          app.clockOffset = res.now - Date.now(); if (res.plain) plain = true;
+          app.clockOffset = res.now - Date.now(); if (res.plain) plain = true; turnedDown += res.rejected || 0;
           return app.openEvents(key, res.events).then(function () { return res; });
         }).then(function (res) {
           var known = res.known || {}, ids = res.events.map(function (e) { return e.id; }).concat(Object.keys(known));
@@ -824,7 +824,7 @@
       st.set('clockOffset', app.clockOffset);
       prof.lastSync = Date.now(); prof.synced = 1;
       app.saveProfiles();
-      setSync('ok');
+      setSync('ok', turnedDown && uns.length ? turnedDown + (turnedDown === 1 ? ' change was' : ' changes were') + ' turned down by the server (too big?). ' + (turnedDown === 1 ? 'It stays' : 'They stay') + ' saved on this device.' : ''); // 3.6.1: say so, instead of "waiting" forever
       app.rebuild();
       app.saveCheckpoint(true);
       if (gotRemote && hadTotem) announceChanges(before);

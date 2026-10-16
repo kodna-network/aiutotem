@@ -62,7 +62,7 @@
     app.pid = pid; app.prof = app.profiles[pid];
     app.S = null; app.popup = null; app.lines = []; app.lastInput = 0; app.assets = {};
     // 2.2.0: each profile is its own Aiu: nothing from the last one carries over
-    app.casting = null; app.forceAct = null; app.trip = null; app.shownIn = null; app.placeReq = null; app.mode = null; app.modeUntil = 0; app.evolve = null; app.hatching = null; app.flash = 0; app.care = null; app.patAt = 0; app.boardInfo = null;
+    app.casting = null; app.castWalk = null; app.forceAct = null; app.trip = null; app.shownIn = null; app.placeReq = null; app.mode = null; app.modeUntil = 0; app.evolve = null; app.hatching = null; app.flash = 0; app.care = null; app.patAt = 0; app.boardInfo = null;
     app.sync = !app.prof.local && !app.prof.token ? { state: 'login', last: 0, err: 'Please log in again.' } : { state: 'idle', last: 0, err: '' }; app.weather = null; app.unsent = []; // 3.6.1: a profile that lost its log-in says so (it used to sit at "N waiting to sync" with no way to log back in)
     app.prof.lastOpen = Date.now(); app.saveProfiles();
     app.onOpen.forEach(function (fn) { try { fn(pid); } catch (e) {} });
@@ -423,7 +423,7 @@
      like the old door button, unless bedtime comes first. */
   var DOOR_X = 33, ROOM_EXIT = 128, WALK = 28; // 2.3.0: the front door is on the right wall of the downstairs room // px per second (ROOM_EXIT: the front door inside)
   app.trip = null;
-  app.busyNow = function () { var now = Date.now(); return !!((app.mode && now < app.modeUntil) || app.casting || app.evolve || app.hatching); };
+  app.busyNow = function () { var now = Date.now(); return !!((app.mode && now < app.modeUntil) || app.casting || app.castWalk || app.evolve || app.hatching); };
   function homeX(indoor) { return indoor ? 104 : A.AIU_OUT; }
   function tripX(t) { var p = Math.min(1, (Date.now() - t.start) / t.dur); return Math.round(t.x0 + (t.x1 - t.x0) * p); }
   function walk(t, x0, x1) { t.phase = 'walk'; t.x0 = x0; t.x1 = x1; t.start = Date.now(); t.dur = Math.max(500, Math.abs(x1 - x0) / WALK * 1000); return t; }
@@ -986,7 +986,7 @@
   };
   function tickReading() {
     var S = app.S;
-    if (!S || !S.hatched || !AIU.ui.onMain || app.casting || app.hatching || app.evolve || document.hidden || app.popup || (window.AIU_TEST && window.AIU_TEST.noReading)) return;
+    if (!S || !S.hatched || !AIU.ui.onMain || app.casting || app.castWalk || app.hatching || app.evolve || document.hidden || app.popup || (window.AIU_TEST && window.AIU_TEST.noReading)) return;
     var today = U.dayStr(new Date(app.trueNow() + (app.dev.hourPreview || 0) * 3600e3)), rv = (S.reviews || {})[today];
     if (rv) { if (!app.readingShown(today) && castReady()) app.replayCast(rv); return; } // cast on another device: watch the toss here first
     if (app.local.castDay === today || !castReady()) return;
@@ -1010,14 +1010,21 @@
   app.castReading = function () { app.autoCast(true); };
   function castRun(r, day, done) {
     var dur = app.dev.fastCast ? 3000 : 15000;
-    app.casting = { r: r, day: day, start: Date.now(), dur: dur };
-    app.forceAct = { id: 'iching', until: Date.now() + dur + 1500 };
-    app.react('cast'); app.beep('chirp');
-    if (AIU.ui.refresh) AIU.ui.refresh(true);
-    setTimeout(done, dur);
+    function toss() {
+      app.castWalk = null;
+      app.casting = { r: r, day: day, start: Date.now(), dur: dur };
+      app.forceAct = { id: 'iching', until: Date.now() + dur + 1500 };
+      app.react('cast'); app.beep('chirp');
+      if (AIU.ui.refresh) AIU.ui.refresh(true);
+      setTimeout(done, dur);
+    }
+    var CS = A.CASTLE && AIU.castle; if (!CS || !CS.outside) return toss();
+    // 3.6.2: in the castle he walks out to the bailey first, and the coins (and their clock) start once he's there (they used to start in his room)
+    var t0 = Date.now(); app.castWalk = t0; app.forceAct = { id: 'iching', until: t0 + 90000 };
+    (function wait() { if (app.castWalk !== t0) return; if (CS.outside() || Date.now() - t0 > 60000) return toss(); if (!app.forceAct || app.forceAct.id !== 'iching') app.forceAct = { id: 'iching', until: Date.now() + 60000 }; setTimeout(wait, 200); })(); // (still on his way if you picked him up)
   }
   app.autoCast = function () { // Aiu tosses the day's coins in the yard; the reading is saved when they land
-    var S = app.S; if (!S || !S.hatched || app.casting) return;
+    var S = app.S; if (!S || !S.hatched || app.casting || app.castWalk) return;
     var day = U.dayStr(new Date(app.trueNow() + (app.dev.hourPreview || 0) * 3600e3));
     if ((S.reviews || {})[day]) { if (!app.readingShown(day)) app.replayCast(S.reviews[day]); return; }
     var r = AIU.iching.castFor(S.egg.id, day);
@@ -1034,7 +1041,7 @@
     });
   };
   app.replayCast = function (rv) { // the same toss, for a reading another device saved
-    if (app.casting || !rv) return;
+    if (app.casting || app.castWalk || !rv) return;
     castRun({ hex: rv.hex, rel: rv.rel, vals: rv.vals, moving: rv.moving }, rv.day, function () {
       app.casting = null; app.local.castSeen = rv.day; app.local.reviewSeen = rv.day; app.saveLocal();
       if (AIU.ui.showReview) AIU.ui.showReview(rv, true);

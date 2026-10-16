@@ -1,4 +1,4 @@
-AIU TOTEM 3.6.1 - install guide
+AIU TOTEM 3.6.2 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -18,6 +18,15 @@ ACCOUNTS
     aiu_data/accounts/<username> in DirectAdmin > File Manager (that account is gone for good), or set
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
+
+WHAT'S NEW IN 3.6.2
+  Upload: the whole aiu folder (api.php and api.cgi only changed their version).
+  - The pet stays in the bailey, day and night (at night it rests by the front steps instead of going up to the bedroom).
+  - Fixed: the I Ching toss started while Aiu was still in his room (the coins and the cast bubble over his head), and
+    then he walked out and finished it in the bailey. Now he walks out first and the toss starts once he's there.
+  - Accounts: your own card is now labeled Main (it was Me), and the label is permanent. It sits at the top of Cards
+    under its own heading, and its editor is made for you: your name, email and phone, then as many details as you
+    like (name each one, tick hide for anything private, move them up), and notes.
 
 WHAT'S NEW IN 3.6.1 - SYNC FIXES
   Upload: the whole aiu folder, including api.php and api.cgi (both changed).

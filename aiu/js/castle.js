@@ -856,6 +856,7 @@
     return { x: tgt.x, y: floorY(tgt.row), row: tgt.row, walking: false, tgt: tgt, left: faceLeft };
   };
   CS.walking = function () { return !!walker.path; };
+  CS.outside = function () { return !walker.path && !!lastPos && lastPos.row === -1; }; // standing in the bailey (3.6.2: the I Ching toss waits for this)
   CS.dropAt = function (p) { var row = p.y > BASE ? -1 : Math.max(0, Math.min(ROWS - 1, rowAt(p.y))); if (row >= 0 && blockAt(p.x) < 0) row = -1; walker.drop = { x: Math.max(OX + 6, Math.min((row >= 0 ? OX + BLOCKS * CW : W) - 8, p.x)), row: row }; };
   function oldAnchor(sc) { // where the old outdoor pictures put him (for what he still does with them: outside, tricks, the egg)
     if (!sc.stage) return { x: sc.spotX || (sc.indoor ? 104 : A.AIU_OUT), y: sc.indoor ? 100 : 97 };
@@ -876,8 +877,7 @@
   var HOMEBOUND = /^(care_|petbuddy|feedbuddy|waterbuddy|fetch|ride|board)/;
   function petAt(sc, aiu) {
     var b = A.buddyOf(sc.soul, sc.buddy), PLY = AIU.play, home = { x: DOORX + 46, y: SURF }, care = sc.act && HOMEBOUND.test(sc.act), L = CS.current();
-    if (sc.phase === 'night' && !A.POSTED[b] && !care && !(PLY && PLY.active && PLY.active())) { var bb = roomBox(L, 'bedroom'); return { x: bb.x + 70, y: floorY(L.rooms.bedroom.f), left: true, inside: true }; }
-    var stay = A.POSTED[b] || care || (PLY && PLY.active && PLY.active()) || (sc.bplay && sc.bplay.a);
+    var stay = A.POSTED[b] || care || sc.phase === 'night' || (PLY && PLY.active && PLY.active()) || (sc.bplay && sc.bplay.a); // (3.6.2: the pet stays in the bailey, day and night; at night it rests at home by the steps)
     var p = home, left = false;
     if (!stay) { var w = WF.wanderAt('cbuddy' + (sc.soul || 0), sc.tsec * 0.8, DOORX + 34, W - 12, 0, 0, 1); p = { x: Math.round(w.x), y: SURF }; left = w.left; }
     if (aiu && aiu.row === -1 && !aiu.walking && Math.abs(aiu.x - p.x) < 24 && !care) p = { x: aiu.x < p.x ? Math.min(W - 8, aiu.x + 24) : Math.max(DOORX + 34, aiu.x - 24), y: SURF };
@@ -921,8 +921,7 @@
     var pp = petAt(sc, aiu), anc = oldAnchor(sc);
     lastPos = { x: aiu.x, y: aiu.y, row: aiu.row, s: 1 };
     lastMap = { x: aiu.x - anc.x, y: aiu.y - anc.y };
-    var drawPet = function () { if (sc.stage && !(A.toyHide && A.toyHide('buddy'))) WF.drawBuddyAt(Lc, Object.assign({}, sc, { indoor: false }), pp, lastMap); };
-    if (!pp.inside) drawPet();
+    if (sc.stage && !(A.toyHide && A.toyHide('buddy'))) WF.drawBuddyAt(Lc, Object.assign({}, sc, { indoor: false }), pp, lastMap);
     var hideAiu = (A.toyHide && A.toyHide('aiu')) || (a.visit && a.visit.phase === 'in' && !tg.visitRoom);
     var form = sc.skin || sc.form, cr = sc.stage && form ? A.creature(form.seed, form.stage, sc.soul) : null;
     var trick = /^(hop|spin|jump|dance|wiggle|yawn|greet)$/.test(sc.mode || '') || !!sc.evolve;
@@ -935,7 +934,6 @@
       else if (cr && !trick && (tg.visitRoom || (tg.out && !(sc.act in OUTSIDE)))) drawAiu(Lc, sc, cr, aiu.x, aiu.y, { flip: aiu.left, eyes: tg.visitRoom ? 'happy' : null });
       else { clipB(tg.b); Lc.translate(lastMap.x, lastMap.y); IN.drawActor(Lc, Object.assign({}, sc, { walk: null })); Lc.restore(); } // the old pictures: outside acts, tricks, evolving
     } else if (aiu.ride) car(Lc, aiu.y, true);
-    if (pp.inside) drawPet(); // (at night, curled up at the foot of his bed)
     // the time of day: the sky, the hills and the courtyard darken; the furnished rooms stay lamp-lit
     var dim = sc.phase === 'night' ? 0.55 : sc.phase === 'dusk' || sc.phase === 'dawn' ? 0.25 : (sc.weather === 'storm' || sc.weather === 'rain') ? 0.18 : 0;
     if (dim) {

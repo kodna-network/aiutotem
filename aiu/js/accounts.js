@@ -61,11 +61,11 @@
   function loadCards() {
     var a = app(), sg = sig(a.S);
     if (VS.cards && VS.sig === sg) return Promise.resolve(VS.cards);
-    return a.vaultCards().then(function (c) { VS.cards = c; VS.sig = sg; return c; });
+    return a.vaultCards().then(function (c) { c.forEach(function (x) { if (x.key === ME) x.cat = MAIN; }); VS.cards = c; VS.sig = sg; return c; }); // 3.6.2: your own card always wears the Main label
   }
   /* 2.1.7: your own card ("Me"): your name, address, email and phone live here, scrambled like every card.
      The first time Accounts opens, it's made for you (and anything you'd typed in the old Profile > About you moves in). */
-  var ME = 'v-me';
+  var ME = 'v-me', MAIN = 'Main'; // 3.6.2: its label (it was "Me"); it can't be changed
   PN.meCardKey = ME;
   function ensureMe(cards) {
     var a = app(), S = a.S;
@@ -74,7 +74,7 @@
     var B = AIU.business, d = B && B.personalDoc ? B.personalDoc(S) : null, v = d ? B.values(S, d) : {};
     var extra = [['Legal name', v.name], ['Home address', v.address], ['Birthday', ''], ['Social Security (last 4)', v.ssn4, true], ['Where the full SSN is kept', v.ssnwhere], ['Household', v.household], ['Income from', v.income], ['Banks and cards (names only)', v.banks], ['Insurance', v.insurance], ['Money goals', v.moneygoals]]
       .filter(function (x, i) { return i < 3 || (x[1] || '').trim(); }).map(function (x) { return { k: x[0], v: (x[1] || '').trim(), secret: !!x[2] }; });
-    var card = { name: S.callMe || 'Me', cat: 'Me', user: '', pass: '', email: (v.email || '').trim(), site: '', phone: (v.phone || '').trim(), acct: '', pinq: '', notes: '', extra: extra };
+    var card = { name: S.callMe || 'Me', cat: MAIN, user: '', pass: '', email: (v.email || '').trim(), site: '', phone: (v.phone || '').trim(), acct: '', pinq: '', notes: '', extra: extra };
     return a.vaultSave(ME, card).then(function () {
       VS.meMaking = false;
       if (d) { // the old plain copy is emptied (the scrambled card has it now)
@@ -95,7 +95,7 @@
       var q = k.inp({ placeholder: 'Search name, username, email...', value: VS.q, 'aria-label': 'Search accounts' });
       var listBox = h('div');
       q.addEventListener('input', function () { VS.q = q.value; draw(); });
-      var cats = ['All'].concat(V.CATS.filter(function (c) { return cards.some(function (x) { return x.cat === c; }); })).concat(cards.map(function (x) { return x.cat; }).filter(function (c, i, arr) { return c && V.CATS.indexOf(c) < 0 && arr.indexOf(c) === i; }));
+      var cats = ['All'].concat(cards.some(function (x) { return x.key === ME; }) ? [MAIN] : []).concat(V.CATS.filter(function (c) { return cards.some(function (x) { return x.cat === c; }); })).concat(cards.map(function (x) { return x.cat; }).filter(function (c, i, arr) { return c && V.CATS.indexOf(c) < 0 && arr.indexOf(c) === i; }));
       var chips = h('div', { cls: 'chips' }, cats.map(function (c) { return k.btn(c, function () { VS.filter = c; ui.renderPanel(true); }, 'chip' + (VS.filter === c ? ' on' : '')); }));
       p.appendChild(q); if (cards.length) p.appendChild(chips);
       var az = h('div', { cls: 'azbar', 'aria-label': 'Jump to letter' });
@@ -108,10 +108,11 @@
         });
         if (!cards.length) { listBox.appendChild(h('div', { cls: 'emptybig' }, h('p', { text: me ? 'Your other accounts go here.' : 'Your accounts phone book is empty.' }), h('p', { cls: 'small', text: 'Add email accounts, game logins like Steam, bills like electric and water, or contact info. Make each card as detailed as you like.' }), k.btn('+ Add the first card', function () { editCard(null); }, 'primary'))); return; }
         if (!shown.length) listBox.appendChild(k.empty('No cards match.'));
-        var last = '';
-        shown.forEach(function (c) {
+        var last = '', mine = shown.filter(function (c) { return c.key === ME; });
+        if (mine.length) { listBox.appendChild(h('div', { cls: 'azhead', text: MAIN })); } // 3.6.2: your own card first, under its own heading
+        mine.concat(shown.filter(function (c) { return c.key !== ME; })).forEach(function (c) {
           var L = (String(c.name || '#').charAt(0).toUpperCase().replace(/[^A-Z]/, '#'));
-          if (L !== last) {
+          if (c.key !== ME && L !== last) {
             last = L; var anchor = h('div', { cls: 'azhead', id: 'az-' + L, text: L }); listBox.appendChild(anchor);
             az.appendChild(h('button', { type: 'button', text: L, onclick: function () { try { anchor.scrollIntoView({ block: 'start' }); } catch (e) {} } }));
           }
@@ -165,6 +166,7 @@
       h('div', { cls: 'row spread' }, c.key === ME ? h('span', { cls: 'small', text: 'Your own card (it can\'t be deleted).' }) : k.btn('Delete', function () { s.remove(); delCard(c); }, 'mini del'), k.btn('Edit', function () { s.remove(); editCard(c); }, 'primary'))]);
   }
   function editCard(c0) {
+    if (c0 && c0.key === ME) return editMain(c0); // 3.6.2: your own card has its own editor
     var a = app(), k = K(), c = c0 || { cat: VS.filter !== 'All' ? VS.filter : '' }, s, extras = (c.extra || []).map(function (x) { return { k: x.k, v: x.v, secret: x.secret }; });
     touch();
     var name = k.inp({ value: c.name || '', placeholder: 'e.g. Email, Games, Electric company', autocapitalize: 'words' });
@@ -201,6 +203,39 @@
         var key = c0 ? c0.key : 'v-' + U.id().replace(/[^A-Za-z0-9]/g, '').slice(0, 14);
         if (JSON.stringify(card).length > 14000) return k.msg(m, 'This card is too big. Shorten the notes a little.', true);
         a.vaultSave(key, card).then(function () { s.remove(); ui.renderPanel(true); K().snack('Saved "' + card.name + '".'); }, function (e) { k.msg(m, e.message, true); });
+      }, 'primary'))]);
+  }
+  // 3.6.2: your Main card: your name, email and phone, then as many details as you like (each one a label you name and its
+  // value; tick hide for anything private). The label stays Main. Its login fields (if it ever had any) are kept as they were.
+  function editMain(c0) {
+    var a = app(), k = K(), s, extras = (c0.extra || []).map(function (x) { return { k: x.k, v: x.v, secret: x.secret }; });
+    touch();
+    var name = k.inp({ value: c0.name || '', placeholder: 'Your name', autocapitalize: 'words' });
+    var email = k.inp({ value: c0.email || '', type: 'email', autocomplete: 'off', spellcheck: false }), phone = k.inp({ value: c0.phone || '', type: 'tel', autocomplete: 'off' });
+    var notes = h('textarea', { rows: 4, value: c0.notes || '', 'aria-label': 'Notes' }), exBox = h('div'), m = h('p', { cls: 'formmsg' });
+    function drawEx() {
+      k.clear(exBox);
+      extras.forEach(function (x, i) {
+        var kk = k.inp({ value: x.k, placeholder: 'Label (e.g. Blood type)', 'aria-label': 'Detail label' }), vv = k.inp({ value: x.v, placeholder: 'Value', 'aria-label': 'Detail value', type: x.secret ? 'password' : 'text' });
+        kk.addEventListener('input', function () { x.k = kk.value; }); vv.addEventListener('input', function () { x.v = vv.value; });
+        var sec = h('input', { type: 'checkbox', checked: !!x.secret, 'aria-label': 'Hide this value', onchange: function (e) { x.secret = e.target.checked; vv.type = x.secret ? 'password' : 'text'; } });
+        var up = i ? k.iconBtn('Move up', '^', function () { var t = extras[i - 1]; extras[i - 1] = extras[i]; extras[i] = t; drawEx(); }) : null;
+        exBox.appendChild(h('div', { cls: 'row exrow' }, kk, vv, h('label', { cls: 'row small', title: 'Hide it like a password' }, sec, 'hide'), up, k.iconBtn('Remove', 'X', function () { extras.splice(i, 1); drawEx(); }, 'del')));
+      });
+    }
+    drawEx();
+    s = k.sheet('Edit your Main card', [
+      h('p', null, h('span', { cls: 'tag', text: MAIN }), h('span', { cls: 'small', text: '  Your own card. Its label stays Main, and it can\'t be deleted.' })),
+      k.field('Name', name), h('div', { cls: 'row2' }, k.field('Email', email), k.field('Phone', phone)),
+      h('div', { cls: 'field' }, h('span', { cls: 'flabel', text: 'Your details (add anything: an address, a birthday, a license plate, a shoe size...)' }), exBox,
+        h('div', { cls: 'row wrap' }, k.btn('+ Add a detail', function () { extras.push({ k: '', v: '' }); drawEx(); }, 'mini'))),
+      k.field('Notes', notes), m,
+      h('div', { cls: 'row spread' }, h('span'), k.btn('Save', function () {
+        var card = Object.assign({}, c0, { name: (name.value.trim() || c0.name || 'Me').slice(0, 60), cat: MAIN, email: email.value.slice(0, 500), phone: phone.value.slice(0, 500), notes: notes.value.slice(0, 4000),
+          extra: extras.filter(function (x) { return x.k.trim() || x.v.trim(); }).map(function (x) { return { k: x.k.trim().slice(0, 40) || 'Detail', v: x.v.slice(0, 500), secret: !!x.secret }; }) });
+        ['key', 't', 'dn', 'plain', 'locked'].forEach(function (x) { delete card[x]; });
+        if (JSON.stringify(card).length > 14000) return k.msg(m, 'This card is too big. Shorten the notes or a detail a little.', true);
+        a.vaultSave(ME, card).then(function () { s.remove(); VS.cards = null; ui.renderPanel(true); K().snack('Saved your Main card.'); }, function (e) { k.msg(m, e.message, true); });
       }, 'primary'))]);
   }
   function delCard(c) {

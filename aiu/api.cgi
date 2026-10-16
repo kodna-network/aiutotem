@@ -460,7 +460,7 @@ def act_ping(_req)
   end
   inside_web = File.expand_path(DATA_DIR).start_with?(File.expand_path(__dir__) + '/')
   shop_items = Dir.glob(File.join(SHOP_DIR, 'packs', '*', 'item.json')).reject { |f| File.basename(File.dirname(f)).start_with?('_') }.length
-  { 'ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'ruby', 'version' => '3.6.1', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'ruby' => RUBY_VERSION,
+  { 'ok' => true, 'app' => 'aiu-totem', 'api' => API_VERSION, 'server' => 'ruby', 'version' => '3.6.2', 'profiles' => true, 'files' => true, 'files_max_mb' => FILES_MAX_MB, 'ruby' => RUBY_VERSION,
     'openssl' => defined?(OpenSSL) ? true : false, 'data_folder_ok' => ok_dir,
     'data_folder_private' => !inside_web, 'mail_program_found' => File.executable?(SENDMAIL),
     'shop_items' => shop_items, 'email_confirm_required' => REQUIRE_EMAIL_CONFIRM, 'signups_open' => SIGNUPS_OPEN, 'private' => true, 'rename' => true, 'inactive_days' => DELETE_INACTIVE_DAYS, 'now' => now_ms }

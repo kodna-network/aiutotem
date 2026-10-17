@@ -1,4 +1,4 @@
-AIU TOTEM 3.8.3 - install guide
+AIU TOTEM 3.8.4 - install guide
 ==============================
 
 Aiu Totem is a web app: one address (kodna.net/aiu) that works on your iPhone, your
@@ -18,6 +18,14 @@ ACCOUNTS
     aiu_data/accounts/<username> in DirectAdmin > File Manager (that account is gone for good), or set
     DELETE_INACTIVE_DAYS (below) and accounts nobody has used for that many days are deleted by themselves.
   Private data (2.8.0): the server can't read anyone's Totem. See WHAT'S NEW IN 2.8.0.
+
+WHAT'S NEW IN 3.8.4 - A NEW SHARE PICTURE
+  Upload: index.html and icons/og-image.png (or the whole aiu folder; api.php and api.cgi only changed their version).
+  - When you share kodna.net/aiu, the preview now shows a baby creature peeking out of its cracked egg in a straw
+    nest (the top of the shell on its head like a hat), with hearts and sparkles: "Aiu Totem: hatch your own little
+    pixel friend". The picture's address has ?v=3.8.4 on it, so apps fetch the new one instead of a saved copy.
+    Facebook can still hold on to the old preview for a while: paste the link into its Sharing Debugger and press
+    Scrape Again to refresh it.
 
 WHAT'S NEW IN 3.8.3
   Upload: the whole aiu folder (api.php and api.cgi only changed their version).
